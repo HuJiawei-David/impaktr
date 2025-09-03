@@ -1,0 +1,518 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  INDIVIDUAL
+  NGO
+  CORPORATE
+  SCHOOL
+  HEALTHCARE
+}
+
+enum EventStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ParticipationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum VerificationType {
+  SELF
+  PEER
+  ORGANIZER
+  GPS
+  AUTOMATIC
+}
+
+enum BadgeTier {
+  SUPPORTER
+  BUILDER
+  CHAMPION
+  GUARDIAN
+}
+
+enum IndividualRank {
+  HELPER
+  SUPPORTER
+  CONTRIBUTOR
+  BUILDER
+  ADVOCATE
+  CHANGEMAKER
+  MENTOR
+  LEADER
+  AMBASSADOR
+  GLOBAL_CITIZEN
+}
+
+enum OrganizationTier {
+  REGISTERED
+  PARTICIPANT
+  COMMUNITY_ALLY
+  CONTRIBUTOR
+  CSR_PRACTITIONER
+  CSR_LEADER
+  ESG_CHAMPION
+  TRUSTED_PARTNER
+  INDUSTRY_BENCHMARK
+  GLOBAL_IMPACT_LEADER
+}
+
+model User {
+  id            String   @id @default(cuid())
+  auth0Id       String   @unique
+  email         String   @unique
+  userType      UserType
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastActiveAt  DateTime @default(now())
+  isVerified    Boolean  @default(false)
+  onboardingComplete Boolean @default(false)
+
+  // Profile data (polymorphic based on userType)
+  profile       UserProfile?
+  
+  // Scoring
+  impaktrScore  Float    @default(0)
+  scoreHistory  ScoreHistory[]
+  
+  // Gamification
+  currentRank   IndividualRank @default(HELPER)
+  badges        UserBadge[]
+  achievements  Achievement[]
+  certificates  Certificate[]
+  
+  // Events & Participation
+  createdEvents Event[]
+  participations Participation[]
+  verifications Verification[] @relation("Verifier")
+  receivedVerifications Verification[] @relation("Verified")
+  
+  // Social
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  follows       Follow[] @relation("Follower")
+  followers     Follow[] @relation("Following")
+  
+  // Organization membership
+  memberships   OrganizationMember[]
+  ownedOrganizations Organization[]
+  
+  // Stripe subscription fields
+  stripeCustomerId String? @unique
+  subscriptionId   String?
+  subscriptionStatus String?
+  subscriptionPlan String?
+  
+  @@map("users")
+}
+
+model UserProfile {
+  id          String @id @default(cuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Common fields
+  firstName   String?
+  lastName    String?
+  displayName String?
+  bio         String?
+  avatar      String?
+  banner      String?
+  website     String?
+  location    Json? // {city, state, country, coordinates}
+  languages   String[] @default([])
+  
+  // Individual specific
+  dateOfBirth DateTime?
+  gender      String?
+  nationality String?
+  occupation  String?
+  organization String?
+  
+  // Organization specific
+  organizationName String?
+  registrationNumber String?
+  industry    String?
+  companySize String?
+  description String?
+  logo        String?
+  contactPerson Json? // {name, role, email, phone}
+  
+  // SDG preferences
+  sdgFocus    Int[] @default([]) // SDG numbers 1-17
+  
+  // Privacy & preferences
+  isPublic    Boolean @default(true)
+  showEmail   Boolean @default(false)
+  notifications Json @default("{}")
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("user_profiles")
+}
+
+model Organization {
+  id            String            @id @default(cuid())
+  ownerId       String
+  owner         User              @relation(fields: [ownerId], references: [id])
+  name          String
+  type          UserType
+  tier          OrganizationTier  @default(REGISTERED)
+  impaktrScore  Float             @default(0)
+  isVerified    Boolean           @default(false)
+  
+  members       OrganizationMember[]
+  events        Event[]
+  scoreHistory  OrganizationScoreHistory[]
+  badges        OrganizationBadge[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Stripe subscription fields
+  stripeCustomerId String?
+  subscriptionId   String?
+  subscriptionStatus String?
+  subscriptionPlan String?
+  
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String @default("member") // member, admin, owner
+  joinedAt       DateTime @default(now())
+  
+  @@unique([organizationId, userId])
+  @@map("organization_members")
+}
+
+model Event {
+  id                String      @id @default(cuid())
+  title             String
+  description       String
+  status            EventStatus @default(DRAFT)
+  
+  // Creator (can be individual or organization)
+  creatorId         String
+  creator           User        @relation(fields: [creatorId], references: [id])
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id])
+  
+  // Event details
+  startDate         DateTime
+  endDate           DateTime?
+  location          Json? // {address, city, coordinates, isVirtual}
+  maxParticipants   Int?
+  currentParticipants Int @default(0)
+  
+  // Impact details
+  sdgTags           Int[] @default([]) // SDG numbers 1-17
+  skills            String[] @default([])
+  intensity         Float    @default(1.0) // 0.8-1.2
+  verificationType  VerificationType @default(ORGANIZER)
+  
+  // Media
+  images            String[] @default([])
+  documents         String[] @default([])
+  
+  participations    Participation[]
+  verifications     Verification[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("events")
+}
+
+model Participation {
+  id              String              @id @default(cuid())
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId         String
+  event           Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  hoursCommitted  Float
+  hoursActual     Float?
+  status          ParticipationStatus @default(PENDING)
+  
+  // Verification data
+  verifications   Verification[]
+  proofImages     String[] @default([])
+  notes           String?
+  
+  // Scoring components
+  qualityRating   Float? // 0.5-1.5
+  skillMultiplier Float @default(1.0) // 1.0-1.4
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  verifiedAt      DateTime?
+  
+  @@unique([userId, eventId])
+  @@map("participations")
+}
+
+model Verification {
+  id              String           @id @default(cuid())
+  participationId String
+  participation   Participation    @relation(fields: [participationId], references: [id], onDelete: Cascade)
+  eventId         String
+  event           Event            @relation(fields: [eventId], references: [id])
+  
+  verifierId      String?
+  verifier        User?            @relation("Verifier", fields: [verifierId], references: [id])
+  verifiedId      String
+  verified        User             @relation("Verified", fields: [verifiedId], references: [id])
+  
+  type            VerificationType
+  status          ParticipationStatus @default(PENDING)
+  
+  // Verification data
+  gpsCoordinates  Json? // {lat, lng, accuracy, timestamp}
+  proofData       Json? // photos, signatures, etc.
+  comments        String?
+  rating          Float? // 0.5-1.5 for quality
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("verifications")
+}
+
+model ScoreHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  oldScore    Float
+  newScore    Float
+  change      Float
+  reason      String // "event_verified", "badge_earned", "rank_up"
+  
+  // Score breakdown
+  hoursComponent    Float
+  intensityComponent Float
+  skillComponent    Float
+  qualityComponent  Float
+  verificationComponent Float
+  locationComponent Float
+  
+  eventId     String?
+  participationId String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("score_history")
+}
+
+model OrganizationScoreHistory {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  oldScore       Float
+  newScore       Float
+  change         Float
+  
+  // Score components
+  employeeParticipation Float
+  hoursPerEmployee     Float
+  qualityRating        Float
+  verificationRate     Float
+  skillsImpact         Float
+  causeDiversity       Float
+  globalFairness       Float
+  
+  createdAt      DateTime @default(now())
+  
+  @@map("organization_score_history")
+}
+
+model Badge {
+  id          String    @id @default(cuid())
+  sdgNumber   Int       // 1-17
+  tier        BadgeTier
+  name        String
+  description String
+  icon        String?
+  
+  // Requirements
+  minHours    Int
+  minActivities Int
+  minQuality  Float?
+  
+  userBadges  UserBadge[]
+  orgBadges   OrganizationBadge[]
+  
+  @@unique([sdgNumber, tier])
+  @@map("badges")
+}
+
+model UserBadge {
+  id       String    @id @default(cuid())
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId  String
+  badge    Badge     @relation(fields: [badgeId], references: [id])
+  
+  progress Float     @default(0) // 0-100
+  earnedAt DateTime?
+  
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model OrganizationBadge {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  badgeId        String
+  badge          Badge        @relation(fields: [badgeId], references: [id])
+  
+  progress       Float        @default(0) // 0-100
+  earnedAt       DateTime?
+  
+  @@unique([organizationId, badgeId])
+  @@map("organization_badges")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        String // "hours_milestone", "sdg_diversity", "streak", etc.
+  name        String
+  description String
+  icon        String?
+  data        Json     @default("{}")
+  
+  earnedAt    DateTime @default(now())
+  
+  @@map("achievements")
+}
+
+model Certificate {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type            String // "badge", "achievement", "event", "rank"
+  title           String
+  description     String
+  
+  // Related entities
+  badgeId         String?
+  achievementId   String?
+  eventId         String?
+  participationId String?
+  
+  // Certificate data
+  templateId      String?
+  certificateUrl  String?
+  shareUrl        String?
+  linkedInShared  Boolean @default(false)
+  
+  issuedAt        DateTime @default(now())
+  expiresAt       DateTime?
+  
+  @@map("certificates")
+}
+
+model Post {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  content     String?
+  images      String[]  @default([])
+  
+  // Post type and related data
+  type        String // "event_joined", "badge_earned", "achievement", "general"
+  eventId     String?
+  badgeId     String?
+  achievementId String?
+  
+  likes       Like[]
+  comments    Comment[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  content   String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("comments")
+}
+
+model Like {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([postId, userId])
+  @@map("likes")
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  followerId  String
+  follower    User   @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User   @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+// Leaderboard cache table for performance
+model Leaderboard {
+  id          String   @id @default(cuid())
+  type        String // "individual", "organization", "country", "sdg"
+  category    String? // SDG number, country code, etc.
+  period      String // "all_time", "yearly", "monthly"
+  
+  rankings    Json // Array of {userId/orgId, score, rank, badges}
+  
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([type, category, period])
+  @@map("leaderboards")
+}
