@@ -4,68 +4,79 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession, signIn } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { ArrowRight, Play, Star, Users, Award, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
 export function HeroSection() {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
+  const router = useRouter();
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-background to-secondary-50 dark:from-primary-950 dark:via-background dark:to-secondary-950" />
-      
-      {/* Animated background elements */}
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950">
+      {/* Enhanced animated background */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-32 h-32 bg-primary-200/20 rounded-full blur-xl animate-pulse-slow" />
-        <div className="absolute top-40 right-20 w-24 h-24 bg-secondary-200/20 rounded-full blur-xl animate-pulse-slow delay-300" />
-        <div className="absolute bottom-32 left-1/4 w-40 h-40 bg-accent-200/10 rounded-full blur-xl animate-pulse-slow delay-700" />
-        <div className="absolute bottom-20 right-1/3 w-28 h-28 bg-primary-300/15 rounded-full blur-xl animate-pulse-slow delay-500" />
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-1/3 right-1/4 w-48 h-48 bg-indigo-400/10 rounded-full blur-3xl animate-pulse animation-delay-300" />
+        <div className="absolute bottom-1/4 left-1/3 w-56 h-56 bg-cyan-400/8 rounded-full blur-3xl animate-pulse animation-delay-700" />
       </div>
 
-      <div className="relative container mx-auto px-4 text-center">
+      <div className="relative container mx-auto px-6 text-center max-w-6xl">
         {/* Badge */}
-        <div className="mb-6 flex justify-center">
-          <Badge variant="secondary" className="px-4 py-2 text-sm">
-            <Star className="w-4 h-4 mr-2" />
-            World's First Global Impact Standard
+        <div className="mb-8 flex justify-center animate-fade-in">
+          <Badge variant="secondary" className="px-6 py-3 text-base bg-white/20 backdrop-blur-sm border-white/30 text-slate-700 dark:text-slate-200 shadow-lg">
+            <Star className="w-5 h-5 mr-2 text-yellow-500" />
+            World&apos;s First Global Impact Standard
           </Badge>
         </div>
 
         {/* Main Heading */}
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 text-balance">
-          Measure Your{' '}
-          <span className="brand-gradient-text">Social Impact</span>
+        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-8 text-balance leading-tight">
+          <span className="text-slate-800 dark:text-slate-100">Measure Your</span>{' '}
+          <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Social Impact
+          </span>
           <br />
-          Like Never Before
+          <span className="text-slate-800 dark:text-slate-100">Like Never Before</span>
         </h1>
 
         {/* Subheading */}
-        <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto text-balance">
+        <p className="text-lg md:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 mb-12 max-w-4xl mx-auto text-balance leading-relaxed">
           Get verified Impact Scores, earn SDG badges, and share certificates for your volunteering, donations, and CSR activities. Join the global movement making social good measurable.
         </p>
 
         {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+        <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-20">
           {user ? (
             <Link href="/dashboard">
-              <Button size="xl" variant="gradient" className="group">
+              <Button 
+                size="lg" 
+                className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+              >
                 Go to Dashboard
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
           ) : (
             <>
-              <Link href="/api/auth/login?screen_hint=signup">
-                <Button size="xl" variant="gradient" className="group">
-                  Start Building Impact
+              <Link href="/signup">
+                <Button 
+                  size="lg" 
+                  className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-200"
+                >
+                  Get Started
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               
-              <Button size="xl" variant="outline" className="group">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="group border-2 border-slate-300 hover:border-blue-400 text-slate-700 dark:text-slate-200 px-8 py-4 text-lg font-semibold rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all duration-200"
+              >
                 <Play className="mr-2 w-5 h-5" />
                 Watch Demo
               </Button>
@@ -75,38 +86,38 @@ export function HeroSection() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16">
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold brand-gradient-text mb-2">
+          <div className="text-center group">
+            <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-200">
               50K+
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
               Verified Volunteers
             </div>
           </div>
           
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold brand-gradient-text mb-2">
+          <div className="text-center group">
+            <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-200">
               1.2M
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
               Impact Hours Logged
             </div>
           </div>
           
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold brand-gradient-text mb-2">
+          <div className="text-center group">
+            <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-200">
               500+
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
               Organizations
             </div>
           </div>
           
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold brand-gradient-text mb-2">
+          <div className="text-center group">
+            <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform duration-200">
               17
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-slate-500 dark:text-slate-400 font-medium">
               SDG Categories
             </div>
           </div>

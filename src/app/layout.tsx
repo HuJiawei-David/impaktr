@@ -2,11 +2,11 @@
 
 import './globals.css';
 import { Inter } from 'next/font/google';
-import { UserProvider } from '@auth0/nextjs-auth0/client';
 import { Toaster } from 'react-hot-toast';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SocketProvider } from '@/components/providers/SocketProvider';
+import { NextAuthProvider } from '@/components/providers/NextAuthProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -84,7 +84,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <UserProvider>
+        <NextAuthProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -122,7 +122,7 @@ export default function RootLayout({
               </SocketProvider>
             </QueryProvider>
           </ThemeProvider>
-        </UserProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );

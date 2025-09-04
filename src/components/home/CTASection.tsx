@@ -70,7 +70,7 @@ export function CTASection() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-            <Link href="/api/auth/login?screen_hint=signup">
+            <Link href="/signup">
               <Button 
                 size="lg" 
                 className="bg-white text-primary-700 hover:bg-white/90 font-semibold px-8 py-4 text-lg group shadow-xl"

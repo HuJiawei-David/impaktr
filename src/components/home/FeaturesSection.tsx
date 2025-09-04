@@ -142,7 +142,7 @@ export function FeaturesSection() {
           </div>
           <p className="text-lg text-muted-foreground">
             Ready to start measuring your social impact?{' '}
-            <a href="/api/auth/login?screen_hint=signup" className="text-primary hover:underline font-medium">
+            <a href="/signup" className="text-primary hover:underline font-medium">
               Get started for free →
             </a>
           </p>

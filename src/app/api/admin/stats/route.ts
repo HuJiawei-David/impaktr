@@ -1,7 +1,10 @@
 // home/ubuntu/impaktrweb/src/app/api/admin/stats/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 
@@ -12,9 +15,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is admin
-    const isAdmin = session.user['https://impaktr.com/roles']?.includes('admin') || 
-                   session.user.email === 'admin@impaktr.com' ||
+    // Check if user is admin (simplified for NextAuth)
+    const isAdmin = session.user.email === 'admin@impaktr.com' ||
                    session.user.email?.endsWith('@impaktr.com');
 
     if (!isAdmin) {

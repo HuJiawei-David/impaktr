@@ -145,7 +145,7 @@ export function StatsSection() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a 
-              href="/api/auth/login?screen_hint=signup" 
+              href="/signup" 
               className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
               Start Your Impact Journey

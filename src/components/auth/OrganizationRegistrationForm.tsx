@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { Building2, Upload, MapPin, FileText, Users, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,7 +91,8 @@ const getFormTitle = (profileType: UserType) => {
 };
 
 export function OrganizationRegistrationForm({ profileType }: OrganizationRegistrationFormProps) {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [logo, setLogo] = useState<File | null>(null);

@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/payments/create-checkout/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const { priceId, planType, organizationId } = body;
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!user) {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'subscription',
-      customer_email: user.email,
+      customer_email: user.email || undefined,
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       metadata: {

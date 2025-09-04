@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession } from 'next-auth/react';
 import { Check, X, Zap, Star, Crown, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -198,7 +198,8 @@ const corporatePlans = [
 ];
 
 export default function PricingPage() {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [activeTab, setActiveTab] = useState('individual');
 
@@ -217,7 +218,7 @@ export default function PricingPage() {
         body: JSON.stringify({
           priceId: billingCycle === 'monthly' ? priceId.monthly : priceId.yearly,
           planType,
-          userId: user.sub,
+          userId: user.id,
         }),
       });
 

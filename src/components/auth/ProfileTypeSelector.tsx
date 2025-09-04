@@ -112,8 +112,8 @@ export function ProfileTypeSelector() {
       // Store selected profile type in sessionStorage for onboarding
       sessionStorage.setItem('selectedProfileType', selectedType);
       
-      // Redirect to registration form with profile type
-      router.push(`/register?type=${selectedType.toLowerCase()}`);
+      // Redirect to profile setup form with profile type
+      router.push(`/profile-setup?type=${selectedType.toLowerCase()}`);
     } catch (error) {
       console.error('Error selecting profile type:', error);
     } finally {

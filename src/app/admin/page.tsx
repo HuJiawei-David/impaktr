@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import {
   Users,
@@ -49,7 +49,9 @@ interface AdminStats {
 }
 
 export default function AdminDashboard() {
-  const { user, isLoading } = useUser();
+  const { data: session, status } = useSession();
+  const user = session?.user;
+  const isLoading = status === 'loading';
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoadingStats, setIsLoadingStats] = useState(true);

@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/users/register/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadToS3 } from '@/lib/aws';
 import { z } from 'zod';
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
       include: { profile: true },
     });
 

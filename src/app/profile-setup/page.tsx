@@ -1,17 +1,19 @@
-// home/ubuntu/impaktrweb/src/app/register/page.tsx
+// home/ubuntu/impaktrweb/src/app/profile-setup/page.tsx
 
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession, signIn } from 'next-auth/react';
 import { UserType } from '@prisma/client';
 import { ProfileTypeSelector } from '@/components/auth/ProfileTypeSelector';
 import { IndividualRegistrationForm } from '@/components/auth/IndividualRegistrationForm';
 import { OrganizationRegistrationForm } from '@/components/auth/OrganizationRegistrationForm';
 
 function RegisterContent() {
-  const { user, isLoading: authLoading } = useUser();
+  const { data: session, status } = useSession();
+  const user = session?.user;
+  const authLoading = status === 'loading';
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedProfileType, setSelectedProfileType] = useState<UserType | null>(null);
@@ -19,8 +21,8 @@ function RegisterContent() {
   useEffect(() => {
     // Check if user is already authenticated but not onboarded
     if (!authLoading && !user) {
-      // Redirect to Auth0 login with signup hint
-      window.location.href = '/api/auth/login?screen_hint=signup';
+      // Redirect to NextAuth login
+      signIn();
       return;
     }
 

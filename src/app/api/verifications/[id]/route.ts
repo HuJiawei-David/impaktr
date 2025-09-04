@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/verifications/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { ParticipationStatus } from '@prisma/client';
@@ -28,7 +28,7 @@ export async function PUT(
     const { status, comments, rating } = updateVerificationSchema.parse(body);
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!user) {
@@ -168,7 +168,7 @@ export async function DELETE(
     }
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!user) {

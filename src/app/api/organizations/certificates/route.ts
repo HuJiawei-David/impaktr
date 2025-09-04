@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/organizations/certificates/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { generateOrganizationCertificate } from '@/lib/certificate-generator';
 import { uploadToS3 } from '@/lib/aws';
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const { participantId, eventId, customMessage } = createOrgCertificateSchema.parse(body);
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
       include: { profile: true }
     });
 

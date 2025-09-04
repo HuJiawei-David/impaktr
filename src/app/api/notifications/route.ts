@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/notifications/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!user) {
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has admin privileges (implement based on your admin system)
-    const isAdmin = await checkAdminPrivileges(session.user.sub);
+    const isAdmin = await checkAdminPrivileges(session.user.id);
     if (!isAdmin) {
       return NextResponse.json({ error: 'Admin privileges required' }, { status: 403 });
     }
@@ -119,7 +119,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!user) {
@@ -306,15 +306,17 @@ async function markNotificationsAsRead(userId: string, notificationIds: string[]
   console.log(`Marking notifications as read for user ${userId}:`, notificationIds);
 }
 
-async function checkAdminPrivileges(auth0Id: string): Promise<boolean> {
+async function checkAdminPrivileges(userId: string): Promise<boolean> {
   // In production, check if user has admin role
-  const user = await prisma.user.findUnique({
-    where: { auth0Id },
+  const memberships = await prisma.organizationMember.findMany({
+    where: {
+      userId: userId,
+      role: { in: ['admin', 'owner'] }
+    }
   });
 
-  // For now, return false. You'd implement proper admin checking here
-  // This might check against a roles table, Auth0 roles, or specific user flags
-  return false;
+  // Check if user has admin privileges in any organization
+  return memberships.length > 0;
 }
 
 function generateId(): string {

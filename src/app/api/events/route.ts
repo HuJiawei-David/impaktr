@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/events/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus, VerificationType } from '@prisma/client';
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createEventSchema.parse(body);
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!user) {

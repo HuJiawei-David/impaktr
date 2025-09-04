@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/users/sync/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { UserType } from '@prisma/client';
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists
     let user = await prisma.user.findUnique({
-      where: { auth0Id },
+      where: { id: session.user.id },
       include: { profile: true }
     });
 
@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
       // Create new user
       user = await prisma.user.create({
         data: {
-          auth0Id,
           email,
           userType: UserType.INDIVIDUAL, // Default, will be updated during onboarding
           profile: {

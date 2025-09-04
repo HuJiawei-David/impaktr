@@ -3,7 +3,7 @@
 'use client';
 
 import React from 'react';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { 
   Calendar,
@@ -28,7 +28,9 @@ import { StatsCards } from '@/components/dashboard/StatsCards';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { user, isLoading } = useUser();
+  const { data: session, status } = useSession();
+  const user = session?.user;
+  const isLoading = status === 'loading';
 
   if (isLoading) {
     return (
@@ -48,10 +50,10 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">
-            Welcome back, {String(user.given_name ?? user.name?.split(' ')[0] ?? '')}! 👋
+            Welcome back, {String(user.name?.split(' ')[0] ?? 'there')}! 👋
           </h1>
           <p className="text-muted-foreground">
-            Here's what's happening with your impact journey today.
+            Here&apos;s what&apos;s happening with your impact journey today.
           </p>
         </div>
 

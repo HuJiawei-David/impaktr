@@ -1,6 +1,9 @@
 // home/ubuntu/impaktrweb/src/app/api/leaderboards/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 

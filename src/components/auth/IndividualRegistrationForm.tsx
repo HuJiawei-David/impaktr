@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession } from 'next-auth/react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { CalendarDays, Upload, MapPin, Languages, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,8 @@ interface IndividualRegistrationData {
 }
 
 export function IndividualRegistrationForm() {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
@@ -51,8 +52,8 @@ export function IndividualRegistrationForm() {
     watch
   } = useForm<IndividualRegistrationData>({
     defaultValues: {
-      firstName: (user?.given_name || '') as string,
-      lastName: (user?.family_name || '') as string,
+      firstName: (user?.name?.split(' ')[0] || '') as string,
+      lastName: (user?.name?.split(' ').slice(1).join(' ') || '') as string,
       showEmail: false,
       isPublic: true,
       languages: []

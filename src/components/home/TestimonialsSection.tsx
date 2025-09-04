@@ -15,7 +15,7 @@ const testimonials = [
     name: 'Sarah Chen',
     role: 'Software Engineer',
     company: 'Tech for Good Malaysia',
-    avatar: '/testimonials/sarah.jpg',
+    avatar: '',
     impaktrScore: 847,
     rank: 'Ambassador',
     badges: 12,
@@ -29,7 +29,7 @@ const testimonials = [
     name: 'Dr. Ahmad Hassan',
     role: 'Director of CSR',
     company: 'Maybank Foundation',
-    avatar: '/testimonials/ahmad.jpg',
+    avatar: '',
     impaktrScore: 92,
     rank: 'ESG Champion',
     badges: 8,
@@ -43,7 +43,7 @@ const testimonials = [
     name: 'Maria Santos',
     role: 'University Student',
     company: 'University of Malaya',
-    avatar: '/testimonials/maria.jpg',
+    avatar: '',
     impaktrScore: 234,
     rank: 'Advocate',
     badges: 6,
@@ -57,7 +57,7 @@ const testimonials = [
     name: 'Raj Patel',
     role: 'Founder',
     company: 'Green Earth NGO',
-    avatar: '/testimonials/raj.jpg',
+    avatar: '',
     impaktrScore: 78,
     rank: 'CSR Leader',
     badges: 15,
@@ -71,7 +71,7 @@ const testimonials = [
     name: 'Lisa Wong',
     role: 'HR Manager',
     company: 'Shopee',
-    avatar: '/testimonials/lisa.jpg',
+    avatar: '',
     impaktrScore: 156,
     rank: 'Changemaker',
     badges: 9,
@@ -85,7 +85,7 @@ const testimonials = [
     name: 'Prof. David Lim',
     role: 'Dean of Sustainability',
     company: 'NUS Business School',
-    avatar: '/testimonials/david.jpg',
+    avatar: '',
     impaktrScore: 423,
     rank: 'Leader',
     badges: 11,
@@ -307,7 +307,7 @@ export function TestimonialsSection() {
             Ready to share your impact story?
           </h3>
           <a 
-            href="/api/auth/login?screen_hint=signup"
+            href="/signup"
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
           >
             Start Building Your Impact

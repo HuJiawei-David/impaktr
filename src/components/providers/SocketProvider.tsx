@@ -4,7 +4,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession } from 'next-auth/react';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -25,7 +25,8 @@ export const useSocket = () => {
 };
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -33,7 +34,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       const socketInstance = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
         auth: {
-          userId: user.sub,
+          userId: user.id,
         },
       });
 

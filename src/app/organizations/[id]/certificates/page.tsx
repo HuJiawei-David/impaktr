@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { useSession } from 'next-auth/react';
 import { useParams } from 'next/navigation';
 import { 
   Award, 
@@ -48,7 +48,8 @@ interface Organization {
 }
 
 export default function OrganizationCertificatesPage() {
-  const { user } = useUser();
+  const { data: session } = useSession();
+  const user = session?.user;
   const params = useParams();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);

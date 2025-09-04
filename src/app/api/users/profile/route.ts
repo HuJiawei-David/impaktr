@@ -1,9 +1,12 @@
 // /home/ubuntu/impaktrweb/src/app/api/users/profile/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 const updateProfileSchema = z.object({
   firstName: z.string().optional(),
@@ -40,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
       include: {
         profile: true,
         badges: {

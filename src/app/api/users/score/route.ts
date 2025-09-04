@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/app/api/users/score/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { calculateImpaktrScore, calculateOrganizationScore } from '@/lib/scoring';
 import { checkAndAwardBadges } from '@/lib/badges';
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const { userId, organizationId, includeBreakdown, includeHistory, period } = scoreQuerySchema.parse(params);
 
     const currentUser = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!currentUser) {
@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
     const { userId, organizationId, forceRecalculate } = body;
 
     const currentUser = await prisma.user.findUnique({
-      where: { auth0Id: session.user.sub },
+      where: { id: session.user.id },
     });
 
     if (!currentUser) {

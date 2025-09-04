@@ -71,9 +71,12 @@ enum OrganizationTier {
 
 model User {
   id            String   @id @default(cuid())
-  auth0Id       String   @unique
-  email         String   @unique
-  userType      UserType
+  name          String?
+  email         String?  @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?  // For email/password authentication
+  userType      UserType?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   lastActiveAt  DateTime @default(now())
@@ -92,6 +95,7 @@ model User {
   badges        UserBadge[]
   achievements  Achievement[]
   certificates  Certificate[]
+  certificateTemplates CertificateTemplate[]
   
   // Events & Participation
   createdEvents Event[]
@@ -103,18 +107,25 @@ model User {
   posts         Post[]
   comments      Comment[]
   likes         Like[]
+  shares        Share[]
   follows       Follow[] @relation("Follower")
   followers     Follow[] @relation("Following")
   
   // Organization membership
   memberships   OrganizationMember[]
   ownedOrganizations Organization[]
+  sentInvitations OrganizationInvitation[]
+  organizationActivities OrganizationActivity[]
   
   // Stripe subscription fields
   stripeCustomerId String? @unique
   subscriptionId   String?
   subscriptionStatus String?
   subscriptionPlan String?
+  
+  // NextAuth.js relations
+  accounts      Account[]
+  sessions      Session[]
   
   @@map("users")
 }
@@ -176,9 +187,12 @@ model Organization {
   isVerified    Boolean           @default(false)
   
   members       OrganizationMember[]
+  invitations   OrganizationInvitation[]
+  activities    OrganizationActivity[]
   events        Event[]
   scoreHistory  OrganizationScoreHistory[]
   badges        OrganizationBadge[]
+  certificateTemplates CertificateTemplate[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -200,9 +214,47 @@ model OrganizationMember {
   user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
   role           String @default("member") // member, admin, owner
   joinedAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   
   @@unique([organizationId, userId])
   @@map("organization_members")
+}
+
+model OrganizationInvitation {
+  id             String @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String @default("member") // member, admin
+  token          String @unique
+  status         String @default("PENDING") // PENDING, ACCEPTED, REJECTED, EXPIRED
+  message        String?
+  invitedBy      String
+  inviter        User @relation(fields: [invitedBy], references: [id])
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([organizationId, email])
+  @@map("organization_invitations")
+}
+
+model OrganizationActivity {
+  id             String @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  type           String // "MEMBER_JOINED", "MEMBER_LEFT", "MEMBER_ROLE_CHANGED", "EVENT_CREATED", etc.
+  description    String
+  metadata       Json? // Additional data about the activity
+  
+  performedBy    String?
+  performer      User? @relation(fields: [performedBy], references: [id])
+  
+  createdAt      DateTime @default(now())
+  
+  @@map("organization_activities")
 }
 
 model Event {
@@ -236,6 +288,7 @@ model Event {
   
   participations    Participation[]
   verifications     Verification[]
+  posts             Post[]
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -256,6 +309,7 @@ model Participation {
   
   // Verification data
   verifications   Verification[]
+  certificates    Certificate[]
   proofImages     String[] @default([])
   notes           String?
   
@@ -362,6 +416,7 @@ model Badge {
   
   userBadges  UserBadge[]
   orgBadges   OrganizationBadge[]
+  posts       Post[]
   
   @@unique([sdgNumber, tier])
   @@map("badges")
@@ -407,8 +462,40 @@ model Achievement {
   data        Json     @default("{}")
   
   earnedAt    DateTime @default(now())
+  posts       Post[]
   
   @@map("achievements")
+}
+
+model CertificateTemplate {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User     @relation(fields: [createdById], references: [id])
+  
+  name            String
+  description     String?
+  type            String   // "participation", "achievement", "completion", "custom"
+  category        String?  // Additional categorization
+  design          Json?    // Template design data
+  
+  // Template settings
+  autoIssue       Boolean  @default(false)
+  requiresApproval Boolean @default(true)
+  validityPeriod  Int?     // In days
+  isActive        Boolean  @default(true)
+  
+  // Usage tracking
+  usageCount      Int      @default(0)
+  
+  // Relations
+  certificates    Certificate[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("certificate_templates")
 }
 
 model Certificate {
@@ -425,15 +512,21 @@ model Certificate {
   achievementId   String?
   eventId         String?
   participationId String?
+  participation   Participation? @relation(fields: [participationId], references: [id])
   
   // Certificate data
   templateId      String?
+  template        CertificateTemplate? @relation(fields: [templateId], references: [id])
   certificateUrl  String?
   shareUrl        String?
+  certificateNumber String? @unique
   linkedInShared  Boolean @default(false)
+  customData      Json?   // For storing custom certificate data
+  notes           String?
   
   issuedAt        DateTime @default(now())
   expiresAt       DateTime?
+  revokedAt       DateTime?
   
   @@map("certificates")
 }
@@ -445,15 +538,21 @@ model Post {
   
   content     String?
   images      String[]  @default([])
+  location    String?   // Location field for posts
+  tags        String[]  @default([])
   
   // Post type and related data
   type        String // "event_joined", "badge_earned", "achievement", "general"
   eventId     String?
+  event       Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
   badgeId     String?
+  badge       Badge?    @relation(fields: [badgeId], references: [id], onDelete: SetNull)
   achievementId String?
+  achievement Achievement? @relation(fields: [achievementId], references: [id], onDelete: SetNull)
   
   likes       Like[]
   comments    Comment[]
+  shares      Share[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -489,6 +588,19 @@ model Like {
   @@map("likes")
 }
 
+model Share {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([postId, userId])
+  @@map("shares")
+}
+
 model Follow {
   id          String @id @default(cuid())
   followerId  String
@@ -515,4 +627,44 @@ model Leaderboard {
   
   @@unique([type, category, period])
   @@map("leaderboards")
+}
+
+// NextAuth.js required tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
 }
