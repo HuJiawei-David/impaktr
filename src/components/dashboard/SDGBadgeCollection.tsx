@@ -347,8 +347,6 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
       'from-indigo-700 to-indigo-900': 'linear-gradient(to right, #4338ca, #312e81)',
       
       // Default fallback gradients
-      'from-blue-500 to-blue-700': 'linear-gradient(to right, #3b82f6, #1d4ed8)',
-      'from-purple-500 to-purple-700': 'linear-gradient(to right, #a855f7, #7c3aed)',
       'from-violet-500 to-violet-700': 'linear-gradient(to right, #8b5cf6, #6d28d9)',
     };
     
@@ -356,7 +354,7 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
   };
 
   const getSDGBadgeDefinition = (sdgNumber: number) => {
-    return SDG_BADGE_DEFINITIONS[sdgNumber] || {
+    return (SDG_BADGE_DEFINITIONS as any)[sdgNumber] || {
       tiers: [
         { level: 1, name: 'Supporter', icon: '⭐', minHours: 5, minActivities: 1, color: 'from-blue-500 to-blue-700' },
         { level: 2, name: 'Builder', icon: '🔨', minHours: 20, minActivities: 3, color: 'from-purple-500 to-purple-700' },
@@ -368,12 +366,12 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
 
   const getCurrentTierInfo = (sdgNumber: number, tierLevel: number) => {
     const definition = getSDGBadgeDefinition(sdgNumber);
-    return definition.tiers.find(t => t.level === tierLevel) || definition.tiers[0];
+    return definition.tiers.find((t: any) => t.level === tierLevel) || definition.tiers[0];
   };
 
   const getNextTierInfo = (sdgNumber: number, currentTier: number) => {
     const definition = getSDGBadgeDefinition(sdgNumber);
-    return definition.tiers.find(t => t.level === currentTier + 1);
+    return definition.tiers.find((t: any) => t.level === currentTier + 1);
   };
 
   const calculateTierProgress = (badge: UserSDGBadge) => {
@@ -468,8 +466,8 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
               
               // Calculate progress to next tier
               const progress = nextTierInfo ? Math.min(
-                (badge.hoursContributed / nextTierInfo.minHours) * 100,
-                (badge.activitiesCompleted / nextTierInfo.minActivities) * 100
+                (badge.totalHours / nextTierInfo.minHours) * 100,
+                (badge.totalActivities / nextTierInfo.minActivities) * 100
               ) : 100;
               
               return (

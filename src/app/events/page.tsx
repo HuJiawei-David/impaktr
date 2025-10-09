@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -116,7 +116,7 @@ const SDG_DEFINITIONS = {
   17: { name: 'Partnerships for the Goals', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' }
 };
 
-export default function EventsPage() {
+function EventsPageContent() {
   const { data: session } = useSession();
   const user = session?.user;
   const searchParams = useSearchParams();
@@ -879,6 +879,14 @@ export default function EventsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function EventsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EventsPageContent />
+    </Suspense>
   );
 }
 

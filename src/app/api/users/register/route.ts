@@ -29,13 +29,14 @@ const registrationSchema = z.object({
   website: z.string().url().optional().or(z.literal('')),
   showEmail: z.string().transform((str) => str === 'true'),
   isPublic: z.string().transform((str) => str === 'true'),
-  sdgFocus: z.string().transform((str) => {
+  sdgFocus: z.string().optional().transform((str) => {
+    if (!str) return [];
     try {
       return JSON.parse(str);
     } catch {
       return [];
     }
-  }).pipe(z.array(z.number())).optional().default([]),
+  }).pipe(z.array(z.number())),
 });
 
 export async function POST(request: NextRequest) {

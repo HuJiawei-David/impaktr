@@ -145,7 +145,7 @@ export function GamificationJourney({ compact = false }: GamificationJourneyProp
         progressBadges: data.progressBadges
       });
     } catch (error) {
-      console.warn('Using mock gamification data:', error.message);
+      console.warn('Using mock gamification data:', error instanceof Error ? error.message : 'Unknown error');
       // Fallback to mock data if API fails
       const mockData: GamificationData = {
         currentRank: 3, // Contributor level
@@ -197,7 +197,7 @@ export function GamificationJourney({ compact = false }: GamificationJourneyProp
   };
 
   const getSDGBadgeInfo = (sdgNumber: number, tier: number) => {
-    return SDG_BADGE_TIERS[sdgNumber]?.[tier] || { 
+    return (SDG_BADGE_TIERS as any)[sdgNumber]?.[tier] || { 
       name: `Tier ${tier}`, 
       icon: '⭐', 
       color: 'bg-gray-500' 
@@ -207,7 +207,7 @@ export function GamificationJourney({ compact = false }: GamificationJourneyProp
   if (isLoading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className={compact ? "h-16" : "h-20"} className="bg-muted rounded-lg"></div>
+        <div className={`${compact ? "h-16" : "h-20"} bg-muted rounded-lg`}></div>
         {!compact && (
           <div className="grid grid-cols-3 gap-4">
             {Array.from({ length: 3 }).map((_, i) => (
