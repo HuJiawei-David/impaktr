@@ -139,9 +139,9 @@ export function VerificationQueue() {
   const [filters, setFilters] = useState<VerificationFilters>({
     search: '',
     status: 'PENDING',
-    type: '',
-    priority: '',
-    riskLevel: '',
+    type: 'all',
+    priority: 'all',
+    riskLevel: 'all',
     dateRange: '7d'
   });
 
@@ -169,7 +169,7 @@ export function VerificationQueue() {
       const queryParams = new URLSearchParams();
       
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.set(key, value.toString());
+        if (value && value !== 'all') queryParams.set(key, value.toString());
       });
 
       const response = await fetch(`/api/admin/verifications?${queryParams.toString()}`);
@@ -378,7 +378,7 @@ export function VerificationQueue() {
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="SELF">Self</SelectItem>
                   <SelectItem value="PEER">Peer</SelectItem>
                   <SelectItem value="ORGANIZER">Organizer</SelectItem>
@@ -391,7 +391,7 @@ export function VerificationQueue() {
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Priority</SelectItem>
+                  <SelectItem value="all">All Priority</SelectItem>
                   <SelectItem value="URGENT">Urgent</SelectItem>
                   <SelectItem value="HIGH">High</SelectItem>
                   <SelectItem value="MEDIUM">Medium</SelectItem>
@@ -404,7 +404,7 @@ export function VerificationQueue() {
                   <SelectValue placeholder="Risk" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Risk</SelectItem>
+                  <SelectItem value="all">All Risk</SelectItem>
                   <SelectItem value="high">High Risk (80+)</SelectItem>
                   <SelectItem value="medium">Medium Risk (60-79)</SelectItem>
                   <SelectItem value="low">Low Risk (0-59)</SelectItem>
@@ -668,7 +668,7 @@ export function VerificationQueue() {
                               View Event
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem className="text-red-600 hover:text-red-700 focus:text-red-700">
                               <AlertTriangle className="w-4 h-4 mr-2" />
                               Flag for Review
                             </DropdownMenuItem>

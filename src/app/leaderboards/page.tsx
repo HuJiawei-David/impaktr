@@ -1,86 +1,193 @@
-// home/ubuntu/impaktrweb/src/app/leaderboards/page.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Trophy, 
   Medal, 
+  Award,
   Crown, 
+  Star,
   TrendingUp, 
   Users, 
-  Globe,
-  Flag,
-  Building2,
-  Award,
-  Filter,
-  Search,
   Calendar,
-  Star,
   Target,
-  Zap
+  Zap,
+  Globe,
+  Heart,
+  Building2,
+  Sparkles,
+  ChevronUp,
+  ChevronDown,
+  Filter,
+  Clock,
+  BarChart3
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { formatScore, formatNumber, getInitials, getRankColor, getSDGColor, getSDGName } from '@/lib/utils';
-
-interface LeaderboardEntry {
-  rank: number;
-  id: string;
-  name: string;
-  avatar?: string;
-  location?: {
-    city: string;
-    country: string;
-  };
-  score: number;
-  rankTitle: string;
-  badges: Array<{
-    sdg: number;
-    tier: string;
-    name: string;
-    earned: boolean;
-  }>;
-  stats: {
-    verifiedHours: number;
-    certificates: number;
-    eventsJoined?: number;
-    members?: number;
-  };
-  change?: number; // Position change from last period
-}
-
-interface CountryLeaderboardEntry {
-  rank: number;
-  country: string;
-  flag: string;
-  userCount: number;
-  avgScore: number;
-  totalScore: number;
-  totalEvents: number;
-}
 
 export default function LeaderboardsPage() {
   const { data: session, status } = useSession();
-  const [activeTab, setActiveTab] = useState('individuals');
-  const [timePeriod, setTimePeriod] = useState('all_time');
-  const [selectedCountry, setSelectedCountry] = useState('');
-  const [selectedSDG, setSelectedSDG] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   
-  const [individualLeaderboard, setIndividualLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [organizationLeaderboard, setOrganizationLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [countryLeaderboard, setCountryLeaderboard] = useState<CountryLeaderboardEntry[]>([]);
-  const [userPosition, setUserPosition] = useState<LeaderboardEntry | null>(null);
+  const scrollToMyProgress = () => {
+    const progressSection = document.getElementById('your-progress');
+    if (progressSection) {
+      progressSection.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+  
+  const topPerformers = [
+    {
+      rank: 1,
+      name: 'Alex Chen',
+      avatar: '/api/placeholder/64/64',
+      points: 15847,
+      change: '+245',
+      trend: 'up',
+      badges: 28,
+      hoursVolunteered: 340,
+      eventsJoined: 45,
+      specialty: 'Environmental Activism'
+    },
+    {
+      rank: 2,
+      name: 'Maria Rodriguez',
+      avatar: '/api/placeholder/64/64',
+      points: 14523,
+      change: '+189',
+      trend: 'up',
+      badges: 25,
+      hoursVolunteered: 298,
+      eventsJoined: 38,
+      specialty: 'Community Development'
+    },
+    {
+      rank: 3,
+      name: 'David Kim',
+      avatar: '/api/placeholder/64/64',
+      points: 13891,
+      change: '+156',
+      trend: 'up',
+      badges: 23,
+      hoursVolunteered: 275,
+      eventsJoined: 42,
+      specialty: 'Education Support'
+    },
+    {
+      rank: 4,
+      name: 'Sarah Johnson',
+      avatar: '/api/placeholder/64/64',
+      points: 12765,
+      change: '-23',
+      trend: 'down',
+      badges: 21,
+      hoursVolunteered: 256,
+      eventsJoined: 34,
+      specialty: 'Healthcare Volunteer'
+    },
+    {
+      rank: 5,
+      name: 'Michael Brown',
+      avatar: '/api/placeholder/64/64',
+      points: 11934,
+      change: '+78',
+      trend: 'up',
+      badges: 19,
+      hoursVolunteered: 234,
+      eventsJoined: 29,
+      specialty: 'Youth Mentorship'
+    }
+  ];
+
+  const categories = [
+    {
+      title: 'Environmental Champions',
+      icon: Globe,
+      color: 'bg-green-500',
+      leaders: [
+        { name: 'Alex Chen', points: 5847, avatar: '/api/placeholder/32/32' },
+        { name: 'Emma Wilson', points: 4923, avatar: '/api/placeholder/32/32' },
+        { name: 'James Park', points: 4156, avatar: '/api/placeholder/32/32' }
+      ]
+    },
+    {
+      title: 'Community Heroes',
+      icon: Heart,
+      color: 'bg-red-500',
+      leaders: [
+        { name: 'Maria Rodriguez', points: 6234, avatar: '/api/placeholder/32/32' },
+        { name: 'Lisa Chang', points: 5789, avatar: '/api/placeholder/32/32' },
+        { name: 'Tom Anderson', points: 4567, avatar: '/api/placeholder/32/32' }
+      ]
+    },
+    {
+      title: 'Education Advocates',
+      icon: Building2,
+      color: 'bg-blue-500',
+      leaders: [
+        { name: 'David Kim', points: 5432, avatar: '/api/placeholder/32/32' },
+        { name: 'Rachel Green', points: 4876, avatar: '/api/placeholder/32/32' },
+        { name: 'Mark Taylor', points: 4234, avatar: '/api/placeholder/32/32' }
+      ]
+    }
+  ];
+
+  const achievements = [
+    {
+      title: 'Most Volunteer Hours',
+      subtitle: 'This Month',
+      winner: 'Alex Chen',
+      value: '45 hours',
+      icon: Clock,
+      color: 'bg-purple-500'
+    },
+    {
+      title: 'Event Organizer',
+      subtitle: 'Most Events Created',
+      winner: 'Maria Rodriguez',
+      value: '12 events',
+      icon: Calendar,
+      color: 'bg-orange-500'
+    },
+    {
+      title: 'Rising Star',
+      subtitle: 'Biggest Point Gain',
+      winner: 'David Kim',
+      value: '+890 points',
+      icon: TrendingUp,
+      color: 'bg-cyan-500'
+    },
+    {
+      title: 'Team Player',
+      subtitle: 'Most Collaborations',
+      winner: 'Sarah Johnson',
+      value: '28 collaborations',
+      icon: Users,
+      color: 'bg-pink-500'
+    }
+  ];
+
+  const getRankIcon = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return <Crown className="w-6 h-6 text-yellow-500" />;
+      case 2:
+        return <Medal className="w-6 h-6 text-gray-400" />;
+      case 3:
+        return <Award className="w-6 h-6 text-amber-600" />;
+      default:
+        return <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-sm font-bold">{rank}</div>;
+    }
+  };
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -88,504 +195,313 @@ export default function LeaderboardsPage() {
       redirect('/auth/signin');
       return;
     }
-    fetchLeaderboards();
-  }, [session, status, activeTab, timePeriod, selectedCountry, selectedSDG]);
+    // Simulate loading
+    setTimeout(() => setIsLoading(false), 1000);
+  }, [session, status]);
 
-  const fetchLeaderboards = async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        type: activeTab,
-        period: timePeriod,
-        ...(selectedCountry && { country: selectedCountry }),
-        ...(selectedSDG && { sdg: selectedSDG }),
-        ...(searchQuery && { search: searchQuery }),
-        limit: '50'
-      });
-
-      const response = await fetch(`/api/leaderboards?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        
-        switch (activeTab) {
-          case 'individuals':
-            setIndividualLeaderboard(data.rankings);
-            // Find user's position if they're in top 50
-            const userPos = data.rankings.find((entry: LeaderboardEntry) => 
-              entry.id === session?.user?.id
-            );
-            setUserPosition(userPos || null);
-            break;
-          case 'organizations':
-            setOrganizationLeaderboard(data.rankings);
-            break;
-          case 'countries':
-            setCountryLeaderboard(data.rankings);
-            break;
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching leaderboards:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSearch = () => {
-    fetchLeaderboards();
-  };
-
-  const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Crown className="w-6 h-6 text-yellow-500" />;
-    if (rank === 2) return <Medal className="w-6 h-6 text-gray-400" />;
-    if (rank === 3) return <Medal className="w-6 h-6 text-amber-600" />;
-    return <Trophy className="w-5 h-5 text-muted-foreground" />;
-  };
-
-  const getPositionChangeIcon = (change?: number) => {
-    if (!change) return null;
-    if (change > 0) return <TrendingUp className="w-4 h-4 text-green-500" />;
-    if (change < 0) return <TrendingUp className="w-4 h-4 text-red-500 rotate-180" />;
-    return null;
-  };
-
-  if (status === 'loading') {
+  if (status === 'loading' || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
 
+  if (!session) {
+    redirect('/auth/signin');
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500">
-              <Trophy className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-12">
+        {/* Page Header */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                  <Trophy className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
+                  Impact Leaderboards
+              </h1>
+              </div>
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
+                See who's making the biggest difference. Compete, collaborate, and celebrate impact achievements together.
+              </p>
+            </div>
+            <div className="flex flex-col items-end space-y-3">
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 text-base font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                onClick={scrollToMyProgress}
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                View My Ranking
+              </Button>
+              <div className="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+                <Clock className="w-4 h-4" />
+                <span className="text-sm font-medium">Updated every hour</span>
+              </div>
             </div>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            Impact Leaderboards
-          </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Discover the top changemakers, organizations, and countries creating the most verified social impact
-          </p>
         </div>
 
-        {/* Filters */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder="Search by name or organization..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  className="pl-10"
-                />
+        {/* Your Progress */}
+        <div id="your-progress" className="mb-16">
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Your Progress</h2>
               </div>
               
-              <Select value={timePeriod} onValueChange={setTimePeriod}>
-                <SelectTrigger className="w-40">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all_time">All Time</SelectItem>
-                  <SelectItem value="yearly">This Year</SelectItem>
-                  <SelectItem value="monthly">This Month</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                <SelectTrigger className="w-40">
-                  <Flag className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="All Countries" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Countries</SelectItem>
-                  <SelectItem value="Malaysia">🇲🇾 Malaysia</SelectItem>
-                  <SelectItem value="Singapore">🇸🇬 Singapore</SelectItem>
-                  <SelectItem value="Thailand">🇹🇭 Thailand</SelectItem>
-                  <SelectItem value="Indonesia">🇮🇩 Indonesia</SelectItem>
-                  <SelectItem value="Philippines">🇵🇭 Philippines</SelectItem>
-                  <SelectItem value="United States">🇺🇸 United States</SelectItem>
-                  <SelectItem value="United Kingdom">🇬🇧 United Kingdom</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedSDG} onValueChange={setSelectedSDG}>
-                <SelectTrigger className="w-40">
-                  <Target className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="All SDGs" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All SDGs</SelectItem>
-                  {Array.from({ length: 17 }, (_, i) => i + 1).map((sdg) => (
-                    <SelectItem key={sdg} value={sdg.toString()}>
-                      SDG {sdg}: {getSDGName(sdg).split(' ').slice(0, 2).join(' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button onClick={handleSearch}>
-                <Search className="w-4 h-4 mr-2" />
-                Search
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* User's Current Position */}
-        {userPosition && activeTab === 'individuals' && (
-          <Card className="mb-8 bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="secondary" className="text-lg px-3 py-1">
-                      #{userPosition.rank}
-                    </Badge>
-                    {getRankIcon(userPosition.rank)}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Your Current Position</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {userPosition.location?.country} • {formatScore(userPosition.score)} points
-                    </p>
-                  </div>
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                  #247
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold brand-gradient-text">
-                    {formatScore(userPosition.score)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Impact Score</div>
-                </div>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">
+                  Current Rank
+                </p>
+                <p className="text-sm text-green-600 dark:text-green-400 mt-2 font-medium">
+                  ↑ Up 23 positions
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                  2,847
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">
+                  Impact Points
+                </p>
+                <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 font-medium">
+                  +156 this week
+                </p>
+              </div>
+              <div className="text-center p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+                <div className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                  12
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">
+                  Badges Earned
+                </p>
+                <p className="text-sm text-purple-600 dark:text-purple-400 mt-2 font-medium">
+                  2 new this month
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Progress to next rank (#246)
+                </span>
+                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  2,847 / 2,950 points
+                </span>
+              </div>
+              <div className="relative">
+                <Progress value={96} className="h-4 bg-gray-200 dark:bg-gray-700" />
+                <div className="absolute top-0 left-0 h-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500" style={{ width: '96%' }} />
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 font-medium">
+                Only 103 points to go! 🎯
+              </p>
+            </div>
+          </div>
+        </div>
 
-        {/* Main Leaderboard Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-8">
-            <TabsTrigger value="individuals" className="flex items-center space-x-2">
-              <Users className="w-4 h-4" />
-              <span>Individuals</span>
-            </TabsTrigger>
-            <TabsTrigger value="organizations" className="flex items-center space-x-2">
-              <Building2 className="w-4 h-4" />
-              <span>Organizations</span>
-            </TabsTrigger>
-            <TabsTrigger value="countries" className="flex items-center space-x-2">
-              <Globe className="w-4 h-4" />
-              <span>Countries</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Top Performers */}
+        <div className="mb-16">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Top Impact Makers
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">Celebrating our community's most dedicated volunteers</p>
+            </div>
+            <Button variant="outline" className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300">
+              <Filter className="w-4 h-4 mr-2" />
+              Filter Period
+            </Button>
+          </div>
 
-          {/* Individuals Leaderboard */}
-          <TabsContent value="individuals">
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-6">
+          <div className="space-y-6">
+            {topPerformers.map((performer) => (
+              <Card key={performer.rank} className={`transition-all duration-300 hover:shadow-xl border-0 ${
+                performer.rank <= 3 
+                  ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 ring-2 ring-yellow-200 dark:ring-yellow-800' 
+                  : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl'
+              }`}>
+                <CardContent className="p-8">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-6">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-muted rounded-full"></div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-muted rounded w-1/3"></div>
-                          <div className="h-3 bg-muted rounded w-1/4"></div>
+                        {getRankIcon(performer.rank)}
+                        <Avatar className="h-16 w-16 ring-4 ring-white dark:ring-gray-700 shadow-lg">
+                          <AvatarImage src={performer.avatar} alt={performer.name} />
+                          <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                            {performer.name.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                          {performer.name}
+                        </h3>
+                        <p className="text-blue-600 dark:text-blue-400 font-medium mb-3">
+                          {performer.specialty}
+                        </p>
+                        <div className="flex items-center space-x-6 text-sm text-gray-600 dark:text-gray-400">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{performer.hoursVolunteered} hours</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>{performer.eventsJoined} events</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Award className="w-4 h-4" />
+                            <span>{performer.badges} badges</span>
+                          </div>
                         </div>
-                        <div className="w-20 h-8 bg-muted rounded"></div>
+                      </div>
+                    </div>
+            
+                    <div className="text-right">
+                      <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                        {performer.points.toLocaleString()}
+                      </div>
+                      <div className={`flex items-center justify-end space-x-1 text-sm font-medium ${
+                        performer.trend === 'up' ? 'text-green-600' : 'text-red-500'
+                      }`}>
+                        {performer.trend === 'up' ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                        <span>{performer.change}</span>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        impact points
+                      </div>
+                    </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-            ) : (
-              <div className="space-y-4">
-                {individualLeaderboard.map((entry, index) => (
-                  <Card key={entry.id} className={`transition-all hover:shadow-lg ${
-                    entry.rank <= 3 ? 'ring-2 ring-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50' : ''
-                  }`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          {/* Rank */}
-                          <div className="flex items-center space-x-2 min-w-[60px]">
-                            <Badge 
-                              variant={entry.rank <= 3 ? "default" : "secondary"}
-                              className="text-lg px-3 py-1"
-                            >
-                              #{entry.rank}
-                            </Badge>
-                            {getRankIcon(entry.rank)}
-                            {getPositionChangeIcon(entry.change)}
+                            </div>
+
+        {/* Category Leaders */}
+        <div className="mb-16">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8">
+            Category Leaders
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {categories.map((category, index) => {
+              const IconComponent = category.icon;
+              return (
+                <Card key={index} className="hover:shadow-lg transition-all duration-300">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${category.color}`}>
+                        <IconComponent className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="text-lg">{category.title}</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {category.leaders.map((leader, leaderIndex) => (
+                      <div key={leaderIndex} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="text-sm font-bold text-gray-500 dark:text-gray-400 w-4">
+                            {leaderIndex + 1}
+                          </div>
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={leader.avatar} alt={leader.name} />
+                            <AvatarFallback className="text-xs">
+                              {leader.name.split(' ').map(n => n[0]).join('')}
+                              </AvatarFallback>
+                            </Avatar>
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {leader.name}
+                                </span>
+                              </div>
+                        <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                          {leader.points.toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
+                            </div>
                           </div>
 
-                          {/* Avatar and Info */}
-                          <Avatar className="w-16 h-16">
-                            <AvatarImage src={entry.avatar} alt={entry.name} />
-                            <AvatarFallback className="text-lg font-semibold">
-                              {getInitials(entry.name)}
-                            </AvatarFallback>
-                          </Avatar>
-
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{entry.name}</h3>
-                            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                              {entry.location && (
-                                <span className="flex items-center">
-                                  <Flag className="w-3 h-3 mr-1" />
-                                  {entry.location.city}, {entry.location.country}
-                                </span>
-                              )}
-                              <Badge 
-                                variant="outline"
-                                style={{ 
-                                  borderColor: getRankColor(entry.rankTitle),
-                                  color: getRankColor(entry.rankTitle)
-                                }}
-                              >
-                                {entry.rankTitle}
-                              </Badge>
+        {/* Special Achievements */}
+        <div className="mb-16">
+          <div className="mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Special Achievements
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">Recognizing outstanding contributions and milestones</p>
                             </div>
                             
-                            {/* Stats */}
-                            <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-                              <span>{formatNumber(entry.stats.verifiedHours)} hours</span>
-                              <span>{entry.stats.certificates} certificates</span>
-                              {entry.stats.eventsJoined && (
-                                <span>{entry.stats.eventsJoined} events</span>
-                              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {achievements.map((achievement, index) => {
+              const IconComponent = achievement.icon;
+              return (
+                <Card key={index} className="bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 border-0 hover:scale-105">
+                  <CardContent className="p-8 text-center">
+                    <div className={`w-16 h-16 rounded-full ${achievement.color} flex items-center justify-center mx-auto mb-6 shadow-lg`}>
+                      <IconComponent className="w-8 h-8 text-white" />
                             </div>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">
+                      {achievement.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      {achievement.subtitle}
+                    </p>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      {achievement.winner}
                           </div>
+                    <div className="text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
+                      {achievement.value}
                         </div>
-
-                        {/* Score and Badges */}
-                        <div className="text-right space-y-2">
-                          <div className="text-2xl font-bold brand-gradient-text">
-                            {formatScore(entry.score)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Impact Score</div>
-                          
-                          {/* SDG Badges */}
-                          <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
-                            {entry.badges.slice(0, 4).map((badge) => (
-                              <Badge
-                                key={`${badge.sdg}-${badge.tier}`}
-                                variant="sdg"
-                                sdgNumber={badge.sdg}
-                                className="text-xs"
-                              >
-                                {badge.sdg}
-                              </Badge>
-                            ))}
-                            {entry.badges.length > 4 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{entry.badges.length - 4}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Organizations Leaderboard */}
-          <TabsContent value="organizations">
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-6">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-muted rounded"></div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-muted rounded w-1/2"></div>
-                          <div className="h-3 bg-muted rounded w-1/3"></div>
-                        </div>
-                        <div className="w-20 h-8 bg-muted rounded"></div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {organizationLeaderboard.map((entry) => (
-                  <Card key={entry.id} className={`transition-all hover:shadow-lg ${
-                    entry.rank <= 3 ? 'ring-2 ring-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50' : ''
-                  }`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2 min-w-[60px]">
-                            <Badge 
-                              variant={entry.rank <= 3 ? "default" : "secondary"}
-                              className="text-lg px-3 py-1"
-                            >
-                              #{entry.rank}
-                            </Badge>
-                            {getRankIcon(entry.rank)}
-                          </div>
-
-                          <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
-                            {entry.avatar ? (
-                              <img src={entry.avatar} alt={entry.name} className="w-16 h-16 rounded-lg object-cover" />
-                            ) : (
-                              <Building2 className="w-8 h-8 text-muted-foreground" />
-                            )}
-                          </div>
-
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{entry.name}</h3>
-                            {entry.location && (
-                              <p className="text-sm text-muted-foreground">
-                                {entry.location.city}, {entry.location.country}
-                              </p>
-                            )}
-                            <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
-                              {entry.stats.members && <span>{formatNumber(entry.stats.members)} members</span>}
-                              <span>{entry.stats.verifiedHours} total hours</span>
-                              <span>{entry.stats.certificates} certificates issued</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right space-y-2">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {entry.score.toFixed(1)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Org Score</div>
-                          
-                          <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
-                            {entry.badges.slice(0, 4).map((badge) => (
-                              <Badge
-                                key={`${badge.sdg}-${badge.tier}`}
-                                variant="sdg"
-                                sdgNumber={badge.sdg}
-                                className="text-xs"
-                              >
-                                {badge.sdg}
-                              </Badge>
-                            ))}
-                            {entry.badges.length > 4 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{entry.badges.length - 4}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Countries Leaderboard */}
-          <TabsContent value="countries">
-            {isLoading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-6">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-8 bg-muted rounded"></div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-muted rounded w-1/3"></div>
-                          <div className="h-3 bg-muted rounded w-1/4"></div>
-                        </div>
-                        <div className="w-20 h-8 bg-muted rounded"></div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {countryLeaderboard.map((entry) => (
-                  <Card key={entry.country} className={`transition-all hover:shadow-lg ${
-                    entry.rank <= 3 ? 'ring-2 ring-green-200 bg-gradient-to-r from-green-50 to-emerald-50' : ''
-                  }`}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex items-center space-x-2 min-w-[60px]">
-                            <Badge 
-                              variant={entry.rank <= 3 ? "default" : "secondary"}
-                              className="text-lg px-3 py-1"
-                            >
-                              #{entry.rank}
-                            </Badge>
-                            {getRankIcon(entry.rank)}
-                          </div>
-
-                          <div className="text-4xl">{entry.flag}</div>
-
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{entry.country}</h3>
-                            <div className="flex items-center space-x-4 mt-1 text-sm text-muted-foreground">
-                              <span className="flex items-center">
-                                <Users className="w-3 h-3 mr-1" />
-                                {formatNumber(entry.userCount)} users
-                              </span>
-                              <span className="flex items-center">
-                                <Calendar className="w-3 h-3 mr-1" />
-                                {formatNumber(entry.totalEvents)} events
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right space-y-2">
-                          <div className="text-2xl font-bold text-green-600">
-                            {formatScore(entry.totalScore)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Total Impact</div>
-                          <div className="text-xs text-muted-foreground">
-                            Avg: {formatScore(entry.avgScore)} per user
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                      </CardContent>
+                    </Card>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Call to Action */}
-        <Card className="mt-12 bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
-          <CardContent className="p-8 text-center">
-            <Zap className="w-12 h-12 mx-auto mb-4 text-primary" />
-            <h2 className="text-2xl font-bold mb-4">Ready to Climb the Leaderboard?</h2>
-            <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-              Join verified events, earn SDG badges, and increase your Impact Score to rise through the ranks
-            </p>
-            <div className="flex justify-center space-x-4">
-              <Button size="lg" asChild>
-                <a href="/events">Find Events</a>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <a href="/dashboard">View Your Progress</a>
-              </Button>
+        <div className="text-center">
+          <Card className="bg-gradient-to-r from-blue-100 via-purple-50 to-cyan-100 dark:from-blue-900/30 dark:via-purple-900/20 dark:to-cyan-900/30 border-0 shadow-xl">
+            <CardContent className="p-8">
+              <div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                <Trophy className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                Ready to climb the leaderboard?
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-2xl mx-auto">
+                Join the competition and start making measurable impact. Track your progress, earn badges, and celebrate achievements with the community.
+              </p>
+              <Link href="/events">
+                <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-3 text-base font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Start Making Impact
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
             </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

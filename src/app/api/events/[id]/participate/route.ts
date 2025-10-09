@@ -20,7 +20,7 @@ const updateParticipationSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -28,6 +28,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { hoursCommitted, notes } = participateSchema.parse(body);
 
@@ -40,7 +41,7 @@ export async function POST(
     }
 
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!event) {
@@ -57,7 +58,7 @@ export async function POST(
     // Check if event has reached max participants
     if (event.maxParticipants) {
       const currentParticipants = await prisma.participation.count({
-        where: { eventId: params.id }
+        where: { eventId: id }
       });
 
       if (currentParticipants >= event.maxParticipants) {
@@ -73,7 +74,7 @@ export async function POST(
       where: {
         userId_eventId: {
           userId: user.id,
-          eventId: params.id,
+          eventId: id,
         }
       }
     });
@@ -92,7 +93,7 @@ export async function POST(
     const participation = await prisma.participation.create({
       data: {
         userId: user.id,
-        eventId: params.id,
+        eventId: id,
         hoursCommitted,
         notes,
         skillMultiplier,
@@ -110,7 +111,7 @@ export async function POST(
 
     // Update event current participants count
     await prisma.event.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         currentParticipants: {
           increment: 1,
@@ -137,7 +138,7 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -145,6 +146,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const validatedData = updateParticipationSchema.parse(body);
 
@@ -160,7 +162,7 @@ export async function PUT(
       where: {
         userId_eventId: {
           userId: user.id,
-          eventId: params.id,
+          eventId: id,
         }
       },
       include: { event: true }
@@ -206,7 +208,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -214,6 +216,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
     });
@@ -226,7 +229,7 @@ export async function DELETE(
       where: {
         userId_eventId: {
           userId: user.id,
-          eventId: params.id,
+          eventId: id,
         }
       }
     });
@@ -251,7 +254,7 @@ export async function DELETE(
 
     // Update event current participants count
     await prisma.event.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         currentParticipants: {
           decrement: 1,

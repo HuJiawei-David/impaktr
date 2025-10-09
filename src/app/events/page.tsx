@@ -1,30 +1,48 @@
-// home/ubuntu/impaktrweb/src/app/events/page.tsx
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Search, 
-  Filter, 
   Plus, 
   MapPin, 
   Calendar, 
   Clock, 
   Users,
   Star,
-  Eye
+  Heart,
+  Globe,
+  TrendingUp,
+  ChevronDown,
+  Filter
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { EventFilters } from '@/components/events/EventFilters';
-import { EventCard } from '@/components/events/EventCard';
-import { formatDate, formatTimeAgo } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { countries } from '@/constants/countries';
+
+// Utility functions
+const formatEventDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
+
+const formatEventTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  });
+};
 
 interface Event {
   id: string;
@@ -35,11 +53,13 @@ interface Event {
   location: {
     address?: string;
     city: string;
+    country: string;
     coordinates?: { lat: number; lng: number };
     isVirtual: boolean;
   };
   maxParticipants?: number;
   currentParticipants: number;
+  interestedCount: number;
   sdgTags: number[];
   skills: string[];
   intensity: number;
@@ -48,63 +68,190 @@ interface Event {
   creator: {
     id: string;
     name: string;
-    avatar: string;
+    avatar?: string;
   };
   organization?: {
     id: string;
     name: string;
-    logo: string;
+    logo?: string;
   };
   createdAt: string;
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  isFavorited?: boolean;
+  isAttending?: boolean;
+  distance?: number;
+  trending?: boolean;
+  featured?: boolean;
 }
 
 interface EventFilters {
   search: string;
-  sdg?: number;
-  location?: string;
-  startDate?: string;
-  endDate?: string;
   status: string;
   sortBy: string;
+  nearMe: boolean;
+  maxDistance: number;
+  showVirtual: boolean;
+  sdgs: number[];
+  category?: string;
 }
+
+// SDG Definitions
+const SDG_DEFINITIONS = {
+  1: { name: 'No Poverty', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+  2: { name: 'Zero Hunger', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+  3: { name: 'Good Health and Well-being', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  4: { name: 'Quality Education', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  5: { name: 'Gender Equality', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+  6: { name: 'Clean Water and Sanitation', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
+  7: { name: 'Affordable and Clean Energy', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
+  8: { name: 'Decent Work and Economic Growth', color: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200' },
+  9: { name: 'Industry, Innovation and Infrastructure', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  10: { name: 'Reduced Inequalities', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
+  11: { name: 'Sustainable Cities and Communities', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' },
+  12: { name: 'Responsible Consumption and Production', color: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200' },
+  13: { name: 'Climate Action', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
+  14: { name: 'Life Below Water', color: 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200' },
+  15: { name: 'Life on Land', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  16: { name: 'Peace, Justice and Strong Institutions', color: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200' },
+  17: { name: 'Partnerships for the Goals', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' }
+};
 
 export default function EventsPage() {
   const { data: session } = useSession();
   const user = session?.user;
+  const searchParams = useSearchParams();
+  const category = searchParams.get('category');
+  
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [activeTab, setActiveTab] = useState('near-you');
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string>('all');
+  const [showSDGDropdown, setShowSDGDropdown] = useState(false);
+  const [showDistanceDropdown, setShowDistanceDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [showVirtualDropdown, setShowVirtualDropdown] = useState(false);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState<EventFilters>({
     search: '',
     status: 'ACTIVE',
-    sortBy: 'startDate'
+    sortBy: 'startDate',
+    nearMe: true,
+    maxDistance: 50,
+    showVirtual: true,
+    sdgs: [],
+    category: category || undefined
   });
 
   useEffect(() => {
     fetchEvents();
   }, [filters]);
 
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.log('Geolocation error:', error);
+        }
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showSDGDropdown && !target.closest('.sdg-dropdown-container')) {
+        setShowSDGDropdown(false);
+      }
+      if (showDistanceDropdown && !target.closest('.distance-dropdown-container')) {
+        setShowDistanceDropdown(false);
+      }
+      if (showSortDropdown && !target.closest('.sort-dropdown-container')) {
+        setShowSortDropdown(false);
+      }
+      if (showVirtualDropdown && !target.closest('.virtual-dropdown-container')) {
+        setShowVirtualDropdown(false);
+      }
+      if (showCountryDropdown && !target.closest('.country-dropdown-container')) {
+        setShowCountryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSDGDropdown, showDistanceDropdown, showSortDropdown, showVirtualDropdown, showCountryDropdown]);
+
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
-      const queryParams = new URLSearchParams();
+      // Mock data for now
+      const mockEvents: Event[] = [
+        {
+          id: '1',
+          title: 'Beach Cleanup Drive',
+          description: 'Join us for a community beach cleanup to protect marine life.',
+          startDate: '2024-01-15T09:00:00Z',
+          location: {
+            city: 'Kuala Lumpur',
+            country: 'Malaysia',
+            isVirtual: false
+          },
+          currentParticipants: 45,
+          interestedCount: 12,
+          sdgTags: [14, 15],
+          skills: ['Environmental Awareness'],
+          intensity: 2,
+          verificationType: 'PHOTO',
+          images: ['/api/placeholder/400/300'],
+          creator: {
+            id: '1',
+            name: 'Green Malaysia',
+            avatar: '/api/placeholder/50/50'
+          },
+          createdAt: '2024-01-01T00:00:00Z',
+          status: 'ACTIVE',
+          distance: 5.2,
+          trending: true
+        },
+        {
+          id: '2',
+          title: 'Food Distribution for Homeless',
+          description: 'Help distribute meals to homeless individuals in the city center.',
+          startDate: '2024-01-20T18:00:00Z',
+          location: {
+            city: 'Selangor',
+            country: 'Malaysia',
+            isVirtual: false
+          },
+          currentParticipants: 23,
+          interestedCount: 8,
+          sdgTags: [1, 2],
+          skills: ['Community Service'],
+          intensity: 1,
+          verificationType: 'CHECK_IN',
+          images: ['/api/placeholder/400/300'],
+          creator: {
+            id: '2',
+            name: 'Hope Foundation',
+            avatar: '/api/placeholder/50/50'
+          },
+          createdAt: '2024-01-02T00:00:00Z',
+          status: 'ACTIVE',
+          distance: 12.8,
+          featured: true
+        }
+      ];
       
-      if (filters.search) queryParams.set('search', filters.search);
-      if (filters.sdg) queryParams.set('sdg', filters.sdg.toString());
-      if (filters.location) queryParams.set('location', filters.location);
-      if (filters.startDate) queryParams.set('startDate', filters.startDate);
-      if (filters.endDate) queryParams.set('endDate', filters.endDate);
-      if (filters.status) queryParams.set('status', filters.status);
-
-      const response = await fetch(`/api/events?${queryParams.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data.events);
-        filterEventsByTab(data.events, activeTab);
-      }
+      setEvents(mockEvents);
+      filterEventsByTab(mockEvents, activeTab);
     } catch (error) {
       console.error('Error fetching events:', error);
     } finally {
@@ -114,38 +261,67 @@ export default function EventsPage() {
 
   const filterEventsByTab = (eventList: Event[], tab: string) => {
     let filtered = [...eventList];
+    const now = new Date();
 
     switch (tab) {
-      case 'recommended':
-        // Filter based on user's SDG preferences and location
-        // This would use actual user preferences from the profile
-        filtered = eventList.filter(event => 
-          event.sdgTags.some(sdg => [13, 4, 1].includes(sdg)) // Mock user SDG preferences
+      case 'near-you':
+        filtered = eventList.filter(event => {
+          if (event.location.isVirtual) return filters.showVirtual;
+          if (event.distance !== undefined) {
+            return event.distance <= (filters.maxDistance || 50);
+          }
+          return true;
+        });
+        break;
+      case 'latest':
+        filtered = eventList.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         break;
-      case 'nearby':
-        // Filter by location proximity
-        // This would use actual geolocation
-        filtered = eventList.filter(event => 
-          event.location.city.toLowerCase().includes('kuala lumpur') ||
-          event.location.city.toLowerCase().includes('selangor')
-        );
+      case 'upcoming':
+        filtered = eventList.filter(event => new Date(event.startDate) > now)
+          .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
         break;
-      case 'virtual':
-        filtered = eventList.filter(event => event.location.isVirtual);
+      case 'past':
+        filtered = eventList.filter(event => new Date(event.startDate) < now)
+          .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
         break;
-      case 'my-events':
-        // Filter events where user is participating
-        // This would check actual user participation
-        filtered = user ? eventList.filter(event => 
-          Math.random() > 0.7 // Mock participation
-        ) : [];
+      case 'attending':
+        filtered = eventList.filter(event => event.isAttending);
+        break;
+      case 'favorites':
+        filtered = eventList.filter(event => event.isFavorited);
         break;
       default:
         filtered = eventList;
     }
 
+    // Apply other filters
+    if (filters.search) {
+      filtered = filtered.filter(event =>
+        event.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+        event.description.toLowerCase().includes(filters.search.toLowerCase()) ||
+        event.location.city.toLowerCase().includes(filters.search.toLowerCase())
+      );
+    }
+
+    if (filters.sdgs && filters.sdgs.length > 0) {
+      filtered = filtered.filter(event =>
+        event.sdgTags.some(sdg => filters.sdgs.includes(sdg))
+      );
+    }
+
+    if (selectedCountry && selectedCountry !== 'all') {
+      filtered = filtered.filter(event =>
+        event.location.country.toLowerCase() === selectedCountry.toLowerCase()
+      );
+    }
+
     setFilteredEvents(filtered);
+  };
+
+  const handleFilterChange = (newFilters: Partial<EventFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
   const handleTabChange = (tab: string) => {
@@ -153,202 +329,655 @@ export default function EventsPage() {
     filterEventsByTab(events, tab);
   };
 
-  const handleFilterChange = (newFilters: Partial<EventFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-  };
-
   const clearFilters = () => {
     setFilters({
       search: '',
       status: 'ACTIVE',
-      sortBy: 'startDate'
+      sortBy: 'startDate',
+      nearMe: true,
+      maxDistance: 50,
+      showVirtual: true,
+      sdgs: []
     });
+    setSelectedCountry('all');
+    setShowSDGDropdown(false);
+    setShowDistanceDropdown(false);
+    setShowSortDropdown(false);
+    setShowVirtualDropdown(false);
+    setShowCountryDropdown(false);
+  };
+
+  const toggleFavorite = (eventId: string) => {
+    setEvents(prev => prev.map(event => 
+      event.id === eventId 
+        ? { ...event, isFavorited: !event.isFavorited }
+        : event
+    ));
+  };
+
+  const toggleSDG = (sdgNumber: number) => {
+    const currentSDGs = filters.sdgs || [];
+    const newSDGs = currentSDGs.includes(sdgNumber)
+      ? currentSDGs.filter(sdg => sdg !== sdgNumber)
+      : [...currentSDGs, sdgNumber];
+    
+    handleFilterChange({ sdgs: newSDGs });
+  };
+
+  const removeSDG = (sdgNumber: number) => {
+    const newSDGs = (filters.sdgs || []).filter(sdg => sdg !== sdgNumber);
+    handleFilterChange({ sdgs: newSDGs });
+  };
+
+  const clearAllSDGs = () => {
+    handleFilterChange({ sdgs: [] });
+  };
+
+  const getCategoryTitle = (category: string) => {
+    const categoryTitles: Record<string, string> = {
+      volunteer: 'Volunteer Events',
+      research: 'Research Opportunities',
+      education: 'Education Programs',
+      environment: 'Environmental Action',
+      health: 'Health & Wellness',
+      community: 'Community Service'
+    };
+    return categoryTitles[category] || 'Events';
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Impact Events</h1>
-            <p className="text-muted-foreground">
-              Discover volunteering opportunities and create positive impact
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 text-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-16">
+
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              {category 
+                ? getCategoryTitle(category)
+                : 'Impact Events Near You'
+              }
+            </h1>
+            <p className="text-xl text-blue-100 max-w-3xl mx-auto">
+              {category 
+                ? `Discover ${getCategoryTitle(category).toLowerCase()} and make an impact in your area of interest`
+                : 'Join thousands of changemakers creating positive impact worldwide'
+              }
             </p>
           </div>
-          
-          {user && (
-            <Link href="/events/create">
-              <Button className="mt-4 md:mt-0">
-                <Plus className="w-4 h-4 mr-2" />
-                Create Event
-              </Button>
-            </Link>
-          )}
-        </div>
 
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Search events by title, description, or location..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange({ search: e.target.value })}
-              className="pl-10"
-            />
+          {/* Main Search Bar */}
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="md:col-span-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <Input
+                      placeholder="Search events, causes, or organizations..."
+                      value={filters.search}
+                      onChange={(e) => handleFilterChange({ search: e.target.value })}
+                      className="pl-10 h-12 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                
+                <div className="md:col-span-2 country-dropdown-container">
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                      className="h-12 w-full justify-between bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600"
+                    >
+                      <div className="flex items-center text-gray-900 dark:text-white">
+                        <Globe className="w-4 h-4 mr-2" />
+                        {selectedCountry === 'all' ? 'Any Country' : 
+                          countries.find(c => c.code.toLowerCase() === selectedCountry)?.name || 'Any Country'
+                        }
+                      </div>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
+                    </Button>
+                    
+                    {showCountryDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                        <button
+                          onClick={() => {
+                            setSelectedCountry('all');
+                            setShowCountryDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
+                        >
+                          <span className="mr-2">🌍</span>
+                          Any Country
+                        </button>
+                        {countries.map(country => (
+                          <button
+                            key={country.code}
+                            onClick={() => {
+                              setSelectedCountry(country.code.toLowerCase());
+                              setShowCountryDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
+                          >
+                            <span className="mr-2">{country.flag}</span>
+                            {country.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <Button 
+                    className="h-12 w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => fetchEvents()}
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    Search
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
-          
-          <div className="flex gap-2">
-            <Select value={filters.sortBy} onValueChange={(value) => handleFilterChange({ sortBy: value })}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="startDate">Sort by Date</SelectItem>
-                <SelectItem value="relevance">Relevance</SelectItem>
-                <SelectItem value="participants">Most Popular</SelectItem>
-                <SelectItem value="newest">Newest First</SelectItem>
-              </SelectContent>
-            </Select>
 
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2"
-            >
-              <Filter className="w-4 h-4" />
-              Filters
+          {/* Action Buttons */}
+          <div className="flex flex-wrap justify-center gap-4 mt-8">
+            <Button variant="ghost" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Trending Events
+            </Button>
+            <Button variant="ghost" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+              <Globe className="w-4 h-4 mr-2" />
+              Featured Events
+            </Button>
+            {user && (
+              <Link href="/events/create">
+                <Button className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Event
+                </Button>
+              </Link>
+            )}
+            <Button variant="ghost" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+              <Users className="w-4 h-4 mr-2" />
+              Join Community
             </Button>
           </div>
-        </div>
 
-        {/* Advanced Filters */}
-        {showFilters && (
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <EventFilters
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                onClear={clearFilters}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Event Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
-            <TabsTrigger value="all">All Events</TabsTrigger>
-            <TabsTrigger value="recommended">Recommended</TabsTrigger>
-            <TabsTrigger value="nearby">Nearby</TabsTrigger>
-            <TabsTrigger value="virtual">Virtual</TabsTrigger>
-            {user && <TabsTrigger value="my-events">My Events</TabsTrigger>}
-          </TabsList>
-
-          <TabsContent value={activeTab} className="space-y-6">
-            {/* Results Summary */}
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Showing {filteredEvents.length} events
+          {/* Trending Events Section */}
+          <div className="mt-6">
+            <div className="flex items-center justify-center space-x-6 text-blue-100">
+              <div className="flex items-center">
+                <TrendingUp className="w-5 h-5 mr-2" />
+                <span className="text-sm">Trending: Beach Cleanup, Food Drive, Tree Planting</span>
               </div>
-              
-              {filters.search && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleFilterChange({ search: '' })}
-                >
-                  Clear search
-                </Button>
+              <div className="flex items-center">
+                <Globe className="w-5 h-5 mr-2" />
+                <span className="text-sm">Featured in 25+ countries</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters Section - Full Width White Container */}
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8">
+          {/* Event Tabs */}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
+              <Button
+                variant={activeTab === 'near-you' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('near-you')}
+                className="text-sm"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                Near You
+              </Button>
+              <Button
+                variant={activeTab === 'latest' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('latest')}
+                className="text-sm"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Latest
+              </Button>
+              <Button
+                variant={activeTab === 'upcoming' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('upcoming')}
+                className="text-sm"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Upcoming
+              </Button>
+              <Button
+                variant={activeTab === 'past' ? 'default' : 'outline'}
+                onClick={() => handleTabChange('past')}
+                className="text-sm"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Past
+              </Button>
+              {user && (
+                <>
+                  <Button
+                    variant={activeTab === 'attending' ? 'default' : 'outline'}
+                    onClick={() => handleTabChange('attending')}
+                    className="text-sm"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Attending
+                  </Button>
+                  <Button
+                    variant={activeTab === 'favorites' ? 'default' : 'outline'}
+                    onClick={() => handleTabChange('favorites')}
+                    className="text-sm"
+                  >
+                    <Heart className="w-4 h-4 mr-2" />
+                    Favorites
+                  </Button>
+                </>
               )}
             </div>
-
-            {/* Events Grid */}
-            {isLoading ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        <div className="h-4 bg-muted rounded w-3/4"></div>
-                        <div className="h-3 bg-muted rounded w-1/2"></div>
-                        <div className="h-20 bg-muted rounded"></div>
-                        <div className="flex space-x-2">
-                          <div className="h-6 bg-muted rounded w-16"></div>
-                          <div className="h-6 bg-muted rounded w-16"></div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredEvents.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">No events found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    {filters.search 
-                      ? `No events match your search for "${filters.search}"`
-                      : 'No events match your current filters'
-                    }
-                  </p>
-                  {user && (
-                    <Link href="/events/create">
-                      <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create the first event
-                      </Button>
-                    </Link>
+                
+            {/* Advanced Filters Toggle */}
+            <div className="mb-6">
+              <Button
+                variant="outline"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="w-full justify-between bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+              >
+                <div className="flex items-center">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <span>Advanced Filters</span>
+                  {(filters.sdgs && filters.sdgs.length > 0) && (
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      {filters.sdgs.length} SDG{filters.sdgs.length > 1 ? 's' : ''}
+                    </Badge>
                   )}
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredEvents.map((event) => (
-                  <EventCard key={event.id} event={event} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              </Button>
+            </div>
 
-        {/* Load More */}
-        {filteredEvents.length > 0 && filteredEvents.length >= 12 && (
-          <div className="text-center mt-8">
-            <Button variant="outline" onClick={fetchEvents}>
-              Load More Events
-            </Button>
-          </div>
-        )}
+            {/* Collapsible Advanced Filters */}
+            {showAdvancedFilters && (
+              <div className="mb-6 space-y-6 animate-in slide-in-from-top-2 duration-200">
+              {/* SDG Filters */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Filter by SDG Categories
+                  </label>
+                  {(filters.sdgs && filters.sdgs.length > 0) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearAllSDGs}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Clear all ({filters.sdgs.length})
+                    </Button>
+                  )}
+                </div>
 
-        {/* Featured Section */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-6">Featured Organizations</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { name: 'WWF Malaysia', logo: '/orgs/wwf.png', events: 12, focus: 'Environment' },
-              { name: 'UNICEF', logo: '/orgs/unicef.png', events: 8, focus: 'Children' },
-              { name: 'Red Crescent', logo: '/orgs/redcrescent.png', events: 15, focus: 'Healthcare' },
-              { name: 'Teach for Malaysia', logo: '/orgs/tfm.png', events: 6, focus: 'Education' }
-            ].map((org, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
-                    <div className="text-2xl font-bold text-muted-foreground">
-                      {org.name.charAt(0)}
+                {/* Selected SDGs Tag Cloud */}
+                {filters.sdgs && filters.sdgs.length > 0 && (
+                  <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex flex-wrap gap-2">
+                      {filters.sdgs.map(sdgNumber => {
+                        const sdgInfo = SDG_DEFINITIONS[sdgNumber as keyof typeof SDG_DEFINITIONS];
+                        return (
+                          <div
+                            key={sdgNumber}
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${sdgInfo?.color || 'bg-gray-100 text-gray-800'}`}
+                          >
+                            <span className="mr-2">SDG {sdgNumber}</span>
+                            <button
+                              onClick={() => removeSDG(sdgNumber)}
+                              className="ml-1 hover:bg-black/10 rounded-full w-4 h-4 flex items-center justify-center"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  <h3 className="font-semibold mb-2">{org.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-2">{org.focus}</p>
-                  <Badge variant="secondary">{org.events} active events</Badge>
+                )}
+
+                {/* SDG Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {Object.entries(SDG_DEFINITIONS).map(([number, info]) => {
+                    const sdgNumber = parseInt(number);
+                    const isSelected = filters.sdgs?.includes(sdgNumber);
+                    return (
+                      <button
+                        key={sdgNumber}
+                        onClick={() => toggleSDG(sdgNumber)}
+                        className={`p-3 rounded-lg border-2 transition-all text-xs font-medium ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div className="font-bold mb-1">SDG {sdgNumber}</div>
+                          <div className="text-xs leading-tight">{info.name}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Other Filters Row */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Distance Filter */}
+                <div className="distance-dropdown-container relative">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    Distance
+                  </label>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDistanceDropdown(!showDistanceDropdown)}
+                    className="w-full justify-between bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600"
+                  >
+                    <span className="text-gray-900 dark:text-white">
+                      {filters.maxDistance === 10 && 'Within 10 km'}
+                      {filters.maxDistance === 25 && 'Within 25 km'}
+                      {filters.maxDistance === 50 && 'Within 50 km'}
+                      {filters.maxDistance === 100 && 'Within 100 km'}
+                      {filters.maxDistance === 999 && 'Any distance'}
+                      {!filters.maxDistance && 'Within 50 km'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showDistanceDropdown ? 'rotate-180' : ''}`} />
+                  </Button>
+                  
+                  {showDistanceDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50">
+                      <div className="py-1">
+                        {[
+                          { value: 10, label: 'Within 10 km' },
+                          { value: 25, label: 'Within 25 km' },
+                          { value: 50, label: 'Within 50 km' },
+                          { value: 100, label: 'Within 100 km' },
+                          { value: 999, label: 'Any distance' }
+                        ].map(option => (
+                          <button
+                            key={option.value.toString()}
+                            onClick={() => {
+                              handleFilterChange({ maxDistance: option.value });
+                              setShowDistanceDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-3 rounded text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-gray-900 dark:text-white"
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sort Filter */}
+                <div className="sort-dropdown-container relative">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    Sort by
+                  </label>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowSortDropdown(!showSortDropdown)}
+                    className="w-full justify-between bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600"
+                  >
+                    <span className="text-gray-900 dark:text-white">
+                      {filters.sortBy === 'startDate' && 'Date (Upcoming first)'}
+                      {filters.sortBy === 'relevance' && 'Relevance'}
+                      {filters.sortBy === 'participants' && 'Most popular'}
+                      {filters.sortBy === 'newest' && 'Newest first'}
+                      {filters.sortBy === 'distance' && 'Distance (Nearest first)'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+                  </Button>
+                  
+                  {showSortDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50">
+                      <div className="py-1">
+                        {[
+                          { value: 'startDate', label: 'Date (Upcoming first)' },
+                          { value: 'relevance', label: 'Relevance' },
+                          { value: 'participants', label: 'Most popular' },
+                          { value: 'newest', label: 'Newest first' },
+                          { value: 'distance', label: 'Distance (Nearest first)' }
+                        ].map(option => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              handleFilterChange({ sortBy: option.value });
+                              setShowSortDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-3 rounded text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-gray-900 dark:text-white"
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Virtual Events Filter */}
+                <div className="virtual-dropdown-container relative">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    Virtual Events
+                  </label>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowVirtualDropdown(!showVirtualDropdown)}
+                    className="w-full justify-between bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600"
+                  >
+                    <span className="text-gray-900 dark:text-white">
+                      {filters.showVirtual ? 'Show virtual events' : 'Hide virtual events'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform ${showVirtualDropdown ? 'rotate-180' : ''}`} />
+                  </Button>
+                  
+                  {showVirtualDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50">
+                      <div className="py-1">
+                        {[
+                          { value: true, label: 'Show virtual events' },
+                          { value: false, label: 'Hide virtual events' }
+                        ].map(option => (
+                          <button
+                            key={option.value.toString()}
+                            onClick={() => {
+                              handleFilterChange({ showVirtual: option.value });
+                              setShowVirtualDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-3 rounded text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-gray-900 dark:text-white"
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Clear Filters */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    &nbsp;
+                  </label>
+                  <Button 
+                    onClick={clearFilters} 
+                    className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Clear All Filters
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          </div>
+        </div>
+      </div>
+
+      {/* Events Section */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8">
+        {/* Events Grid - 4 columns on desktop */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-t-lg"></div>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
-        </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="max-w-md mx-auto">
+              <Calendar className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">No events found</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                Try searching in a different location or check back later for new events.
+              </p>
+              {user && (
+                <Link href="/events/create">
+                  <Button size="lg">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create an Event
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredEvents.map((event) => (
+              <EventCard key={event.id} event={event} onToggleFavorite={toggleFavorite} />
+            ))}
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {filteredEvents.length > 0 && filteredEvents.length >= 12 && (
+          <div className="text-center mt-12">
+            <Button variant="outline" size="lg" onClick={fetchEvents}>
+              Load More Events
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+// Event Card Component
+const EventCard = ({ event, onToggleFavorite }: { 
+  event: Event; 
+  onToggleFavorite: (id: string) => void;
+}) => {
+  return (
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="relative h-48 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
+        {event.images && event.images.length > 0 ? (
+          <img 
+            src={event.images[0]} 
+            alt={event.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Calendar className="w-12 h-12 text-gray-400" />
+          </div>
+        )}
+        
+        {event.trending && (
+          <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+            <TrendingUp className="w-3 h-3 mr-1" />
+            Trending
+          </Badge>
+        )}
+        
+        {event.featured && (
+          <Badge className="absolute top-2 right-2 bg-yellow-500 text-white">
+            <Star className="w-3 h-3 mr-1" />
+            Featured
+          </Badge>
+        )}
+      </div>
+      
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="font-semibold text-lg line-clamp-2">{event.title}</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onToggleFavorite(event.id)}
+            className="ml-2 text-gray-500 hover:text-red-500"
+          >
+            <Heart className={`w-4 h-4 ${event.isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
+          </Button>
+        </div>
+        
+        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+          <div className="flex items-center">
+            <Calendar className="w-4 h-4 mr-2" />
+            {formatEventDate(event.startDate)} • {formatEventTime(event.startDate)}
+          </div>
+          
+          <div className="flex items-center">
+            <MapPin className="w-4 h-4 mr-2" />
+            {event.location.isVirtual ? 'Virtual Event' : `${event.location.city}, ${event.location.country}`}
+          </div>
+          
+          {event.distance && (
+            <div className="text-xs text-gray-500 dark:text-gray-500 ml-6">
+              {event.distance.toFixed(1)} km away
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+            <Users className="w-4 h-4 mr-1" />
+            {event.currentParticipants} going
+            {event.interestedCount > 0 && (
+              <span className="ml-2">• {event.interestedCount} interested</span>
+            )}
+          </div>
+          
+          {event.isAttending && (
+            <Badge variant="secondary" className="text-xs">
+              Attending
+            </Badge>
+          )}
+        </div>
+
+        {/* SDG Tags */}
+        <div className="flex flex-wrap gap-1 mt-3">
+          {event.sdgTags.slice(0, 3).map(sdg => (
+            <Badge key={sdg} variant="outline" className="text-xs">
+              SDG {sdg}
+            </Badge>
+          ))}
+          {event.sdgTags.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{event.sdgTags.length - 3}
+            </Badge>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};

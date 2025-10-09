@@ -29,11 +29,12 @@ const updateEventSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         creator: {
           include: {
@@ -77,7 +78,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -85,6 +86,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const validatedData = updateEventSchema.parse(body);
 
@@ -98,7 +100,7 @@ export async function PUT(
 
     // Check if user is the event creator or has organization permissions
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: {
           include: {
@@ -127,7 +129,7 @@ export async function PUT(
     }
 
     const updatedEvent = await prisma.event.update({
-      where: { id: params.id },
+      where: { id: id },
       data: validatedData,
       include: {
         creator: {
@@ -165,7 +167,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -173,6 +175,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
     });
@@ -183,7 +186,7 @@ export async function DELETE(
 
     // Check if user is the event creator or has organization permissions
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: {
           include: {
@@ -214,7 +217,7 @@ export async function DELETE(
     // Check if event has verified participations (prevent deletion if it does)
     const verifiedParticipations = await prisma.participation.count({
       where: {
-        eventId: params.id,
+        eventId: id,
         status: 'VERIFIED'
       }
     });
@@ -227,7 +230,7 @@ export async function DELETE(
     }
 
     await prisma.event.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({ message: 'Event deleted successfully' });

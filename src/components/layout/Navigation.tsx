@@ -19,17 +19,18 @@ import {
   BarChart3,
   Trophy,
   Users,
-  Plus
+  Plus,
+  Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
@@ -37,10 +38,9 @@ import { NotificationDropdown } from '@/components/notifications/NotificationDro
 
 const navigationItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/events', label: 'Events', icon: Calendar },
+  { href: '/opportunities', label: 'Opportunities', icon: Globe },
   { href: '/leaderboards', label: 'Leaderboards', icon: Trophy },
   { href: '/community', label: 'Community', icon: Users },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
 export function Navigation() {
@@ -48,7 +48,11 @@ export function Navigation() {
   const user = session?.user;
   const isLoading = status === 'loading';
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(3); // Mock unread count
   const pathname = usePathname();
   const router = useRouter();
 
@@ -61,16 +65,39 @@ export function Navigation() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // For now, just show an alert with the search query
+      // You can implement a search page later
+      alert(`Searching for: "${searchQuery.trim()}"`);
+      setShowSearch(false);
+      setSearchQuery('');
+    }
+  };
+
+  const handleSearchToggle = () => {
+    setShowSearch(!showSearch);
+    if (!showSearch) {
+      // Focus search input when opening
+      setTimeout(() => {
+        const searchInput = document.getElementById('navbar-search');
+        searchInput?.focus();
+      }, 100);
+    }
+  };
+
   const isHomePage = pathname === '/';
 
   return (
+    <>
     <nav className={cn(
       "sticky top-0 z-50 w-full transition-all duration-300",
       scrolled || !isHomePage 
         ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm" 
         : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md"
     )}>
-      <div className="container mx-auto px-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center">
@@ -79,94 +106,295 @@ export function Navigation() {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-6">
-            {user && (
-              <div className="flex items-center space-x-1">
+          {/* Desktop Navigation - LinkedIn Style */}
+          {user ? (
+            <div className="hidden md:flex items-center justify-center flex-1 max-w-3xl mx-8">
+              <div className="flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-2">
                 {navigationItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
-                  
+
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                        "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
                         isActive
                           ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
-                          : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                          : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
                       )}
                     >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
+                      <Icon className={cn(
+                        "w-5 h-5 mb-1 transition-all duration-200",
+                        isActive ? "scale-110" : "group-hover:scale-110"
+                      )} />
+                      <span className="truncate">{item.label}</span>
+                      {isActive && (
+                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full"></div>
+                      )}
                     </Link>
                   );
                 })}
+
+                {/* Analytics with Notification */}
+                <div className="flex items-center ml-2 pl-2 border-l border-gray-200 dark:border-gray-600">
+                  <Link
+                    href="/analytics"
+                    className={cn(
+                      "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
+                      pathname.startsWith('/analytics')
+                        ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
+                        : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    )}
+                  >
+                    <BarChart3 className={cn(
+                      "w-5 h-5 mb-1 transition-all duration-200",
+                      pathname.startsWith('/analytics') ? "scale-110" : "group-hover:scale-110"
+                    )} />
+                    <span className="truncate">Analytics</span>
+                    {pathname.startsWith('/analytics') && (
+                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full"></div>
+                    )}
+                  </Link>
+
+                  {/* Notification beside Analytics */}
+                  <div className="relative ml-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className={cn(
+                          "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
+                          "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        )}>
+                          <div className="relative">
+                            <Bell className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
+                            {unreadCount > 0 && (
+                              <Badge
+                                variant="destructive"
+                                className="absolute -top-2 -right-2 h-4 w-4 p-0 text-[10px] flex items-center justify-center"
+                              >
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                              </Badge>
+                            )}
+                          </div>
+                          <span className="truncate">Notifications</span>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-80" align="end">
+                        {/* Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-border">
+                          <h3 className="font-semibold">Notifications</h3>
+                          {unreadCount > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // Mark all as read logic would go here
+                              }}
+                              className="text-xs"
+                            >
+                              Mark all as read
+                            </Button>
+                          )}
+                        </div>
+
+                        {/* Notifications List */}
+                        <div className="max-h-96 overflow-y-auto">
+                          <div className="p-4 text-center text-muted-foreground">
+                            <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No notifications yet</p>
+                          </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-2 border-t border-border">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-center"
+                            onClick={() => {
+                              // Navigate to notifications page
+                            }}
+                          >
+                            View All Notifications
+                          </Button>
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-2">
+              {/* Public navigation for non-authenticated users */}
+              <Link 
+                href="/demo/dashboard" 
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <Home className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
+                <span className="truncate">Dashboard</span>
+              </Link>
+              <Link 
+                href="/demo/opportunities" 
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <Globe className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
+                <span className="truncate">Opportunities</span>
+              </Link>
+              <Link 
+                href="/demo/leaderboards" 
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <Trophy className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
+                <span className="truncate">Leaderboards</span>
+              </Link>
+              <Link 
+                href="/demo/community" 
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <Users className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
+                <span className="truncate">Community</span>
+              </Link>
+            </div>
+          )}
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-3">
             {user ? (
               <>
-                {/* Search */}
-                <Button variant="ghost" size="sm" className="hidden md:flex text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
-                  <Search className="w-4 h-4" />
-                </Button>
+                {/* Functional Search Bar */}
+                <div className="hidden md:flex items-center relative">
+                  {showSearch ? (
+                    <form onSubmit={handleSearch} className="flex items-center">
+                      <input
+                        id="navbar-search"
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search events, users, communities..."
+                        className="w-64 px-4 py-2 pr-10 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        onBlur={() => {
+                          if (!searchQuery.trim()) {
+                            setShowSearch(false);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSearch(false)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </form>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSearchToggle}
+                      className="text-gray-600 dark:text-gray-300"
+                    >
+                      <Search className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
 
-                {/* Notifications */}
-                <NotificationDropdown />
-
-                {/* Create Event */}
-                <Link href="/events/create">
-                  <Button size="sm" className="hidden md:flex bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create
-                  </Button>
-                </Link>
 
                 {/* Profile Dropdown */}
-                <DropdownMenu>
+                <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <Avatar className="h-8 w-8">
-                        <img 
-                          src={user.image || '/default-avatar.png'} 
-                          alt={user.name || 'User'} 
-                          className="rounded-full"
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-blue-200 dark:hover:ring-blue-800 transition-all duration-200">
+                      <Avatar className="h-9 w-9">
+                        <img
+                          src={user.image || '/default-avatar.png'}
+                          alt={user.name || 'User'}
+                          className="rounded-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=3b82f6&color=ffffff&size=128`;
+                          }}
                         />
                       </Avatar>
+                      <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-gray-900"></div>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <div className="flex items-center justify-start gap-2 p-2">
-                      <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium text-sm">{user.name}</p>
-                        <p className="w-48 truncate text-xs text-muted-foreground">
-                          {user.email}
-                        </p>
+                  <DropdownMenuContent className="w-72 bg-white border border-gray-200 shadow-lg rounded-xl overflow-hidden" align="end" forceMount>
+                    {/* Profile Header */}
+                    <div className="px-4 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12 ring-2 ring-blue-100">
+                          <img
+                            src={user.image || '/default-avatar.png'}
+                            alt={user.name || 'User'}
+                            className="rounded-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=3b82f6&color=ffffff&size=128`;
+                            }}
+                          />
+                        </Avatar>
+                        <div className="flex flex-col space-y-1 min-w-0 flex-1">
+                          <p className="font-semibold text-base text-gray-900 truncate">
+                            {user.name}
+                          </p>
+                          <p className="text-sm text-gray-600 truncate">
+                            {user.email}
+                          </p>
+                          <span className="inline-flex items-center text-xs px-3 py-1 rounded-md bg-blue-100 text-blue-700 font-medium whitespace-nowrap">
+                            {user.userType?.toLowerCase() || 'Individual'}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <DropdownMenuSeparator />
-                    <Link href="/profile">
-                      <DropdownMenuItem>
-                        <User className="mr-2 h-4 w-4" />
-                        Profile
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/settings">
-                      <DropdownMenuItem>
-                        <Settings className="mr-2 h-4 w-4" />
-                        Settings
-                      </DropdownMenuItem>
-                    </Link>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut()}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log out
-                    </DropdownMenuItem>
+
+                    {/* Menu Items */}
+                    <div className="py-2">
+                      <Link href="/profile">
+                        <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                          <User className="mr-3 h-5 w-5 text-gray-500" />
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-900">My Profile</span>
+                            <span className="text-xs text-gray-500">View and edit profile</span>
+                          </div>
+                        </DropdownMenuItem>
+                      </Link>
+
+                      <Link href="/dashboard">
+                        <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                          <BarChart3 className="mr-3 h-5 w-5 text-gray-500" />
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-900">Dashboard</span>
+                            <span className="text-xs text-gray-500">View your impact</span>
+                          </div>
+                        </DropdownMenuItem>
+                      </Link>
+
+                      <Link href="/settings">
+                        <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                          <Settings className="mr-3 h-5 w-5 text-gray-500" />
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-900">Settings</span>
+                            <span className="text-xs text-gray-500">Account preferences</span>
+                          </div>
+                        </DropdownMenuItem>
+                      </Link>
+
+                      <div className="mx-2 my-2 border-t border-gray-100 dark:border-gray-700"></div>
+
+                      <button
+                        onClick={() => {
+                          console.log('Sign out clicked');
+                          setDropdownOpen(false);
+                          signOut({ callbackUrl: '/' });
+                        }}
+                        className="mx-2 px-3 py-3 rounded-lg text-red-600 hover:text-red-700 focus:text-red-700 w-full text-left flex items-center transition-all duration-200 hover:scale-105 focus:scale-105"
+                      >
+                        <LogOut className="mr-3 h-5 w-5" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">Sign Out</span>
+                          <span className="text-xs text-red-500">Sign out of your account</span>
+                        </div>
+                      </button>
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
@@ -202,6 +430,18 @@ export function Navigation() {
             >
               {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
+
+            {/* Mobile Search Toggle */}
+            {user && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={handleSearchToggle}
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         </div>
 
@@ -217,7 +457,7 @@ export function Navigation() {
                 {navigationItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
-                  
+
                   return (
                     <Link
                       key={item.href}
@@ -235,6 +475,21 @@ export function Navigation() {
                     </Link>
                   );
                 })}
+
+                {/* Analytics */}
+                <Link
+                  href="/analytics"
+                  className={cn(
+                    "flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
+                    pathname.startsWith('/analytics')
+                      ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
+                      : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  )}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  <span>Analytics</span>
+                </Link>
                 
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
                   <Link href="/events/create">
@@ -246,6 +501,60 @@ export function Navigation() {
                       Create Event
                     </Button>
                   </Link>
+                </div>
+
+                {/* Mobile User Profile Section */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg mb-3">
+                    <Avatar className="h-10 w-10">
+                      <img 
+                        src={user.image || '/default-avatar.png'} 
+                        alt={user.name || 'User'} 
+                        className="rounded-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=3b82f6&color=ffffff&size=128`;
+                        }}
+                      />
+                    </Avatar>
+                    <div className="flex flex-col space-y-1 leading-none">
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{user.name}</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                        {user.email}
+                      </p>
+                      <Badge variant="secondary" className="w-fit text-xs">
+                        {user.userType?.toLowerCase() || 'Individual'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <Link
+                    href="/profile"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <User className="w-5 h-5" />
+                    <span>My Profile</span>
+                  </Link>
+
+                  <Link
+                    href="/settings"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Settings className="w-5 h-5" />
+                    <span>Settings</span>
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      setIsOpen(false);
+                      signOut({ callbackUrl: '/' });
+                    }}
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors w-full text-left"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span>Sign Out</span>
+                  </button>
                 </div>
               </>
             ) : (
@@ -303,6 +612,70 @@ export function Navigation() {
           </div>
         </div>
       )}
+
+      {/* Mobile Search Overlay */}
+      {showSearch && (
+        <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+          <div className="absolute top-16 left-4 right-4">
+            <form onSubmit={handleSearch} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4">
+              <div className="flex items-center space-x-3">
+                <Search className="w-5 h-5 text-gray-400" />
+                <input
+                  id="mobile-navbar-search"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search events, users, communities..."
+                  className="flex-1 bg-transparent border-0 outline-none text-gray-900 dark:text-gray-100 placeholder:text-gray-500"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSearch(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </nav>
+
+    {/* Mobile Bottom Navigation - LinkedIn Style */}
+    {user && (
+      <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-2 py-1">
+        <div className="flex items-center justify-around">
+          {[...navigationItems, { href: '/analytics', label: 'Analytics', icon: BarChart3 }].map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "relative flex flex-col items-center justify-center px-2 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[60px]",
+                  isActive
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-600 dark:text-gray-400"
+                )}
+              >
+                <Icon className={cn(
+                  "w-5 h-5 mb-1 transition-all duration-200",
+                  isActive ? "scale-110" : ""
+                )} />
+                <span className="truncate text-[10px]">{item.label}</span>
+                {isActive && (
+                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full"></div>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    )}
+    </>
   );
 }

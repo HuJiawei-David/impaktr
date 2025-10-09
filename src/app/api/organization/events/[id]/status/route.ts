@@ -16,7 +16,7 @@ const updateStatusSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -24,6 +24,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { status, reason, notifyParticipants, completionNotes } = updateStatusSchema.parse(body);
 
@@ -45,7 +46,7 @@ export async function PUT(
 
     // Get event and verify organization ownership
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: {
           include: {
@@ -101,7 +102,7 @@ export async function PUT(
 
     // Update event status
     const updatedEvent = await prisma.event.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status,
         updatedAt: new Date(),
@@ -130,7 +131,7 @@ export async function PUT(
       // Auto-verify pending participations when event is marked complete
       await prisma.participation.updateMany({
         where: {
-          eventId: params.id,
+          eventId: id,
           status: 'PENDING'
         },
         data: {
@@ -142,7 +143,7 @@ export async function PUT(
       // Create score history entries for all verified participants
       const verifiedParticipations = await prisma.participation.findMany({
         where: {
-          eventId: params.id,
+          eventId: id,
           status: 'VERIFIED'
         },
         include: {
@@ -177,7 +178,7 @@ export async function PUT(
             qualityComponent: participation.qualityRating || 1.0,
             verificationComponent: 1.0,
             locationComponent: 1.0,
-            eventId: params.id,
+            eventId: id,
             participationId: participation.id,
           }
         });
@@ -231,12 +232,14 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await params;
     }
 
     const user = await prisma.user.findUnique({
@@ -247,9 +250,11 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const { id } = await params;
+
     // Get event with status history
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: {
           include: {

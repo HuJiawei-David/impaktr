@@ -309,7 +309,7 @@ export default function CreateCertificatePage() {
                           <SelectValue placeholder="Select event" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No specific event</SelectItem>
+                          <SelectItem value="no_event">No specific event</SelectItem>
                           {organizationEvents.map((event: any) => (
                             <SelectItem key={event.id} value={event.id}>
                               {event.title}

@@ -12,7 +12,7 @@ const createCommentSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -22,7 +22,9 @@ export async function POST(
 
     const body = await request.json();
     const { content } = createCommentSchema.parse(body);
-    const postId = params.id;
+    
+    const { id } = await params;
+    const postId = id;
 
     const comment = await prisma.comment.create({
       data: {

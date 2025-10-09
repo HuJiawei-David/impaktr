@@ -264,12 +264,12 @@ export default function CreateEventPage() {
 
                 <div>
                   <Label htmlFor="organizationId">Create for Organization (Optional)</Label>
-                  <Select onValueChange={(value) => setValue('organizationId', value || undefined)}>
+                  <Select onValueChange={(value) => setValue('organizationId', value === 'individual' ? undefined : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select organization or create as individual" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Create as Individual</SelectItem>
+                      <SelectItem value="individual">Create as Individual</SelectItem>
                       {organizations.map((org) => (
                         <SelectItem key={org.id} value={org.id}>
                           <div className="flex items-center space-x-2">

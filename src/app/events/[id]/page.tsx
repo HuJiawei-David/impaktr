@@ -126,10 +126,10 @@ export default function EventDetailPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
 
   useEffect(() => {
-    if (params.id) {
+    if (params?.id) {
       fetchEvent(params.id as string);
     }
-  }, [params.id, user]);
+  }, [params?.id, user]);
 
   const fetchEvent = async (eventId: string) => {
     try {

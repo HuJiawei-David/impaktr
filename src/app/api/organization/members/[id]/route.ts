@@ -8,7 +8,7 @@ import { sendEmail } from '@/lib/email';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,7 +16,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const membershipId = params.id;
+    const { id } = await params;
+    const membershipId = id;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -240,7 +241,7 @@ export async function DELETE(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -248,7 +249,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const membershipId = params.id;
+    const { id } = await params;
+    const membershipId = id;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }

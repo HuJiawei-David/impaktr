@@ -102,7 +102,7 @@ export function EventFilters({ filters, onFilterChange, onClear }: EventFiltersP
             <SelectValue placeholder="Select location" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Locations</SelectItem>
+            <SelectItem value="all">All Locations</SelectItem>
             <SelectItem value="virtual">Virtual Only</SelectItem>
             <SelectItem value="kuala-lumpur">Kuala Lumpur</SelectItem>
             <SelectItem value="selangor">Selangor</SelectItem>
@@ -147,7 +147,7 @@ export function EventFilters({ filters, onFilterChange, onClear }: EventFiltersP
             <SelectValue placeholder="Any size" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any size</SelectItem>
+            <SelectItem value="all">Any size</SelectItem>
             <SelectItem value="1-10">Small (1-10 people)</SelectItem>
             <SelectItem value="11-50">Medium (11-50 people)</SelectItem>
             <SelectItem value="51-200">Large (51-200 people)</SelectItem>
@@ -167,7 +167,7 @@ export function EventFilters({ filters, onFilterChange, onClear }: EventFiltersP
             <SelectValue placeholder="Any intensity" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any intensity</SelectItem>
+            <SelectItem value="all">Any intensity</SelectItem>
             <SelectItem value="low">Light (0.8x)</SelectItem>
             <SelectItem value="medium">Medium (1.0x)</SelectItem>
             <SelectItem value="high">High (1.2x)</SelectItem>
@@ -186,7 +186,7 @@ export function EventFilters({ filters, onFilterChange, onClear }: EventFiltersP
             <SelectValue placeholder="Any verification" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any verification</SelectItem>
+            <SelectItem value="all">Any verification</SelectItem>
             <SelectItem value="organizer">Organizer Verified</SelectItem>
             <SelectItem value="peer">Peer Verified</SelectItem>
             <SelectItem value="gps">GPS Verified</SelectItem>

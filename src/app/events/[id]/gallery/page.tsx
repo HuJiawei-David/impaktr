@@ -38,23 +38,30 @@ interface Event {
 }
 
 interface EventGalleryPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 export default function EventGalleryPage({ params }: EventGalleryPageProps) {
   const { data: session } = useSession();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [eventId, setEventId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchEvent();
-  }, [params.id]);
+    params.then(p => setEventId(p.id));
+  }, [params]);
+
+  useEffect(() => {
+    if (eventId) {
+      fetchEvent();
+    }
+  }, [eventId]);
 
   const fetchEvent = async () => {
     try {
-      const response = await fetch(`/api/events/${params.id}`);
+      const response = await fetch(`/api/events/${eventId}`);
       if (response.ok) {
         const data = await response.json();
         setEvent(data.event);
@@ -132,7 +139,7 @@ export default function EventGalleryPage({ params }: EventGalleryPageProps) {
           {/* Main Gallery */}
           <div className="lg:col-span-3">
             <EventGallery 
-              eventId={event.id}
+              eventId={eventId || ''}
               canUpload={event.isCreator}
               isPreview={false}
               showFullGalleryLink={false}

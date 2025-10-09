@@ -15,12 +15,14 @@ const revokeSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await params;
     }
 
     const body = await request.json();
@@ -42,9 +44,11 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const { id } = await params;
+
     // Find the certificate
     const certificate = await prisma.certificate.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         user: {
           include: { profile: true }
@@ -91,7 +95,7 @@ export async function POST(
     // For now, we'll set the certificate as expired to "revoke" it
     // In a production system, you'd want a proper revocation table
     const revokedCertificate = await prisma.certificate.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         expiresAt: new Date(), // Set expiry to now to effectively revoke
         // In a full implementation, you'd have:
@@ -180,11 +184,13 @@ export async function POST(
 // GET method to check revocation status
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
     const certificate = await prisma.certificate.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         title: true,

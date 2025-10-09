@@ -41,7 +41,7 @@ interface CertificateGenerationJob {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -49,6 +49,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const validatedData = bulkIssueSchema.parse(body);
 
@@ -70,7 +71,7 @@ export async function POST(
 
     // Get event and verify organization ownership
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: {
           include: {
@@ -185,7 +186,7 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -193,6 +194,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const url = new URL(request.url);
     const bulkJobId = url.searchParams.get('jobId');
 
@@ -206,7 +208,7 @@ export async function GET(
 
     // Get event and verify permissions
     const event = await prisma.event.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         organization: {
           include: {
@@ -244,7 +246,7 @@ export async function GET(
     // Get all certificates issued for this event
     const certificates = await prisma.certificate.findMany({
       where: {
-        eventId: params.id,
+        eventId: id,
         type: 'event'
       },
       include: {
@@ -261,7 +263,7 @@ export async function GET(
 
     const eligibleParticipants = await prisma.participation.findMany({
       where: {
-        eventId: params.id,
+        eventId: id,
         status: 'VERIFIED'
       },
       include: {

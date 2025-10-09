@@ -846,7 +846,7 @@ export default function OrganizationCertificatesPage() {
                   <SelectValue placeholder="Select an event" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No specific event</SelectItem>
+                  <SelectItem value="no_event">No specific event</SelectItem>
                   {/* Event options would be loaded from API */}
                 </SelectContent>
               </Select>

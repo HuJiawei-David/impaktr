@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
@@ -12,8 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { countries } from '@/constants/countries';
 import { languages } from '@/constants/languages';
@@ -36,14 +36,20 @@ interface IndividualRegistrationData {
   isPublic: boolean;
 }
 
-export function IndividualRegistrationForm() {
+interface IndividualRegistrationFormProps {
+  isStepMode?: boolean;
+  onDataChange?: (data: any) => void;
+  validationErrors?: string[];
+}
+
+export function IndividualRegistrationForm({ isStepMode = false, onDataChange, validationErrors = [] }: IndividualRegistrationFormProps) {
   const { data: session } = useSession();
   const user = session?.user;
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  
+
   const {
     register,
     handleSubmit,
@@ -60,6 +66,39 @@ export function IndividualRegistrationForm() {
     }
   });
 
+
+  // Helper function to check if a field has validation errors
+  const hasFieldError = (fieldName: string) => {
+    return validationErrors.some(error => 
+      error.toLowerCase().includes(fieldName.toLowerCase()) ||
+      error.toLowerCase().includes(fieldName.replace(/([A-Z])/g, ' $1').toLowerCase())
+    );
+  };
+
+  // Simple validation function that doesn't cause infinite loops
+  const validateForm = () => {
+    const firstName = watch('firstName');
+    const lastName = watch('lastName');
+    const dateOfBirth = watch('dateOfBirth');
+    const nationality = watch('nationality');
+    const country = watch('country');
+    const city = watch('city');
+    const state = watch('state');
+    
+    return firstName && lastName && dateOfBirth && nationality && country && city && state;
+  };
+
+  // Add validation rules for Select fields
+  const validateNationality = (value: string) => {
+    if (!value) return 'Nationality is required';
+    return true;
+  };
+
+  const validateCountry = (value: string) => {
+    if (!value) return 'Country is required';
+    return true;
+  };
+
   const handleLanguageAdd = (language: string) => {
     if (!selectedLanguages.includes(language) && selectedLanguages.length < 5) {
       const newLanguages = [...selectedLanguages, language];
@@ -74,10 +113,32 @@ export function IndividualRegistrationForm() {
     setValue('languages', newLanguages);
   };
 
+  // Watch form data and update parent component in real-time
+  const watchedData = watch();
+  
+  useEffect(() => {
+    if (isStepMode && onDataChange) {
+      onDataChange(watchedData);
+    }
+  }, [watchedData, isStepMode, onDataChange]);
+
   const onSubmit: SubmitHandler<IndividualRegistrationData> = async (data) => {
+    // In step mode, just update the data and let the parent handle submission
+    if (isStepMode) {
+      onDataChange?.(data);
+      return;
+    }
+
     setIsLoading(true);
     
     try {
+      // Validate required fields
+      if (!data.nationality) {
+        throw new Error('Nationality is required');
+      }
+      if (!data.country) {
+        throw new Error('Country is required');
+      }
       // Create FormData for file upload
       const formData = new FormData();
       
@@ -92,6 +153,9 @@ export function IndividualRegistrationForm() {
         }
       });
 
+      console.log('Form data being sent:', data);
+      console.log('FormData entries:', Array.from(formData.entries()));
+
       // Append profile picture if selected
       if (profilePicture) {
         formData.append('profilePicture', profilePicture);
@@ -104,10 +168,13 @@ export function IndividualRegistrationForm() {
       });
 
       if (!response.ok) {
-        throw new Error('Registration failed');
+        const errorData = await response.json();
+        console.error('Registration API error:', errorData);
+        throw new Error(errorData.error || `Registration failed with status ${response.status}`);
       }
 
-      await response.json();
+      const result = await response.json();
+      console.log('Registration successful:', result);
       
       // Store registration completion and redirect to onboarding
       sessionStorage.setItem('registrationComplete', 'true');
@@ -122,32 +189,33 @@ export function IndividualRegistrationForm() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center space-x-2 mb-4">
-            <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-sm">I</span>
+    <div className={isStepMode ? "" : "min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8"}>
+      <div className={isStepMode ? "" : "container mx-auto px-4 max-w-2xl"}>
+        {/* Header - Only show when not in step mode */}
+        {!isStepMode && (
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center space-x-2 mb-6">
+              <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                impaktr
+              </span>
             </div>
-            <span className="font-bold text-xl brand-gradient-text">Impaktr</span>
+            
+            <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">
+              Complete Your Profile
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300">
+              Tell us about yourself to personalize your impact journey
+            </p>
           </div>
-          
-          <h1 className="text-3xl font-bold mb-2">
-            Complete Your Profile
-          </h1>
-          <p className="text-muted-foreground">
-            Tell us about yourself to personalize your impact journey
-          </p>
-        </div>
+        )}
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Basic Information */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <CalendarDays className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <CalendarDays className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Basic Information
               </CardTitle>
             </CardHeader>
@@ -158,7 +226,8 @@ export function IndividualRegistrationForm() {
                   <Input
                     id="firstName"
                     {...register('firstName', { required: 'First name is required' })}
-                    error={errors.firstName?.message}
+                    error={errors.firstName?.message || (hasFieldError('firstName') ? 'First name is required' : undefined)}
+                    className={hasFieldError('firstName') ? 'border-red-500 focus:border-red-500' : ''}
                   />
                 </div>
                 <div>
@@ -166,7 +235,8 @@ export function IndividualRegistrationForm() {
                   <Input
                     id="lastName"
                     {...register('lastName', { required: 'Last name is required' })}
-                    error={errors.lastName?.message}
+                    error={errors.lastName?.message || (hasFieldError('lastName') ? 'Last name is required' : undefined)}
+                    className={hasFieldError('lastName') ? 'border-red-500 focus:border-red-500' : ''}
                   />
                 </div>
               </div>
@@ -178,72 +248,75 @@ export function IndividualRegistrationForm() {
                     id="dateOfBirth"
                     type="date"
                     {...register('dateOfBirth', { required: 'Date of birth is required' })}
-                    error={errors.dateOfBirth?.message}
+                    error={errors.dateOfBirth?.message || (hasFieldError('dateOfBirth') ? 'Date of birth is required' : undefined)}
+                    className={hasFieldError('dateOfBirth') ? 'border-red-500 focus:border-red-500' : ''}
                   />
                 </div>
                 <div>
                   <Label htmlFor="gender">Gender (Optional)</Label>
-                  <Select onValueChange={(value) => setValue('gender', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="non-binary">Non-binary</SelectItem>
-                      <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={[
+                      { value: "male", label: "Male" },
+                      { value: "female", label: "Female" },
+                      { value: "non-binary", label: "Non-binary" },
+                      { value: "prefer-not-to-say", label: "Prefer not to say" },
+                      { value: "other", label: "Other" }
+                    ]}
+                    value={watch('gender')}
+                    placeholder="Search gender..."
+                    onValueChange={(value) => setValue('gender', value)}
+                  />
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="nationality">Nationality *</Label>
-                <Select onValueChange={(value) => setValue('nationality', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select nationality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.code} value={country.name}>
-                        {country.flag} {country.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.nationality && (
-                  <p className="text-destructive text-sm mt-1">{errors.nationality.message}</p>
-                )}
-              </div>
+                <div>
+                  <Label htmlFor="nationality">Nationality *</Label>
+                  <SearchableSelect
+                    options={countries.map(country => ({
+                      value: country.name,
+                      label: country.name,
+                      flag: country.flag
+                    }))}
+                    value={watch('nationality')}
+                    placeholder="Search nationality..."
+                    onValueChange={(value) => setValue('nationality', value, { shouldValidate: true })}
+                    error={hasFieldError('nationality')}
+                  />
+                  {(errors.nationality || hasFieldError('nationality')) && (
+                    <p className="text-destructive text-sm mt-1">
+                      {errors.nationality?.message || 'Nationality is required'}
+                    </p>
+                  )}
+                </div>
             </CardContent>
           </Card>
 
           {/* Location */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <MapPin className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <MapPin className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Location
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="country">Country *</Label>
-                <Select onValueChange={(value) => setValue('country', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.code} value={country.name}>
-                        {country.flag} {country.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.country && (
-                  <p className="text-destructive text-sm mt-1">{errors.country.message}</p>
+                <SearchableSelect
+                  options={countries.map(country => ({
+                    value: country.name,
+                    label: country.name,
+                    flag: country.flag
+                  }))}
+                  value={watch('country')}
+                  placeholder="Search country..."
+                  onValueChange={(value) => setValue('country', value, { shouldValidate: true })}
+                  error={hasFieldError('country')}
+                />
+                {(errors.country || hasFieldError('country')) && (
+                  <p className="text-destructive text-sm mt-1">
+                    {errors.country?.message || 'Country is required'}
+                  </p>
                 )}
               </div>
 
@@ -254,7 +327,8 @@ export function IndividualRegistrationForm() {
                     id="city"
                     {...register('city', { required: 'City is required' })}
                     placeholder="e.g. Kuala Lumpur"
-                    error={errors.city?.message}
+                    error={errors.city?.message || (hasFieldError('city') ? 'City is required' : undefined)}
+                    className={hasFieldError('city') ? 'border-red-500 focus:border-red-500' : ''}
                   />
                 </div>
                 <div>
@@ -263,7 +337,8 @@ export function IndividualRegistrationForm() {
                     id="state"
                     {...register('state', { required: 'State is required' })}
                     placeholder="e.g. Selangor"
-                    error={errors.state?.message}
+                    error={errors.state?.message || (hasFieldError('state') ? 'State is required' : undefined)}
+                    className={hasFieldError('state') ? 'border-red-500 focus:border-red-500' : ''}
                   />
                 </div>
               </div>
@@ -271,10 +346,10 @@ export function IndividualRegistrationForm() {
           </Card>
 
           {/* Professional Information */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Building className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Building className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Professional Information
               </CardTitle>
             </CardHeader>
@@ -320,30 +395,27 @@ export function IndividualRegistrationForm() {
           </Card>
 
           {/* Languages */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Languages className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Languages className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Languages Spoken
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <Label>Select Languages (up to 5)</Label>
-                <Select onValueChange={handleLanguageAdd}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Add a language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {languages
-                      .filter(lang => !selectedLanguages.includes(lang.name))
-                      .map((language) => (
-                        <SelectItem key={language.code} value={language.name}>
-                          {language.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={languages
+                    .filter(lang => !selectedLanguages.includes(lang.name))
+                    .map(language => ({
+                      value: language.name,
+                      label: language.name
+                    }))}
+                  value=""
+                  placeholder="Search and add a language..."
+                  onValueChange={handleLanguageAdd}
+                />
               </div>
 
               {selectedLanguages.length > 0 && (
@@ -364,10 +436,10 @@ export function IndividualRegistrationForm() {
           </Card>
 
           {/* Profile Picture */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Upload className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Upload className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Profile Picture
               </CardTitle>
             </CardHeader>
@@ -382,7 +454,7 @@ export function IndividualRegistrationForm() {
                         className="w-16 h-16 rounded-full object-cover"
                       />
                     ) : (
-                      <Upload className="w-6 h-6 text-muted-foreground" />
+                      <Upload className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                     )}
                   </div>
                   
@@ -398,7 +470,7 @@ export function IndividualRegistrationForm() {
                       }}
                       className="cursor-pointer"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                       Max file size: 5MB. Supported formats: JPG, PNG, WebP
                     </p>
                   </div>
@@ -407,73 +479,52 @@ export function IndividualRegistrationForm() {
             </CardContent>
           </Card>
 
-          {/* Privacy Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Privacy Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Public Profile</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow others to find and view your profile
-                  </p>
-                </div>
-                <Switch
-                  checked={watch('isPublic')}
-                  onCheckedChange={(checked) => setValue('isPublic', checked)}
-                />
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Show Email Address</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Display your email on your public profile
-                  </p>
-                </div>
-                <Switch
-                  checked={watch('showEmail')}
-                  onCheckedChange={(checked) => setValue('showEmail', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Submit Button */}
-          <div className="flex justify-between items-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isLoading}
-            >
-              Back
-            </Button>
-            
-            <Button
-              type="submit"
-              variant="gradient"
-              disabled={isLoading}
-              className="px-8"
-            >
-              {isLoading ? 'Creating Profile...' : 'Complete Registration'}
-            </Button>
-          </div>
+          {/* Submit Button - Only show when not in step mode */}
+          {!isStepMode && (
+            <div className="flex justify-between items-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isLoading}
+              >
+                Back
+              </Button>
+              
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>Creating Profile...</span>
+                  </div>
+                ) : (
+                  'Complete Registration →'
+                )}
+              </Button>
+            </div>
+          )}
         </form>
 
-        {/* Progress Indicator */}
-        <div className="flex items-center justify-center space-x-2 mt-8">
-          <div className="w-3 h-3 rounded-full bg-primary" />
-          <div className="w-8 h-1 bg-primary rounded-full" />
-          <div className="w-3 h-3 rounded-full bg-primary" />
-          <div className="w-8 h-1 bg-muted rounded-full" />
-          <div className="w-3 h-3 rounded-full bg-muted" />
-        </div>
-        <p className="text-center text-sm text-muted-foreground mt-2">
-          Step 2 of 3
-        </p>
+        {/* Progress Indicator - Only show when not in step mode */}
+        {!isStepMode && (
+          <>
+            <div className="flex items-center justify-center space-x-2 mt-8">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500" />
+              <div className="w-8 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500" />
+              <div className="w-8 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+              <div className="w-3 h-3 rounded-full bg-gray-300 dark:bg-gray-600" />
+            </div>
+            <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2">
+              Step 3 of 4
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,239 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { IndividualRank, OrganizationTier, BadgeTier } from '@prisma/client';
+
+// Individual progression levels with thresholds
+const INDIVIDUAL_RANKS = [
+  { level: 1, name: 'Helper', threshold: 0, minHours: 0, minBadges: 0 },
+  { level: 2, name: 'Supporter', threshold: 50, minHours: 10, minBadges: 1 },
+  { level: 3, name: 'Contributor', threshold: 100, minHours: 25, minBadges: 3 },
+  { level: 4, name: 'Builder', threshold: 200, minHours: 50, minBadges: 6 },
+  { level: 5, name: 'Advocate', threshold: 350, minHours: 100, minBadges: 10 },
+  { level: 6, name: 'Changemaker', threshold: 500, minHours: 200, minBadges: 15 },
+  { level: 7, name: 'Mentor', threshold: 650, minHours: 350, minBadges: 22 },
+  { level: 8, name: 'Leader', threshold: 800, minHours: 500, minBadges: 30 },
+  { level: 9, name: 'Ambassador', threshold: 900, minHours: 750, minBadges: 40 },
+  { level: 10, name: 'Global Citizen', threshold: 1000, minHours: 1000, minBadges: 50 }
+];
+
+// Organization tiers with thresholds
+const ORGANIZATION_TIERS = [
+  { level: 1, name: 'Registered', threshold: 0, minParticipation: 0, minEvents: 0 },
+  { level: 2, name: 'Participant', threshold: 10, minParticipation: 5, minEvents: 1 },
+  { level: 3, name: 'Community Ally', threshold: 25, minParticipation: 10, minEvents: 2 },
+  { level: 4, name: 'Contributor', threshold: 50, minParticipation: 15, minEvents: 5 },
+  { level: 5, name: 'CSR Practitioner', threshold: 100, minParticipation: 25, minEvents: 10 },
+  { level: 6, name: 'CSR Leader', threshold: 200, minParticipation: 40, minEvents: 20 },
+  { level: 7, name: 'ESG Champion', threshold: 350, minParticipation: 60, minEvents: 35 },
+  { level: 8, name: 'Trusted Partner', threshold: 500, minParticipation: 80, minEvents: 50 },
+  { level: 9, name: 'Industry Benchmark', threshold: 750, minParticipation: 90, minEvents: 75 },
+  { level: 10, name: 'Global Impact Leader', threshold: 1000, minParticipation: 95, minEvents: 100 }
+];
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = session.user.id;
+
+    // Get user data with related information
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        badges: {
+          where: { earnedAt: { not: null } },
+          include: { badge: true },
+          orderBy: { earnedAt: 'desc' }
+        },
+        participations: {
+          where: { status: 'VERIFIED' },
+          include: { event: true }
+        },
+        profile: true
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Calculate user statistics
+    const totalHours = user.participations.reduce((sum, p) => 
+      sum + (p.hoursActual || p.hoursCommitted), 0
+    );
+    
+    const earnedBadges = user.badges.length;
+    const impaktrScore = user.impaktrScore;
+
+    // Determine current rank
+    let currentRankLevel = 1;
+    for (const rank of INDIVIDUAL_RANKS) {
+      if (impaktrScore >= rank.threshold && 
+          totalHours >= rank.minHours && 
+          earnedBadges >= rank.minBadges) {
+        currentRankLevel = rank.level;
+      }
+    }
+
+    // Get recent badges (last 5)
+    const recentBadges = user.badges.slice(0, 5).map(userBadge => ({
+      sdgNumber: userBadge.badge.sdgNumber,
+      tier: getTierLevel(userBadge.badge.tier),
+      name: userBadge.badge.name,
+      earnedAt: userBadge.earnedAt?.toISOString() || new Date().toISOString()
+    }));
+
+    // Calculate progress badges (in progress but not earned)
+    const progressBadges = await calculateProgressBadges(userId);
+
+    // Get unique SDGs the user has participated in
+    const uniqueSDGs = new Set(
+      user.participations.flatMap(p => p.event.sdgTags)
+    );
+
+    return NextResponse.json({
+      currentRank: currentRankLevel,
+      currentScore: impaktrScore,
+      totalHours: Math.round(totalHours * 10) / 10, // Round to 1 decimal
+      badgesEarned: earnedBadges,
+      userType: user.userType || 'individual',
+      uniqueSDGs: uniqueSDGs.size,
+      recentBadges,
+      progressBadges,
+      rankInfo: INDIVIDUAL_RANKS.find(r => r.level === currentRankLevel),
+      nextRankInfo: INDIVIDUAL_RANKS.find(r => r.level === currentRankLevel + 1),
+      stats: {
+        totalEvents: user.participations.length,
+        averageHoursPerEvent: user.participations.length > 0 ? 
+          Math.round((totalHours / user.participations.length) * 10) / 10 : 0,
+        sdgDiversity: uniqueSDGs.size
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching gamification data:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// Helper function to convert BadgeTier enum to number
+function getTierLevel(tier: BadgeTier): number {
+  switch (tier) {
+    case BadgeTier.SUPPORTER: return 1;
+    case BadgeTier.BUILDER: return 2;
+    case BadgeTier.CHAMPION: return 3;
+    case BadgeTier.GUARDIAN: return 4;
+    default: return 1;
+  }
+}
+
+// Calculate badges that are in progress
+async function calculateProgressBadges(userId: string) {
+  // Get user's SDG participation statistics
+  const participations = await prisma.participation.findMany({
+    where: {
+      userId,
+      status: 'VERIFIED'
+    },
+    include: {
+      event: true
+    }
+  });
+
+  // Group by SDG
+  const sdgStats: { [key: number]: { hours: number, activities: number } } = {};
+  
+  participations.forEach(p => {
+    p.event.sdgTags.forEach(sdgNumber => {
+      if (!sdgStats[sdgNumber]) {
+        sdgStats[sdgNumber] = { hours: 0, activities: 0 };
+      }
+      sdgStats[sdgNumber].hours += p.hoursActual || p.hoursCommitted;
+      sdgStats[sdgNumber].activities += 1;
+    });
+  });
+
+  // Calculate progress for each SDG
+  const progressBadges = [];
+  
+  for (const [sdgNumber, stats] of Object.entries(sdgStats)) {
+    const sdgNum = parseInt(sdgNumber);
+    
+    // Check what tier they're working towards
+    let targetTier = 1;
+    const tierRequirements = [
+      { tier: 1, hours: 5, activities: 1 },
+      { tier: 2, hours: 20, activities: 3 },
+      { tier: 3, hours: 50, activities: 8 },
+      { tier: 4, hours: 100, activities: 15 }
+    ];
+
+    // Find the highest tier they haven't earned yet
+    const earnedBadge = await prisma.userBadge.findFirst({
+      where: {
+        userId,
+        badge: { sdgNumber: sdgNum },
+        earnedAt: { not: null }
+      },
+      include: { badge: true },
+      orderBy: { badge: { tier: 'desc' } }
+    });
+
+    if (earnedBadge) {
+      const earnedTierLevel = getTierLevel(earnedBadge.badge.tier);
+      targetTier = Math.min(earnedTierLevel + 1, 4);
+    }
+
+    const requirement = tierRequirements.find(r => r.tier === targetTier);
+    if (requirement && targetTier <= 4) {
+      const hoursProgress = Math.min((stats.hours / requirement.hours) * 100, 100);
+      const activitiesProgress = Math.min((stats.activities / requirement.activities) * 100, 100);
+      const overallProgress = Math.min(hoursProgress, activitiesProgress);
+
+      if (overallProgress > 0 && overallProgress < 100) {
+        progressBadges.push({
+          sdgNumber: sdgNum,
+          tier: targetTier,
+          name: getSDGBadgeName(sdgNum, targetTier),
+          progress: Math.round(overallProgress),
+          nextMilestone: Math.max(
+            requirement.hours - stats.hours,
+            requirement.activities - stats.activities
+          )
+        });
+      }
+    }
+  }
+
+  return progressBadges.slice(0, 5); // Return top 5 in progress
+}
+
+// Helper function to generate badge names
+function getSDGBadgeName(sdgNumber: number, tier: number): string {
+  const sdgNames: { [key: number]: string[] } = {
+    1: ['Supporter', 'Advocate', 'Builder', 'Poverty Fighter'],
+    2: ['Food Giver', 'Nourisher', 'Hunger Solver', 'Food Security Leader'],
+    3: ['Health Ally', 'Health Advocate', 'Health Champion', 'Health Guardian'],
+    4: ['Tutor', 'Mentor', 'Knowledge Builder', 'Education Leader'],
+    5: ['Supporter', 'Equalizer', 'Advocate', 'Justice Leader'],
+    13: ['Climate Ally', 'Climate Builder', 'Climate Champion', 'Climate Guardian']
+  };
+
+  const names = sdgNames[sdgNumber] || ['Supporter', 'Builder', 'Champion', 'Guardian'];
+  return names[tier - 1] || `Tier ${tier}`;
+}
+
+
+
+
+
+

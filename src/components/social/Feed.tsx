@@ -383,7 +383,7 @@ export function Feed({ feedType = 'all', userId }: FeedProps) {
                         <ExternalLink className="w-4 h-4 mr-2" />
                         View Profile
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem className="text-red-600 hover:text-red-700 focus:text-red-700">
                         <Flag className="w-4 h-4 mr-2" />
                         Report Post
                       </DropdownMenuItem>

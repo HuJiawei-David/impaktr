@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
 import { UserType } from '@prisma/client';
 import { countries } from '@/constants/countries';
@@ -37,6 +38,9 @@ interface OrganizationRegistrationData {
 
 interface OrganizationRegistrationFormProps {
   profileType: UserType;
+  isStepMode?: boolean;
+  onDataChange?: (data: any) => void;
+  validationErrors?: string[];
 }
 
 type Option = { value: string; label: string };
@@ -90,7 +94,7 @@ const getFormTitle = (profileType: UserType) => {
   }
 };
 
-export function OrganizationRegistrationForm({ profileType }: OrganizationRegistrationFormProps) {
+export function OrganizationRegistrationForm({ profileType, isStepMode = false, onDataChange, validationErrors = [] }: OrganizationRegistrationFormProps) {
   const { data: session } = useSession();
   const user = session?.user;
   const router = useRouter();
@@ -103,13 +107,22 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
     register,
     handleSubmit,
     formState: { errors },
-    setValue
+    setValue,
+    watch
   } = useForm<OrganizationRegistrationData>({
     defaultValues: {
       contactPersonEmail: user?.email || '',
       sdgFocus: []
     }
   });
+
+  // Simple validation function that doesn't cause infinite loops
+  const validateForm = () => {
+    const organizationName = watch('organizationName');
+    const contactEmail = watch('contactPersonEmail');
+    
+    return organizationName && contactEmail;
+  };
 
   const handleSDGChange = (sdgs: number[]) => {
     setSelectedSDGs(sdgs);
@@ -127,7 +140,22 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
     setVerificationDocs(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Watch form data and update parent component in real-time
+  const watchedData = watch();
+  
+  useEffect(() => {
+    if (isStepMode && onDataChange) {
+      onDataChange(watchedData);
+    }
+  }, [watchedData, isStepMode, onDataChange]);
+
   const onSubmit = async (data: OrganizationRegistrationData) => {
+    // In step mode, just update the data and let the parent handle submission
+    if (isStepMode) {
+      onDataChange?.(data);
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -179,31 +207,32 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
   };
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center space-x-2 mb-4">
-            <div className="w-8 h-8 rounded-lg brand-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-sm">I</span>
+    <div className={isStepMode ? "" : "min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8"}>
+      <div className={isStepMode ? "" : "container mx-auto px-4 max-w-2xl"}>
+        {/* Header - Only show when not in step mode */}
+        {!isStepMode && (
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center space-x-2 mb-6">
+              <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                impaktr
+              </span>
             </div>
-            <span className="font-bold text-xl brand-gradient-text">Impaktr</span>
+            
+            <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">
+              {getFormTitle(profileType)}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300">
+              Complete your organization profile to start creating impact opportunities
+            </p>
           </div>
-          
-          <h1 className="text-3xl font-bold mb-2">
-            {getFormTitle(profileType)}
-          </h1>
-          <p className="text-muted-foreground">
-            Complete your organization profile to start creating impact opportunities
-          </p>
-        </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Organization Details */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Building2 className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Building2 className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Organization Details
               </CardTitle>
             </CardHeader>
@@ -312,10 +341,10 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
           </Card>
 
           {/* Location */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <MapPin className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <MapPin className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Location
               </CardTitle>
             </CardHeader>
@@ -323,18 +352,17 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="country">Country *</Label>
-                  <Select onValueChange={(value) => setValue('country', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country.code} value={country.name}>
-                          {country.flag} {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={countries.map(country => ({
+                      value: country.name,
+                      label: country.name,
+                      flag: country.flag
+                    }))}
+                    value={watch('country')}
+                    placeholder="Search country..."
+                    onValueChange={(value) => setValue('country', value)}
+                    error={!!errors.country}
+                  />
                   {errors.country && (
                     <p className="text-destructive text-sm mt-1">{errors.country.message}</p>
                   )}
@@ -354,10 +382,10 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
           </Card>
 
           {/* Contact Person */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Users className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Contact Person
               </CardTitle>
             </CardHeader>
@@ -416,10 +444,10 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
           </Card>
 
           {/* SDG Focus Areas */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Globe className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Globe className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 SDG Focus Areas
               </CardTitle>
             </CardHeader>
@@ -427,7 +455,7 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
               <div className="space-y-4">
                 <div>
                   <Label>Select SDGs your organization focuses on (up to 8)</Label>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                     Choose the UN Sustainable Development Goals that align with your organization's mission
                   </p>
                 </div>
@@ -442,10 +470,10 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
           </Card>
 
           {/* Logo Upload */}
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Upload className="w-5 h-5 mr-2" />
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Upload className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Organization Logo
               </CardTitle>
             </CardHeader>
@@ -460,7 +488,7 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
                         className="w-16 h-16 rounded-lg object-cover"
                       />
                     ) : (
-                      <Building2 className="w-6 h-6 text-muted-foreground" />
+                      <Building2 className="w-6 h-6 text-gray-600 dark:text-gray-400" />
                     )}
                   </div>
                   
@@ -476,7 +504,7 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
                       }}
                       className="cursor-pointer"
                     />
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                       Max file size: 5MB. Recommended size: 200x200px. Formats: JPG, PNG, SVG
                     </p>
                   </div>
@@ -487,10 +515,10 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
 
           {/* Verification Documents */}
           {(profileType === UserType.NGO || profileType === UserType.HEALTHCARE || profileType === UserType.SCHOOL) && (
-            <Card>
+            <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileText className="w-5 h-5 mr-2" />
+                <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                  <FileText className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                   Verification Documents
                 </CardTitle>
               </CardHeader>
@@ -498,7 +526,7 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
                 <div className="space-y-4">
                   <div>
                     <Label>Upload verification documents (optional)</Label>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                       Upload registration certificates, licenses, or other official documents (up to 5 files)
                     </p>
                     
@@ -534,39 +562,51 @@ export function OrganizationRegistrationForm({ profileType }: OrganizationRegist
             </Card>
           )}
 
-          {/* Submit Button */}
-          <div className="flex justify-between items-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={isLoading}
-            >
-              Back
-            </Button>
-            
-            <Button
-              type="submit"
-              variant="gradient"
-              disabled={isLoading}
-              className="px-8"
-            >
-              {isLoading ? 'Creating Organization...' : 'Complete Registration'}
-            </Button>
-          </div>
+          {/* Submit Button - Only show when not in step mode */}
+          {!isStepMode && (
+            <div className="flex justify-between items-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+                disabled={isLoading}
+              >
+                Back
+              </Button>
+              
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                {isLoading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <span>Creating Organization...</span>
+                  </div>
+                ) : (
+                  'Complete Registration →'
+                )}
+              </Button>
+            </div>
+          )}
         </form>
 
-        {/* Progress Indicator */}
-        <div className="flex items-center justify-center space-x-2 mt-8">
-          <div className="w-3 h-3 rounded-full bg-primary" />
-          <div className="w-8 h-1 bg-primary rounded-full" />
-          <div className="w-3 h-3 rounded-full bg-primary" />
-          <div className="w-8 h-1 bg-muted rounded-full" />
-          <div className="w-3 h-3 rounded-full bg-muted" />
-        </div>
-        <p className="text-center text-sm text-muted-foreground mt-2">
-          Step 2 of 3
-        </p>
+        {/* Progress Indicator - Only show when not in step mode */}
+        {!isStepMode && (
+          <>
+            <div className="flex items-center justify-center space-x-2 mt-8">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500" />
+              <div className="w-8 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
+              <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-500" />
+              <div className="w-8 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+              <div className="w-3 h-3 rounded-full bg-gray-300 dark:bg-gray-600" />
+            </div>
+            <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-2">
+              Step 3 of 4
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

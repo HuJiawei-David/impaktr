@@ -19,16 +19,32 @@ const registrationSchema = z.object({
   organization: z.string().optional(),
   occupation: z.string().optional(),
   bio: z.string().optional(),
-  languages: z.string().transform((str) => JSON.parse(str)).pipe(z.array(z.string())),
+  languages: z.string().transform((str) => {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return [];
+    }
+  }).pipe(z.array(z.string())),
   website: z.string().url().optional().or(z.literal('')),
   showEmail: z.string().transform((str) => str === 'true'),
   isPublic: z.string().transform((str) => str === 'true'),
+  sdgFocus: z.string().transform((str) => {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return [];
+    }
+  }).pipe(z.array(z.number())).optional().default([]),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Registration API called');
     const session = await getSession();
+    console.log('Session:', session);
     if (!session?.user) {
+      console.log('No session found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -42,7 +58,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('Form data received:', formDataObj);
+    
     const validatedData = registrationSchema.parse(formDataObj);
+    console.log('Validation successful:', validatedData);
     
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -96,6 +115,7 @@ export async function POST(request: NextRequest) {
               organization: validatedData.organization,
               isPublic: validatedData.isPublic,
               showEmail: validatedData.showEmail,
+              sdgFocus: validatedData.sdgFocus,
               notifications: {
                 email: true,
                 push: true,
@@ -124,6 +144,7 @@ export async function POST(request: NextRequest) {
               organization: validatedData.organization,
               isPublic: validatedData.isPublic,
               showEmail: validatedData.showEmail,
+              sdgFocus: validatedData.sdgFocus,
               updatedAt: new Date(),
             }
           }

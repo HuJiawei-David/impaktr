@@ -12,7 +12,7 @@ const updateRoleSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -22,7 +22,9 @@ export async function PUT(
 
     const body = await request.json();
     const { role } = updateRoleSchema.parse(body);
-    const membershipId = params.id;
+    
+    const { id } = await params;
+    const membershipId = id;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -70,7 +72,8 @@ export async function PUT(
     const updatedMembership = await prisma.organizationMember.update({
       where: { id: membershipId },
       data: { 
-        role
+        role,
+        updatedAt: new Date()
       },
       include: {
         user: {
@@ -85,21 +88,21 @@ export async function PUT(
       }
     });
 
-    // TODO: Log the role change when activity model is implemented
-    // await prisma.organizationActivity.create({
-    //   data: {
-    //     organizationId: membership.organizationId,
-    //     type: 'MEMBER_ROLE_CHANGED',
-    //     description: `${membership.user.profile?.displayName || membership.user.email}'s role changed to ${role}`,
-    //     metadata: {
-    //       memberId: membership.userId,
-    //       oldRole: membership.role,
-    //       newRole: role,
-    //       changedBy: user.id
-    //     },
-    //     performedBy: user.id
-    //   }
-    // });
+    // Log the role change
+    await prisma.organizationActivity.create({
+      data: {
+        organizationId: membership.organizationId,
+        type: 'MEMBER_ROLE_CHANGED',
+        description: `${membership.user.profile?.displayName || membership.user.email}'s role changed to ${role}`,
+        metadata: {
+          memberId: membership.userId,
+          oldRole: membership.role,
+          newRole: role,
+          changedBy: user.id
+        },
+        performedBy: user.id
+      }
+    });
 
     // TODO: Send notification email to the member about role change
     // await sendRoleChangeNotification(membership.user.email, organization.name, role);
@@ -110,12 +113,11 @@ export async function PUT(
         userId: updatedMembership.userId,
         role: updatedMembership.role,
         joinedAt: updatedMembership.joinedAt,
+        updatedAt: updatedMembership.updatedAt,
         user: {
           id: updatedMembership.user.id,
           name: updatedMembership.user.profile?.displayName || 
-                `${updatedMembership.user.profile?.firstName} ${updatedMembership.user.profile?.lastName}`.trim() ||
-                updatedMembership.user.name ||
-                'Unknown User',
+                `${updatedMembership.user.profile?.firstName} ${updatedMembership.user.profile?.lastName}`.trim(),
           email: updatedMembership.user.email,
           avatar: updatedMembership.user.profile?.avatar,
           impaktrScore: updatedMembership.user.impaktrScore,
@@ -142,7 +144,7 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -150,7 +152,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const membershipId = params.id;
+    const { id } = await params;
+    const membershipId = id;
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }

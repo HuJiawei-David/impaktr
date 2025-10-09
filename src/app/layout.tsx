@@ -7,6 +7,7 @@ import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SocketProvider } from '@/components/providers/SocketProvider';
 import { NextAuthProvider } from '@/components/providers/NextAuthProvider';
+import { Navigation } from '@/components/layout/Navigation';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -93,7 +94,8 @@ export default function RootLayout({
           >
             <QueryProvider>
               <SocketProvider>
-                <div className="min-h-screen bg-background text-foreground">
+                <Navigation />
+                <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0">
                   {children}
                 </div>
                 <Toaster

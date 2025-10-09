@@ -2,8 +2,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { 
   ArrowRight, 
@@ -21,18 +22,419 @@ import {
   Sparkles,
   Heart,
   Building,
-  GraduationCap
+  GraduationCap,
+  Building2,
+  Stethoscope,
+  Calendar,
+  Microscope,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Navigation } from '@/components/layout/Navigation';
 import { Footer } from '@/components/layout/Footer';
+import { SDGSimple } from '@/components/home/SDGSimple';
+
+// Build For Everyone Interactive Box Component
+function BuildForEveryoneBox() {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const userTypes = [
+    {
+      title: 'Individuals',
+      subtitle: 'Volunteers & Students',
+      icon: Heart,
+      gradient: 'from-rose-500 to-pink-600',
+      bgGradient: 'from-rose-50 to-pink-100',
+      description: 'Track your volunteer hours, earn verified badges, and build a portfolio of your social impact.',
+      features: ['Personal Impact Score', 'SDG Badges', 'Digital Certificates', 'LinkedIn Integration'],
+      stats: '50K+ Active Users'
+    },
+    {
+      title: 'Corporate',
+      subtitle: 'Companies & Enterprises',
+      icon: Building,
+      gradient: 'from-blue-500 to-indigo-600',
+      bgGradient: 'from-blue-50 to-indigo-100',
+      description: 'Manage CSR programs, track employee engagement, and measure your organization\'s real impact.',
+      features: ['CSR Dashboard', 'Team Engagement', 'Impact Reports', 'ESG Compliance'],
+      stats: '500+ Companies'
+    },
+    {
+      title: 'NGOs & Organizations',
+      subtitle: 'Non-Profits & Community Groups',
+      icon: Building2,
+      gradient: 'from-emerald-500 to-green-600',
+      bgGradient: 'from-emerald-50 to-green-100',
+      description: 'Streamline volunteer management, track outcomes, and showcase your organization\'s impact.',
+      features: ['Volunteer Management', 'Event Organization', 'Impact Tracking', 'Donor Reports'],
+      stats: '1,200+ Organizations'
+    },
+    {
+      title: 'Healthcare',
+      subtitle: 'Medical & Health Organizations',
+      icon: Stethoscope,
+      gradient: 'from-teal-500 to-cyan-600',
+      bgGradient: 'from-teal-50 to-cyan-100',
+      description: 'Coordinate health initiatives, manage medical volunteers, and track community health impact.',
+      features: ['Health Programs', 'Medical Volunteers', 'Community Outreach', 'Health Metrics'],
+      stats: '300+ Health Orgs'
+    },
+    {
+      title: 'Educational Institutions',
+      subtitle: 'Schools & Universities',
+      icon: GraduationCap,
+      gradient: 'from-amber-500 to-orange-600',
+      bgGradient: 'from-amber-50 to-orange-100',
+      description: 'Integrate service learning, track student engagement, and connect education with real-world impact.',
+      features: ['Service Learning', 'Student Tracking', 'Academic Integration', 'Community Projects'],
+      stats: '800+ Institutions'
+    },
+    {
+      title: 'Research & Innovation',
+      subtitle: 'Labs & Research Centers',
+      icon: Microscope,
+      gradient: 'from-purple-500 to-violet-600',
+      bgGradient: 'from-purple-50 to-violet-100',
+      description: 'Connect researchers with community needs, track research impact, and bridge academia with society.',
+      features: ['Research Projects', 'Community Labs', 'Impact Studies', 'Innovation Tracking'],
+      stats: '150+ Research Centers'
+    }
+  ];
+
+  const selectedType = userTypes[selectedIndex];
+  const Icon = selectedType.icon;
+
+  // Creative diagram component for each type
+  const CreativeDiagram = () => {
+    switch(selectedIndex) {
+      case 0: // Individuals
+        return (
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Concentric circles representing individual growth */}
+            <div className="absolute w-64 h-64 rounded-full bg-white/10 animate-pulse" style={{animationDuration: '3s'}}></div>
+            <div className="absolute w-48 h-48 rounded-full bg-white/15 animate-pulse" style={{animationDuration: '2.5s', animationDelay: '0.5s'}}></div>
+            <div className="absolute w-32 h-32 rounded-full bg-white/20 animate-pulse" style={{animationDuration: '2s', animationDelay: '1s'}}></div>
+            <div className="relative z-10 bg-white/30 backdrop-blur-md rounded-full p-8 shadow-2xl">
+              <Icon className="w-20 h-20 text-white" />
+            </div>
+            {/* Floating badges around */}
+            <div className="absolute top-12 right-16 bg-white/40 backdrop-blur-sm p-3 rounded-lg shadow-xl animate-bounce" style={{animationDuration: '2s'}}>
+              <Star className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute bottom-12 left-16 bg-white/40 backdrop-blur-sm p-3 rounded-lg shadow-xl animate-bounce" style={{animationDuration: '2.5s', animationDelay: '0.5s'}}>
+              <Award className="w-6 h-6 text-white" />
+            </div>
+          </div>
+        );
+      case 1: // Corporate
+        return (
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Building blocks representing corporate structure */}
+            <div className="relative flex flex-col gap-2">
+              <div className="flex gap-2 justify-center">
+                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-lg shadow-xl animate-pulse"></div>
+                <div className="w-20 h-20 bg-white/25 backdrop-blur-sm rounded-lg shadow-xl animate-pulse" style={{animationDelay: '0.2s'}}></div>
+                <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-lg shadow-xl animate-pulse" style={{animationDelay: '0.4s'}}></div>
+              </div>
+              <div className="flex gap-2 justify-center">
+                <div className="w-20 h-20 bg-white/25 backdrop-blur-sm rounded-lg shadow-xl animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                <div className="w-20 h-20 bg-white/40 backdrop-blur-md rounded-lg shadow-2xl flex items-center justify-center">
+                  <Icon className="w-12 h-12 text-white" />
+                </div>
+                <div className="w-20 h-20 bg-white/25 backdrop-blur-sm rounded-lg shadow-xl animate-pulse" style={{animationDelay: '0.5s'}}></div>
+              </div>
+            </div>
+            {/* Connecting lines */}
+            <svg className="absolute inset-0 w-full h-full" style={{zIndex: 0}}>
+              <line x1="50%" y1="30%" x2="50%" y2="70%" stroke="white" strokeWidth="2" opacity="0.3" strokeDasharray="5,5" />
+              <line x1="30%" y1="50%" x2="70%" y2="50%" stroke="white" strokeWidth="2" opacity="0.3" strokeDasharray="5,5" />
+            </svg>
+          </div>
+        );
+      case 2: // NGOs
+        return (
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Network of connections */}
+            <div className="relative w-64 h-64">
+              {/* Central hub */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/40 backdrop-blur-md rounded-full p-8 shadow-2xl z-10">
+                <Icon className="w-16 h-16 text-white" />
+              </div>
+              {/* Orbiting elements */}
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="absolute top-1/2 left-1/2 w-12 h-12 bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg"
+                  style={{
+                    transform: `rotate(${i * 60}deg) translateY(-100px)`,
+                    animation: `spin ${10 + i}s linear infinite`
+                  }}
+                >
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+              ))}
+            </div>
+            <style jsx>{`
+              @keyframes spin {
+                from { transform: rotate(0deg) translateY(-100px); }
+                to { transform: rotate(360deg) translateY(-100px); }
+              }
+            `}</style>
+          </div>
+        );
+      case 3: // Healthcare
+        return (
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Heartbeat wave design */}
+            <div className="relative w-72 h-72">
+              {/* Outer pulse circles */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full border-2 border-white/20 animate-pulse" style={{animationDuration: '2s'}}></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full border-2 border-white/25 animate-pulse" style={{animationDuration: '2s', animationDelay: '0.3s'}}></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 rounded-full border-2 border-white/30 animate-pulse" style={{animationDuration: '2s', animationDelay: '0.6s'}}></div>
+              
+              {/* ECG/Heartbeat line */}
+              <svg className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-32" viewBox="0 0 200 80">
+                <path
+                  d="M 0 40 L 40 40 L 50 20 L 60 60 L 70 30 L 80 40 L 120 40 L 130 20 L 140 60 L 150 30 L 160 40 L 200 40"
+                  stroke="white"
+                  strokeWidth="3"
+                  fill="none"
+                  opacity="0.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <animate
+                    attributeName="stroke-dasharray"
+                    from="0,300"
+                    to="300,0"
+                    dur="2s"
+                    repeatCount="indefinite"
+                  />
+                </path>
+              </svg>
+              
+              {/* Central medical icon with glow */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/30 backdrop-blur-md rounded-2xl p-6 shadow-2xl border-2 border-white/40">
+                <Icon className="w-16 h-16 text-white relative z-10" />
+                <div className="absolute inset-0 bg-white/20 rounded-2xl blur-xl"></div>
+              </div>
+              
+              {/* Medical plus icons orbiting */}
+              {[0, 1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="absolute top-1/2 left-1/2 w-10 h-10 bg-white/40 backdrop-blur-sm rounded-lg flex items-center justify-center shadow-lg"
+                  style={{
+                    transform: `rotate(${i * 90}deg) translateY(-110px) rotate(-${i * 90}deg)`,
+                    animation: `orbit-${i} 8s linear infinite`
+                  }}
+                >
+                  <div className="text-white text-lg font-bold">+</div>
+                </div>
+              ))}
+              
+              {/* Health metrics cards */}
+              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 bg-white/40 backdrop-blur-md px-4 py-2 rounded-full shadow-xl border border-white/30 animate-pulse">
+                <span className="text-white font-bold text-sm flex items-center gap-2">
+                  <span className="text-lg">💚</span> Active
+                </span>
+              </div>
+              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-white/40 backdrop-blur-md px-4 py-2 rounded-full shadow-xl border border-white/30 animate-pulse" style={{animationDelay: '0.5s'}}>
+                <span className="text-white font-bold text-sm flex items-center gap-2">
+                  <span className="text-lg">🏥</span> 24/7
+                </span>
+              </div>
+            </div>
+            <style jsx>{`
+              @keyframes orbit-0 {
+                from { transform: rotate(0deg) translateY(-110px) rotate(0deg); }
+                to { transform: rotate(360deg) translateY(-110px) rotate(-360deg); }
+              }
+              @keyframes orbit-1 {
+                from { transform: rotate(90deg) translateY(-110px) rotate(-90deg); }
+                to { transform: rotate(450deg) translateY(-110px) rotate(-450deg); }
+              }
+              @keyframes orbit-2 {
+                from { transform: rotate(180deg) translateY(-110px) rotate(-180deg); }
+                to { transform: rotate(540deg) translateY(-110px) rotate(-540deg); }
+              }
+              @keyframes orbit-3 {
+                from { transform: rotate(270deg) translateY(-110px) rotate(-270deg); }
+                to { transform: rotate(630deg) translateY(-110px) rotate(-630deg); }
+              }
+            `}</style>
+          </div>
+        );
+      case 4: // Educational
+        return (
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* Book/learning pyramid */}
+            <div className="relative">
+              {/* Layered books */}
+              <div className="flex flex-col gap-3 items-center">
+                <div className="w-48 h-12 bg-white/20 backdrop-blur-sm rounded-lg shadow-xl transform -rotate-2 animate-pulse"></div>
+                <div className="w-40 h-12 bg-white/25 backdrop-blur-sm rounded-lg shadow-xl transform rotate-1 animate-pulse" style={{animationDelay: '0.3s'}}></div>
+                <div className="w-32 h-12 bg-white/30 backdrop-blur-sm rounded-lg shadow-xl animate-pulse" style={{animationDelay: '0.6s'}}></div>
+              </div>
+              {/* Graduation cap on top */}
+              <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-white/40 backdrop-blur-md p-6 rounded-lg shadow-2xl">
+                <Icon className="w-16 h-16 text-white" />
+              </div>
+              {/* Floating knowledge symbols */}
+              <div className="absolute -right-8 top-8 text-white text-4xl animate-bounce" style={{animationDuration: '2s'}}>💡</div>
+              <div className="absolute -left-8 top-16 text-white text-3xl animate-bounce" style={{animationDuration: '2.5s', animationDelay: '0.5s'}}>📚</div>
+            </div>
+          </div>
+        );
+      case 5: // Research
+        return (
+          <div className="relative w-full h-full flex items-center justify-center">
+            {/* DNA helix inspired design */}
+            <div className="relative w-64 h-80">
+              {/* Helix strands */}
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 200 300">
+                <path
+                  d="M 50 0 Q 100 50, 50 100 T 50 200 T 50 300"
+                  stroke="white"
+                  strokeWidth="4"
+                  fill="none"
+                  opacity="0.3"
+                  strokeDasharray="10,5"
+                />
+                <path
+                  d="M 150 0 Q 100 50, 150 100 T 150 200 T 150 300"
+                  stroke="white"
+                  strokeWidth="4"
+                  fill="none"
+                  opacity="0.3"
+                  strokeDasharray="10,5"
+                />
+              </svg>
+              {/* Connection points */}
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="absolute w-3 h-3 bg-white rounded-full shadow-lg animate-pulse"
+                  style={{
+                    left: `${30 + (i % 2) * 40}%`,
+                    top: `${15 + i * 18}%`,
+                    animationDelay: `${i * 0.2}s`
+                  }}
+                ></div>
+              ))}
+              {/* Central icon */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white/40 backdrop-blur-md rounded-full p-8 shadow-2xl">
+                <Icon className="w-16 h-16 text-white" />
+              </div>
+              {/* Atom orbits */}
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 border-2 border-white/20 rounded-full animate-spin" style={{animationDuration: '10s'}}></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-white/20 rounded-full animate-spin" style={{animationDuration: '8s', animationDirection: 'reverse'}}></div>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto mb-16">
+      {/* Main Box */}
+      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        {/* Top Content - Split 50/50 */}
+        <div className="flex flex-col md:flex-row min-h-[400px]">
+          {/* Left Side - Creative Diagram (50%) */}
+          <div className={`w-full md:w-1/2 bg-gradient-to-br ${selectedType.gradient} flex items-center justify-center p-12 transition-all duration-500 overflow-hidden relative`}>
+            <CreativeDiagram />
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+              <div className={`inline-flex items-center px-6 py-3 rounded-full bg-white/30 backdrop-blur-md text-white text-lg font-bold shadow-xl`}>
+                <div className="w-3 h-3 rounded-full bg-white mr-3 animate-pulse"></div>
+                {selectedType.stats}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side - Content (50%) */}
+          <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
+            <div className="mb-6">
+              <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                {selectedType.title}
+              </h3>
+              <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">
+                {selectedType.subtitle}
+              </p>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-lg">
+                {selectedType.description}
+              </p>
+            </div>
+
+            {/* Features */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 uppercase tracking-wider">
+                Key Features:
+              </h4>
+              <ul className="space-y-3">
+                {selectedType.features.map((feature, featureIndex) => (
+                  <li key={featureIndex} className="flex items-center text-gray-600 dark:text-gray-400">
+                    <div className={`w-6 h-6 rounded-full bg-gradient-to-r ${selectedType.gradient} flex items-center justify-center mr-3 flex-shrink-0`}>
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-base">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Navigation Buttons */}
+        <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-900/50">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            {userTypes.map((type, index) => {
+              const ButtonIcon = type.icon;
+              return (
+                <button
+                  key={index}
+                  onClick={() => setSelectedIndex(index)}
+                  className={`group flex flex-col items-center justify-center gap-2 px-2 py-4 rounded-xl font-medium transition-all duration-300 ${
+                    selectedIndex === index
+                      ? `bg-gradient-to-r ${type.gradient} text-white shadow-lg scale-105`
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:shadow-lg hover:scale-105 hover:-translate-y-1 border border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                    selectedIndex === index
+                      ? 'bg-white/20'
+                      : `bg-gradient-to-r ${type.gradient} group-hover:scale-110`
+                  }`}>
+                    <ButtonIcon className={`w-6 h-6 ${
+                      selectedIndex === index ? 'text-white' : 'text-white'
+                    }`} />
+                  </div>
+                  <span className="text-xs text-center leading-tight">{type.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const user = session?.user;
   const isLoading = status === 'loading';
+  const router = useRouter();
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.push('/dashboard');
+    }
+  }, [isLoading, user, router]);
 
   if (isLoading) {
     return (
@@ -45,13 +447,23 @@ export default function HomePage() {
     );
   }
 
+  // Don't render landing page content for authenticated users
+  if (user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+          <p className="text-slate-600 dark:text-slate-300">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      <Navigation />
-      
       <main>
         {/* Polished Tech Hero Section */}
-        <section className="relative min-h-[70vh] sm:h-[60vh] md:h-[50vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-gray-900 via-slate-800 to-gray-800 dark:from-gray-950 dark:via-slate-900 dark:to-gray-900">
+        <section className="relative min-h-[70vh] sm:h-[60vh] md:h-[50vh] flex items-center justify-center overflow-hidden bg-white dark:bg-gray-900">
           {/* Dreamy animated background elements */}
           <div className="absolute inset-0 overflow-hidden">
             {/* Large dreamy floating bubbles with glow */}
@@ -88,97 +500,60 @@ export default function HomePage() {
           <div className="relative container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 text-center max-w-6xl py-8 sm:py-0">
             {/* Trust indicator */}
             <div className="mb-6 sm:mb-8 flex justify-center px-4 sm:px-0">
-              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-black/20 backdrop-blur-md border border-blue-500/30 rounded-full shadow-2xl">
-                <Star className="w-3 sm:w-4 h-3 sm:h-4 mr-2 text-yellow-400" />
-                <span className="text-blue-100 text-xs sm:text-sm font-medium">Trusted by 50,000+ impact makers worldwide</span>
+              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-50 border border-blue-200 rounded-full shadow-lg">
+                <Star className="w-3 sm:w-4 h-3 sm:h-4 mr-2 text-yellow-500" />
+                <span className="text-blue-700 text-xs sm:text-sm font-medium">Trusted by 50,000+ impact makers worldwide</span>
               </div>
             </div>
 
             {/* Main headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight mb-10 text-balance uppercase">
-              <span className="block text-white/95">Make Your</span>
-              <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent relative">
+              <span className="block text-gray-900 dark:text-white">Make Your</span>
+              <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent relative">
                 Impact Count
                 <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-24 sm:w-28 md:w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-60"></div>
               </span>
             </h1>
 
             {/* Subheadline */}
-            <p className="text-base sm:text-lg md:text-xl text-blue-100/80 mb-8 sm:mb-10 max-w-3xl mx-auto leading-relaxed font-light px-4 sm:px-0">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 sm:mb-10 max-w-3xl mx-auto leading-relaxed font-light px-4 sm:px-0">
               The world's first platform to measure, verify, and amplify your social impact. 
               Turn your good deeds into verified credentials that matter.
             </p>
 
-                        {/* Tech-style CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-6 sm:mb-8 px-4 sm:px-0">
-              {user ? (
-                <Link href="/dashboard" className="w-full sm:w-auto">
+            {/* Sign In / Sign Up Buttons */}
+            <div className="flex flex-col gap-4 justify-center items-center mb-8 sm:mb-10 px-4 sm:px-0">
+              <Link href="/signup" className="w-full sm:w-auto">
                   <Button 
                     size="lg" 
-                    className="group relative bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-500 hover:via-purple-500 hover:to-blue-500 text-white px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-2xl shadow-2xl shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 border border-blue-400/30 w-full sm:w-auto"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-2xl blur-xl"></div>
-                    <BarChart3 className="mr-2 sm:mr-3 w-5 sm:w-6 h-5 sm:h-6 relative z-10" />
-                    <span className="relative z-10">View My Impact Dashboard</span>
-                    <ArrowRight className="ml-2 sm:ml-3 w-5 sm:w-6 h-5 sm:h-6 group-hover:translate-x-1 transition-transform relative z-10" />
-                  </Button>
-                </Link>
-              ) : (
-                <>
-                  <Link href="/signup" className="w-full sm:w-auto">
-                    <Button 
-                      size="lg" 
-                      className="group relative bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-500 hover:via-purple-500 hover:to-blue-500 text-white px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold rounded-2xl shadow-2xl shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 border border-blue-400/30 w-full sm:w-auto"
+                  className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 hover:from-blue-500 hover:via-purple-500 hover:to-blue-500 text-white px-8 sm:px-14 py-4 sm:py-5 text-lg sm:text-xl font-semibold rounded-2xl shadow-2xl shadow-blue-500/25 transform hover:scale-105 transition-all duration-300 border border-blue-400/30 w-full sm:w-auto min-w-[280px] sm:min-w-[320px]"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-2xl blur-xl"></div>
-                      <Sparkles className="mr-2 sm:mr-3 w-5 sm:w-6 h-5 sm:h-6 relative z-10" />
                       <span className="relative z-10">Start Your Impact Journey</span>
-                      <ArrowRight className="ml-2 sm:ml-3 w-5 sm:w-6 h-5 sm:h-6 group-hover:translate-x-1 transition-transform relative z-10" />
                     </Button>
                   </Link>
                   
+              <Link href="/signin" className="w-full sm:w-auto">
                   <Button 
                     variant="outline" 
                     size="lg" 
-                    className="group border-2 border-blue-400/30 bg-black/20 backdrop-blur-md text-blue-100 hover:border-blue-400/60 hover:bg-blue-950/30 px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-medium rounded-2xl transition-all duration-300 w-full sm:w-auto"
+                  className="border-2 border-blue-600 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-700 px-8 sm:px-14 py-4 sm:py-5 text-lg sm:text-xl font-medium rounded-2xl transition-all duration-300 w-full sm:w-auto min-w-[280px] sm:min-w-[320px] shadow-lg"
                   >
-                    <Play className="mr-2 sm:mr-3 w-5 sm:w-6 h-5 sm:h-6" />
-                    <span>Watch Demo</span>
+                  <span>Sign In</span>
                   </Button>
-                </>
-              )}
+              </Link>
             </div>
+
 
 
           </div>
         </section>
 
-        {/* Polished Stats Section with Enhanced Design */}
-        <section className="relative py-20 overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-100/80 dark:from-gray-900 dark:via-slate-900 dark:to-indigo-950/50">
-          {/* Elegant Background Elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Subtle geometric patterns */}
-            <div className="absolute top-20 left-20 w-32 h-1 bg-gradient-to-r from-blue-200/30 to-transparent rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '8s' }}></div>
-            <div className="absolute top-40 right-32 w-24 h-1 bg-gradient-to-l from-indigo-200/40 to-transparent rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '10s' }}></div>
-            <div className="absolute bottom-32 left-32 w-28 h-1 bg-gradient-to-r from-slate-200/35 to-transparent rounded-full animate-pulse" style={{ animationDelay: '4s', animationDuration: '9s' }}></div>
-            
-            {/* Elegant floating lines */}
-            <div className="absolute top-1/3 right-20 w-1 h-40 bg-gradient-to-b from-blue-200/25 to-transparent rounded-full animate-pulse" style={{ animationDelay: '1s', animationDuration: '12s' }}></div>
-            <div className="absolute bottom-1/3 left-16 w-1 h-36 bg-gradient-to-t from-indigo-200/30 to-transparent rounded-full animate-pulse" style={{ animationDelay: '3s', animationDuration: '11s' }}></div>
-            
-            {/* Subtle corner accents */}
-            <div className="absolute top-12 right-12 w-16 h-16 border border-blue-200/20 rounded-full animate-pulse" style={{ animationDelay: '5s', animationDuration: '15s' }}></div>
-            <div className="absolute bottom-12 left-12 w-20 h-20 border border-indigo-200/25 rounded-full animate-pulse" style={{ animationDelay: '7s', animationDuration: '13s' }}></div>
-            
-            {/* Minimal dot patterns */}
-            <div className="absolute top-1/4 left-1/3 w-2 h-2 bg-blue-300/40 rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '6s' }}></div>
-            <div className="absolute bottom-1/4 right-1/3 w-1.5 h-1.5 bg-indigo-300/45 rounded-full animate-pulse" style={{ animationDelay: '4s', animationDuration: '8s' }}></div>
-            <div className="absolute top-2/3 left-1/4 w-2.5 h-2.5 bg-slate-300/35 rounded-full animate-pulse" style={{ animationDelay: '6s', animationDuration: '7s' }}></div>
-            
-            {/* Elegant gradient overlays */}
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-50/30 via-transparent to-indigo-50/20 animate-pulse" style={{ animationDuration: '20s' }}></div>
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tl from-slate-50/20 via-transparent to-blue-50/15 animate-pulse" style={{ animationDelay: '10s', animationDuration: '25s' }}></div>
-          </div>
+        {/* SDG Section - Aligned with UN Sustainable Development Goals */}
+        <SDGSimple />
+
+        {/* Polished Stats Section with Plain White Background */}
+        <section className="relative py-20 bg-white dark:bg-gray-900">
 
           <div className="relative container mx-auto px-8 lg:px-12">
             {/* Enhanced Header */}
@@ -280,31 +655,196 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* How It Works - Redesigned */}
+        {/* Explore Opportunities Section */}
         <section className="relative py-20 overflow-hidden bg-white dark:bg-gray-900">
-          {/* Elegant Background Elements */}
+          {/* Wave pattern background */}
           <div className="absolute inset-0 overflow-hidden">
-            {/* Clean geometric lines */}
-            <div className="absolute top-16 left-16 w-40 h-0.5 bg-gradient-to-r from-gray-300/40 to-transparent animate-pulse" style={{ animationDelay: '0s', animationDuration: '12s' }}></div>
-            <div className="absolute top-32 right-20 w-32 h-0.5 bg-gradient-to-l from-slate-300/45 to-transparent animate-pulse" style={{ animationDelay: '2s', animationDuration: '10s' }}></div>
-            <div className="absolute bottom-24 left-24 w-36 h-0.5 bg-gradient-to-r from-gray-400/35 to-transparent animate-pulse" style={{ animationDelay: '4s', animationDuration: '14s' }}></div>
+            {/* SVG Wave patterns */}
+            <div className="absolute inset-0 opacity-20">
+              <svg className="w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="none">
+                <path d="M0,200 Q300,100 600,200 T1200,200 L1200,0 L0,0 Z" fill="rgba(16, 185, 129, 0.1)" />
+                <path d="M0,400 Q300,300 600,400 T1200,400 L1200,200 L0,200 Z" fill="rgba(5, 150, 105, 0.08)" />
+                <path d="M0,600 Q300,500 600,600 T1200,600 L1200,400 L0,400 Z" fill="rgba(6, 182, 212, 0.06)" />
+              </svg>
+            </div>
             
-            {/* Vertical accent lines */}
-            <div className="absolute top-1/4 right-16 w-0.5 h-32 bg-gradient-to-b from-gray-300/30 to-transparent animate-pulse" style={{ animationDelay: '1s', animationDuration: '15s' }}></div>
-            <div className="absolute bottom-1/4 left-20 w-0.5 h-28 bg-gradient-to-t from-slate-300/35 to-transparent animate-pulse" style={{ animationDelay: '3s', animationDuration: '11s' }}></div>
+            {/* Organic leaf shapes */}
+            <div className="absolute top-20 left-1/4 w-16 h-8 bg-green-200/30 rounded-full transform rotate-12 animate-pulse" style={{ animationDelay: '0s', animationDuration: '6s' }}></div>
+            <div className="absolute top-40 right-1/3 w-12 h-6 bg-emerald-200/40 rounded-full transform -rotate-24 animate-pulse" style={{ animationDelay: '2s', animationDuration: '8s' }}></div>
+            <div className="absolute bottom-32 left-1/5 w-20 h-10 bg-teal-200/25 rounded-full transform rotate-45 animate-pulse" style={{ animationDelay: '4s', animationDuration: '7s' }}></div>
             
-            {/* Minimal corner elements */}
-            <div className="absolute top-8 right-8 w-12 h-12 border border-gray-300/25 rounded-full animate-pulse" style={{ animationDelay: '5s', animationDuration: '18s' }}></div>
-            <div className="absolute bottom-8 left-8 w-16 h-16 border border-slate-300/30 rounded-full animate-pulse" style={{ animationDelay: '7s', animationDuration: '16s' }}></div>
+            {/* Floating circles with different sizes */}
+            <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-green-300/20 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }}></div>
+            <div className="absolute bottom-1/3 left-1/2 w-4 h-4 bg-emerald-300/30 rounded-full animate-bounce" style={{ animationDelay: '3s', animationDuration: '5s' }}></div>
+          </div>
+          
+          <div className="relative container mx-auto px-8 lg:px-12 z-10">
+            {/* Header */}
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
+                Explore <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Opportunities</span>
+              </h2>
+              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+                From volunteering to research, scholarships to sponsorships - find meaningful ways to create lasting impact in your community and beyond.
+              </p>
+            </div>
+
+            {/* Rectangle Flip Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 justify-items-center">
+              {[
+                {
+                  title: 'Volunteer Events',
+                  icon: Calendar,
+                  lightBg: 'bg-gradient-to-br from-green-50 to-emerald-100',
+                  iconBg: 'from-green-400 to-emerald-500',
+                  borderColor: 'border-green-200',
+                  textColor: 'text-green-800',
+                  description: 'Join community service events and make a direct impact. From local cleanups to global initiatives, find volunteer opportunities that match your passion and schedule.',
+                  stats: '2,500+ active events'
+                },
+                {
+                  title: 'Research & Lab Assistant',
+                  icon: Microscope,
+                  lightBg: 'bg-gradient-to-br from-blue-50 to-cyan-100',
+                  iconBg: 'from-blue-400 to-cyan-500',
+                  borderColor: 'border-blue-200',
+                  textColor: 'text-blue-800',
+                  description: 'Contribute to groundbreaking research while gaining valuable experience. Work alongside researchers in labs, field studies, and academic projects.',
+                  stats: '800+ research positions'
+                },
+                {
+                  title: 'Scholarship Opportunities',
+                  icon: GraduationCap,
+                  lightBg: 'bg-gradient-to-br from-purple-50 to-violet-100',
+                  iconBg: 'from-purple-400 to-violet-500',
+                  borderColor: 'border-purple-200',
+                  textColor: 'text-purple-800',
+                  description: 'Access funding for your education and professional development. Discover scholarships based on academic merit, community service, and impact potential.',
+                  stats: '1,200+ scholarships'
+                },
+                {
+                  title: 'Sponsorship Opportunities',
+                  icon: Building,
+                  lightBg: 'bg-gradient-to-br from-orange-50 to-red-100',
+                  iconBg: 'from-orange-400 to-red-500',
+                  borderColor: 'border-orange-200',
+                  textColor: 'text-orange-800',
+                  description: 'Connect with sponsors for your projects and initiatives. Whether you are starting a nonprofit or organizing an event, find the support you need.',
+                  stats: '600+ sponsors available'
+                },
+                {
+                  title: 'Donation Campaigns',
+                  icon: DollarSign,
+                  lightBg: 'bg-gradient-to-br from-pink-50 to-rose-100',
+                  iconBg: 'from-pink-400 to-rose-500',
+                  borderColor: 'border-pink-200',
+                  textColor: 'text-pink-800',
+                  description: 'Support meaningful causes through verified donation campaigns. Every contribution is tracked and verified to ensure maximum impact transparency.',
+                  stats: '400+ active campaigns'
+                }
+              ].map((opportunity, index) => (
+                <div key={index} className="group" style={{ perspective: '1000px' }}>
+                  <div 
+                    className="relative w-64 h-96 transition-transform duration-700 cursor-pointer"
+                    style={{ 
+                      transformStyle: 'preserve-3d',
+                      transform: 'rotateY(0deg)'
+                    }}
+                    onClick={(e) => {
+                      const currentTransform = e.currentTarget.style.transform;
+                      if (currentTransform.includes('180deg')) {
+                        e.currentTarget.style.transform = 'rotateY(0deg)';
+                      } else {
+                        e.currentTarget.style.transform = 'rotateY(180deg)';
+                      }
+                    }}
+                  >
+                    {/* Front of Card - Light Color Design */}
+                    <div 
+                      className="absolute inset-0" 
+                      style={{ backfaceVisibility: 'hidden' }}
+                    >
+                      <Card className={`w-full h-full ${opportunity.lightBg} shadow-2xl drop-shadow-xl border-2 ${opportunity.borderColor}`}>
+                        <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
+                          <div className={`w-20 h-20 rounded-2xl bg-gradient-to-r ${opportunity.iconBg} flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                            <opportunity.icon className="w-10 h-10" />
+                          </div>
+                          <h3 className={`font-bold text-xl leading-tight ${opportunity.textColor} mb-4`}>
+                            {opportunity.title}
+                          </h3>
+                          <div className={`px-4 py-2 bg-white/70 rounded-full border ${opportunity.borderColor}`}>
+                            <span className={`${opportunity.textColor} text-sm font-medium`}>
+                              Click to learn more
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Back of Card - Light Color Design */}
+                    <div 
+                      className="absolute inset-0" 
+                      style={{ 
+                        backfaceVisibility: 'hidden',
+                        transform: 'rotateY(180deg)'
+                      }}
+                    >
+                      <Card className={`w-full h-full ${opportunity.lightBg} shadow-2xl drop-shadow-xl border-2 ${opportunity.borderColor}`}>
+                        <CardContent className="p-6 h-full flex flex-col">
+                          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${opportunity.iconBg} flex items-center justify-center text-white mb-4 shadow-lg`}>
+                            <opportunity.icon className="w-8 h-8" />
+                          </div>
+                          <h3 className={`font-bold text-xl mb-4 ${opportunity.textColor}`}>
+                            {opportunity.title}
+                          </h3>
+                          <p className={`${opportunity.textColor.replace('800', '700')} text-sm leading-relaxed`}>
+                            {opportunity.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Call to Action */}
+            <div className="text-center mt-16">
+              <Link href="/opportunities">
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Globe className="w-5 h-5 mr-2" />
+                  View All Opportunities
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works - Redesigned with Dotted Pattern */}
+        <section className="relative py-20 overflow-hidden bg-white dark:bg-gray-900">
+          {/* Dotted pattern background */}
+          <div className="absolute inset-0 overflow-hidden">
+            {/* Radial dot pattern */}
+            <div className="absolute inset-0 opacity-25" style={{
+              backgroundImage: `radial-gradient(circle at 20px 20px, rgba(236, 72, 153, 0.3) 2px, transparent 2px), 
+                               radial-gradient(circle at 60px 60px, rgba(251, 113, 133, 0.2) 1px, transparent 1px),
+                               radial-gradient(circle at 100px 40px, rgba(249, 115, 22, 0.15) 1.5px, transparent 1.5px)`,
+              backgroundSize: '80px 80px, 120px 120px, 160px 160px'
+            }}></div>
             
-            {/* Subtle dot accents */}
-            <div className="absolute top-1/3 left-1/3 w-1.5 h-1.5 bg-gray-400/50 rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '8s' }}></div>
-            <div className="absolute bottom-1/3 right-1/4 w-2 h-2 bg-slate-400/45 rounded-full animate-pulse" style={{ animationDelay: '4s', animationDuration: '9s' }}></div>
-            <div className="absolute top-2/3 left-1/5 w-1 h-1 bg-gray-300/40 rounded-full animate-pulse" style={{ animationDelay: '6s', animationDuration: '7s' }}></div>
+            {/* Scattered larger dots */}
+            <div className="absolute top-16 left-1/5 w-8 h-8 bg-rose-300/40 rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '4s' }}></div>
+            <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-pink-300/50 rounded-full animate-pulse" style={{ animationDelay: '1s', animationDuration: '5s' }}></div>
+            <div className="absolute bottom-1/4 left-1/3 w-10 h-10 bg-orange-300/30 rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '6s' }}></div>
+            <div className="absolute top-2/3 right-1/5 w-4 h-4 bg-rose-400/35 rounded-full animate-pulse" style={{ animationDelay: '3s', animationDuration: '4.5s' }}></div>
             
-            {/* Refined gradient overlays */}
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-50/20 via-transparent to-slate-50/15 animate-pulse" style={{ animationDuration: '22s' }}></div>
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tl from-white/10 via-transparent to-gray-50/10 animate-pulse" style={{ animationDelay: '11s', animationDuration: '26s' }}></div>
+            {/* Connecting lines */}
+            <div className="absolute top-1/4 left-1/4 w-32 h-0.5 bg-gradient-to-r from-rose-200/30 to-pink-200/20 transform rotate-12 animate-pulse" style={{ animationDelay: '1s', animationDuration: '8s' }}></div>
+            <div className="absolute bottom-1/3 right-1/3 w-24 h-0.5 bg-gradient-to-r from-pink-200/25 to-orange-200/15 transform -rotate-12 animate-pulse" style={{ animationDelay: '3s', animationDuration: '7s' }}></div>
           </div>
           <div className="relative container mx-auto px-8 lg:px-12 z-10">
             <div className="text-center mb-16">
@@ -316,242 +856,211 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Mobile: Horizontal scroll with peek effect, Desktop: Grid */}
-            <div className="md:grid md:grid-cols-2 lg:grid-cols-4 md:gap-8">
-              {/* Mobile slider container */}
-              <div className="md:hidden overflow-x-auto pb-4">
-                <div className="flex gap-4 px-4" style={{ width: 'calc(100% + 2rem)' }}>
+            {/* Steps with Light Arrows - Bigger Content */}
+            <div className="max-w-7xl mx-auto">
+              {/* Mobile: Vertical layout */}
+              <div className="md:hidden space-y-12">
                   {[
                     {
                       step: '01',
                       title: 'Choose Your Path',
                       description: 'Select your profile type and set your impact goals',
                       icon: <Users className="w-12 h-12" />,
-                      gradient: 'from-blue-500 to-cyan-500',
-                      bgColor: 'bg-blue-50 dark:bg-blue-950/20'
+                    color: 'text-blue-500'
                     },
                     {
                       step: '02',
                       title: 'Take Action',
                       description: 'Join events, volunteer, or start your own initiatives',
                       icon: <Zap className="w-12 h-12" />,
-                      gradient: 'from-purple-500 to-pink-500',
-                      bgColor: 'bg-purple-50 dark:bg-purple-950/20'
+                    color: 'text-purple-500'
                     },
                     {
                       step: '03',
                       title: 'Get Verified',
                       description: 'Multiple verification methods ensure authenticity',
                       icon: <Shield className="w-12 h-12" />,
-                      gradient: 'from-green-500 to-emerald-500',
-                      bgColor: 'bg-green-50 dark:bg-green-950/20'
+                    color: 'text-green-500'
                     },
                     {
                       step: '04',
                       title: 'Share Impact',
                       description: 'Earn badges, certificates, and build your reputation',
                       icon: <TrendingUp className="w-12 h-12" />,
-                      gradient: 'from-orange-500 to-red-500',
-                      bgColor: 'bg-orange-50 dark:bg-orange-950/20'
+                    color: 'text-orange-500'
                     }
                   ].map((item, index) => (
-                    <Card key={index} className={`relative overflow-hidden group hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border-0 ${item.bgColor} flex-shrink-0`} style={{ width: 'calc(75vw - 2rem)' }}>
-                      <CardContent className="p-6 text-center relative">
-                        {/* Step number */}
-                        <div className="absolute top-3 right-3 text-4xl font-bold text-gray-400 dark:text-gray-500 opacity-80">
-                          {item.step}
+                  <div key={index} className="flex flex-col items-center text-center">
+                    {/* Step Content */}
+                    <div className="flex flex-col items-center">
+                      {/* Step Number */}
+                      <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-6">
+                        <span className="text-2xl font-bold text-gray-600 dark:text-gray-400">{item.step}</span>
                         </div>
                         
                         {/* Icon */}
-                        <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-r ${item.gradient} flex items-center justify-center text-white group-hover:scale-105 transition-all duration-300 shadow-lg`}>
+                      <div className={`mb-6 ${item.color}`}>
                           {item.icon}
                         </div>
                         
                         {/* Content */}
-                        <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">{item.title}</h3>
-                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">{item.description}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                      <h3 className="text-2xl md:text-3xl font-bold mb-4 text-gray-900 dark:text-white">{item.title}</h3>
+                      <p className="text-lg text-gray-600 dark:text-gray-300 leading-relaxed max-w-sm">{item.description}</p>
+                    </div>
+                    
+                    {/* Light Arrow - except for last item */}
+                    {index < 3 && (
+                      <div className="mt-10 flex flex-col items-center">
+                        <div className="w-0.5 h-8 bg-gradient-to-b from-gray-300/60 to-gray-400/40 dark:from-gray-600/60 dark:to-gray-500/40"></div>
+                        <div className="w-0 h-0 border-l-3 border-r-3 border-t-6 border-l-transparent border-r-transparent border-t-gray-400/40 dark:border-t-gray-500/40"></div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
 
-              {/* Desktop grid - hidden on mobile */}
-              <div className="hidden md:contents">
+              {/* Desktop: Horizontal layout with arrows */}
+              <div className="hidden md:flex md:items-center md:justify-between">
                 {[
                   {
                     step: '01',
                     title: 'Choose Your Path',
                     description: 'Select your profile type and set your impact goals',
                     icon: <Users className="w-12 h-12" />,
-                    gradient: 'from-blue-500 to-cyan-500',
-                    bgColor: 'bg-blue-50 dark:bg-blue-950/20'
+                    color: 'text-blue-500'
                   },
                   {
                     step: '02',
                     title: 'Take Action',
                     description: 'Join events, volunteer, or start your own initiatives',
                     icon: <Zap className="w-12 h-12" />,
-                    gradient: 'from-purple-500 to-pink-500',
-                    bgColor: 'bg-purple-50 dark:bg-purple-950/20'
+                    color: 'text-purple-500'
                   },
                   {
                     step: '03',
                     title: 'Get Verified',
                     description: 'Multiple verification methods ensure authenticity',
                     icon: <Shield className="w-12 h-12" />,
-                    gradient: 'from-green-500 to-emerald-500',
-                    bgColor: 'bg-green-50 dark:bg-green-950/20'
+                    color: 'text-green-500'
                   },
                   {
                     step: '04',
                     title: 'Share Impact',
                     description: 'Earn badges, certificates, and build your reputation',
                     icon: <TrendingUp className="w-12 h-12" />,
-                    gradient: 'from-orange-500 to-red-500',
-                    bgColor: 'bg-orange-50 dark:bg-orange-950/20'
+                    color: 'text-orange-500'
                   }
                 ].map((item, index) => (
-                  <Card key={index} className={`relative overflow-hidden group hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border-0 ${item.bgColor}`}>
-                    <CardContent className="p-6 text-center relative">
-                      {/* Step number */}
-                      <div className="absolute top-3 right-3 text-4xl font-bold text-gray-400 dark:text-gray-500 opacity-80">
-                        {item.step}
+                  <React.Fragment key={index}>
+                    {/* Step Content */}
+                    <div className="flex flex-col items-center text-center max-w-sm">
+                      {/* Step Number */}
+                      <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-6">
+                        <span className="text-2xl font-bold text-gray-600 dark:text-gray-400">{item.step}</span>
                       </div>
                       
                       {/* Icon */}
-                      <div className={`w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-r ${item.gradient} flex items-center justify-center text-white group-hover:scale-105 transition-all duration-300 shadow-lg`}>
+                      <div className={`mb-6 ${item.color}`}>
                         {item.icon}
                       </div>
                       
                       {/* Content */}
-                      <h3 className="text-lg font-bold mb-3 text-gray-900 dark:text-white">{item.title}</h3>
-                      <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm">{item.description}</p>
-                    </CardContent>
-                  </Card>
+                      <h3 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{item.title}</h3>
+                      <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed">{item.description}</p>
+                    </div>
+                    
+                    {/* Light Arrow - except for last item */}
+                    {index < 3 && (
+                      <div className="flex items-center mx-6">
+                        <div className="w-12 h-0.5 bg-gradient-to-r from-gray-300/60 to-gray-400/40 dark:from-gray-600/60 dark:to-gray-500/40"></div>
+                        <div className="w-0 h-0 border-t-3 border-b-3 border-l-6 border-t-transparent border-b-transparent border-l-gray-400/40 dark:border-l-gray-500/40 ml-1"></div>
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="relative py-20 overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50/80 to-pink-50/60 dark:from-slate-900 dark:via-indigo-950/80 dark:to-purple-950/60">
-          {/* Dynamic Background Elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Sophisticated geometric elements */}
-            <div className="absolute top-20 left-20 w-48 h-0.5 bg-gradient-to-r from-indigo-300/35 to-transparent animate-pulse" style={{ animationDelay: '0s', animationDuration: '14s' }}></div>
-            <div className="absolute top-40 right-24 w-36 h-0.5 bg-gradient-to-l from-purple-300/40 to-transparent animate-pulse" style={{ animationDelay: '2s', animationDuration: '12s' }}></div>
-            <div className="absolute bottom-32 left-32 w-40 h-0.5 bg-gradient-to-r from-pink-300/30 to-transparent animate-pulse" style={{ animationDelay: '4s', animationDuration: '16s' }}></div>
-            
-            {/* Elegant vertical accents */}
-            <div className="absolute top-1/4 right-20 w-0.5 h-44 bg-gradient-to-b from-indigo-300/30 to-transparent animate-pulse" style={{ animationDelay: '1s', animationDuration: '18s' }}></div>
-            <div className="absolute bottom-1/4 left-16 w-0.5 h-40 bg-gradient-to-t from-purple-300/35 to-transparent animate-pulse" style={{ animationDelay: '3s', animationDuration: '13s' }}></div>
-            
-            {/* Refined corner details */}
-            <div className="absolute top-10 right-10 w-20 h-20 border border-indigo-300/20 rounded-full animate-pulse" style={{ animationDelay: '5s', animationDuration: '20s' }}></div>
-            <div className="absolute bottom-10 left-10 w-24 h-24 border border-purple-300/25 rounded-full animate-pulse" style={{ animationDelay: '7s', animationDuration: '17s' }}></div>
-            
-            {/* Minimalist dot patterns */}
-            <div className="absolute top-1/3 left-1/4 w-2 h-2 bg-indigo-400/45 rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '9s' }}></div>
-            <div className="absolute bottom-1/3 right-1/3 w-1.5 h-1.5 bg-purple-400/50 rounded-full animate-pulse" style={{ animationDelay: '4s', animationDuration: '11s' }}></div>
-            <div className="absolute top-2/3 left-1/6 w-2.5 h-2.5 bg-pink-400/40 rounded-full animate-pulse" style={{ animationDelay: '6s', animationDuration: '8s' }}></div>
-            
-            {/* Gradient mesh overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent dark:via-white/2 animate-pulse" style={{ animationDuration: '15s' }}></div>
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-100/10 to-transparent dark:via-indigo-900/5 animate-pulse" style={{ animationDelay: '7s', animationDuration: '20s' }}></div>
-            
-            {/* Subtle pattern overlay */}
-            <div className="absolute inset-0 opacity-30 dark:opacity-20" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-            }}></div>
-          </div>
-          <div className="relative container mx-auto px-8 lg:px-12 z-10">
-            <div className="text-center mb-12">
-              <h2 className="text-2xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-                Built for <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Everyone</span>
+        {/* Build for Everyone Section - Redesigned with Interactive Box */}
+        <section className="relative py-20 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Header */}
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
+                Build for{' '}
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
+                  Everyone
+                </span>
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                Whether you&apos;re an individual volunteer, NGO, school, or corporation - we have tools for your impact journey
+              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                Our platform adapts to your unique needs, whether you're an individual volunteer, 
+                a corporate team, or a community organization making a difference.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[
-                {
-                  title: 'For Individuals',
-                  description: 'Track your volunteer hours, earn badges, and build a verified impact portfolio',
-                  icon: <Heart className="w-8 h-8" />,
-                  features: ['Personal Impact Score', 'Digital Certificates', 'Community Network'],
-                  gradient: 'from-pink-500 to-rose-500'
-                },
-                {
-                  title: 'For Organizations',
-                  description: 'Manage CSR programs, track employee engagement, and measure real impact',
-                  icon: <Building className="w-8 h-8" />,
-                  features: ['Team Analytics', 'Impact Reporting', 'Event Management'],
-                  gradient: 'from-blue-500 to-indigo-500'
-                },
-                {
-                  title: 'For Schools',
-                  description: 'Engage students in social impact and track community service hours',
-                  icon: <GraduationCap className="w-8 h-8" />,
-                  features: ['Student Tracking', 'Service Learning', 'Achievement Records'],
-                  gradient: 'from-green-500 to-teal-500'
-                }
-              ].map((feature, index) => (
-                <Card key={index} className="group hover:shadow-2xl hover:shadow-gray-300/60 dark:hover:shadow-black/40 hover:-translate-y-2 hover:scale-[1.02] transition-all duration-500 ease-out border border-gray-200/50 dark:border-gray-700/50 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm shadow-lg shadow-gray-200/40 dark:shadow-gray-900/40">
-                  <CardContent className="p-6">
-                    <div className={`w-16 h-16 rounded-xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center text-white mb-4 group-hover:scale-105 transition-transform duration-300`}>
-                      {feature.icon}
-                    </div>
-                    <h3 className="text-xl font-bold mb-3 text-gray-900 dark:text-white">{feature.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">{feature.description}</p>
-                    <ul className="space-y-2">
-                      {feature.features.map((item, idx) => (
-                        <li key={idx} className="flex items-center text-gray-700 dark:text-gray-300 text-sm">
-                          <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* Interactive Flashcard Box */}
+            <BuildForEveryoneBox />
+
+            {/* Bottom CTA */}
+            <div className="text-center">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-100 dark:border-gray-700 max-w-4xl mx-auto">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                  Ready to Start Your Impact Journey?
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
+                  Join thousands of individuals and organizations already making verified impact. 
+                  Choose your path and start building a better world today.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
+                    Get Started Free
+                  </Button>
+                  <Button variant="outline" className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-8 py-3 rounded-xl transition-all duration-300">
+                    Learn More
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="relative py-16 overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600">
-          {/* Dreamy Background Elements */}
+        {/* CTA Section - Ready to Make Impact */}
+        <section className="relative py-16 overflow-hidden bg-white dark:bg-gray-900">
+          {/* Starburst pattern background */}
           <div className="absolute inset-0 overflow-hidden">
-            {/* Large dreamy floating bubbles with glow */}
-            <div className="absolute top-12 left-12 w-24 h-24 bg-gradient-to-br from-blue-300/20 to-cyan-300/15 rounded-full shadow-2xl shadow-blue-300/15 animate-bounce blur-sm" style={{ animationDelay: '0s', animationDuration: '10s' }}></div>
-            <div className="absolute top-24 right-16 w-20 h-20 bg-gradient-to-br from-purple-300/25 to-pink-300/20 rounded-full shadow-2xl shadow-purple-300/20 animate-bounce blur-sm" style={{ animationDelay: '2s', animationDuration: '12s' }}></div>
-            <div className="absolute bottom-16 left-20 w-18 h-18 bg-gradient-to-br from-cyan-300/22 to-blue-300/18 rounded-full shadow-2xl shadow-cyan-300/18 animate-bounce blur-sm" style={{ animationDelay: '4s', animationDuration: '9s' }}></div>
-            <div className="absolute top-1/2 right-8 w-28 h-28 bg-gradient-to-br from-indigo-300/18 to-purple-300/12 rounded-full shadow-2xl shadow-indigo-300/12 animate-bounce blur-sm" style={{ animationDelay: '1s', animationDuration: '14s' }}></div>
-            <div className="absolute bottom-8 right-24 w-22 h-22 bg-gradient-to-br from-pink-300/20 to-purple-300/15 rounded-full shadow-2xl shadow-pink-300/15 animate-bounce blur-sm" style={{ animationDelay: '3s', animationDuration: '11s' }}></div>
+            {/* Radiating lines from center */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className="absolute w-0.5 h-32 bg-gradient-to-t from-transparent via-violet-200/20 to-transparent animate-pulse" 
+                  style={{ 
+                    transform: `rotate(${i * 30}deg)`, 
+                    transformOrigin: 'bottom center',
+                    animationDelay: `${i * 0.2}s`,
+                    animationDuration: '4s'
+                  }}
+                ></div>
+              ))}
+            </div>
             
-            {/* Extra large dreamy bubbles */}
-            <div className="absolute top-1/4 left-1/4 w-36 h-36 bg-gradient-to-br from-blue-200/10 to-cyan-200/6 rounded-full shadow-2xl shadow-blue-200/8 animate-pulse blur-md" style={{ animationDelay: '0s', animationDuration: '18s' }}></div>
-            <div className="absolute bottom-1/4 right-1/4 w-32 h-32 bg-gradient-to-br from-purple-200/12 to-pink-200/8 rounded-full shadow-2xl shadow-purple-200/10 animate-pulse blur-md" style={{ animationDelay: '6s', animationDuration: '20s' }}></div>
-            <div className="absolute top-3/4 left-3/4 w-30 h-30 bg-gradient-to-br from-indigo-200/10 to-purple-200/6 rounded-full shadow-2xl shadow-indigo-200/8 animate-pulse blur-md" style={{ animationDelay: '3s', animationDuration: '16s' }}></div>
+            {/* Star shapes */}
+            <div className="absolute top-16 left-1/4 w-8 h-8 bg-violet-300/30" style={{ clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }}></div>
+            <div className="absolute top-1/3 right-1/5 w-6 h-6 bg-purple-300/40" style={{ clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }}></div>
+            <div className="absolute bottom-1/4 left-1/5 w-10 h-10 bg-indigo-300/25" style={{ clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }}></div>
             
-            {/* Massive dreamy orbs */}
-            <div className="absolute top-1/3 right-1/6 w-44 h-44 bg-gradient-to-br from-cyan-100/8 to-blue-100/4 rounded-full shadow-2xl shadow-cyan-100/6 animate-pulse blur-lg" style={{ animationDelay: '8s', animationDuration: '24s' }}></div>
-            <div className="absolute bottom-1/3 left-1/6 w-40 h-40 bg-gradient-to-br from-purple-100/10 to-pink-100/6 rounded-full shadow-2xl shadow-purple-100/8 animate-pulse blur-lg" style={{ animationDelay: '10s', animationDuration: '26s' }}></div>
-            
-            {/* Dreamy gradient layers */}
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-400/4 via-transparent to-purple-400/4 animate-pulse" style={{ animationDuration: '28s' }}></div>
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tl from-cyan-400/3 via-transparent to-pink-400/3 animate-pulse" style={{ animationDelay: '14s', animationDuration: '32s' }}></div>
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-indigo-400/2 via-transparent to-purple-400/2 animate-pulse" style={{ animationDelay: '21s', animationDuration: '35s' }}></div>
+            {/* Concentric circles */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-violet-200/20 rounded-full animate-pulse" style={{ animationDuration: '6s' }}></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-purple-200/30 rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '5s' }}></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-indigo-200/40 rounded-full animate-pulse" style={{ animationDelay: '4s', animationDuration: '4s' }}></div>
           </div>
           <div className="relative container mx-auto px-8 lg:px-12 text-center z-10">
-            <h2 className="text-2xl md:text-4xl font-bold text-white mb-4">
+            <h2 className="text-2xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Ready to Make Impact <span className="block">That Counts?</span>
             </h2>
-            <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-700 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
               Join thousands of impact makers who are already building their verified social impact legacy
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">

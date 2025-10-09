@@ -301,3 +301,27 @@
     display: block !important;
   }
 }
+
+/* Hide React DevTools, React Query Devtools, and Next.js indicators */
+#__next-build-watcher,
+.__next-dev-overlay-button,
+[data-nextjs-dialog-overlay],
+[data-nextjs-portal],
+iframe[src*="react-devtools"],
+/* Hide React DevTools logo/icon */
+[fill="#FF4154"],
+svg path[d*="M87.8601729,108.357758"],
+/* Common React DevTools container patterns */
+#react-devtools-portal,
+#react-devtools-container,
+.__react-devtools-badge__,
+/* Hide React Query Devtools button */
+button[aria-label="Open React Query Devtools"],
+button[aria-controls="ReactQueryDevtoolsPanel"],
+#ReactQueryDevtoolsPanel,
+[class*="ReactQueryDevtools"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

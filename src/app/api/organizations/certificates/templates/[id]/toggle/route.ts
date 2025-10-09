@@ -37,12 +37,14 @@ model CertificateTemplate {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await params;
     }
 
     const body = await request.json();
@@ -86,7 +88,7 @@ export async function POST(
     /*
     const template = await prisma.certificateTemplate.findUnique({
       where: { 
-        id: params.id,
+        id: id,
         organizationId: organization.id // Ensure template belongs to user's org
       }
     });
@@ -98,7 +100,7 @@ export async function POST(
     }
 
     const updatedTemplate = await prisma.certificateTemplate.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         isActive,
         updatedAt: new Date()
@@ -106,11 +108,13 @@ export async function POST(
     });
     */
 
+    const { id } = await params;
+
     // Temporary implementation - using a mock response
     // Replace this with actual database operations when you add the CertificateTemplate model
     
     const mockTemplate = {
-      id: params.id,
+      id: id,
       organizationId: organization.id,
       name: 'Participation Certificate Template',
       isActive: isActive,
@@ -120,7 +124,7 @@ export async function POST(
 
     // Log the template toggle for audit trail
     console.log('Certificate template toggled:', {
-      templateId: params.id,
+      templateId: id,
       organizationId: organization.id,
       organizationName: organization.name,
       toggledBy: user.email,
@@ -134,7 +138,7 @@ export async function POST(
       // Count certificates using this template
       const certificatesUsingTemplate = await prisma.certificate.count({
         where: { 
-          templateId: params.id 
+          templateId: id 
         }
       });
 
@@ -156,7 +160,7 @@ export async function POST(
         where: {
           organizationId: organization.id,
           isDefault: true,
-          id: { not: params.id }
+          id: { not: id }
         },
         data: {
           isDefault: false
@@ -164,7 +168,7 @@ export async function POST(
       });
 
       updatedTemplate = await prisma.certificateTemplate.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           isActive: true,
           isDefault: true
@@ -199,12 +203,14 @@ export async function POST(
 // GET method to retrieve template status and details
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await params;
     }
 
     const user = await prisma.user.findUnique({
@@ -232,9 +238,11 @@ export async function GET(
       }, { status: 403 });
     }
 
+    const { id } = await params;
+
     // Mock template data - replace with actual database query
     const mockTemplate = {
-      id: params.id,
+      id: id,
       organizationId: adminMembership.organization.id,
       name: 'Participation Certificate Template',
       description: 'Standard template for event participation certificates',
@@ -269,12 +277,14 @@ export async function GET(
 // PUT method to update template details
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await params;
     }
 
     const body = await request.json();
@@ -311,9 +321,11 @@ export async function PUT(
       }, { status: 403 });
     }
 
+    const { id } = await params;
+
     // Mock update response - replace with actual database update
     const updatedTemplate = {
-      id: params.id,
+      id: id,
       organizationId: adminMembership.organization.id,
       ...updateData,
       updatedAt: new Date(),
@@ -321,7 +333,7 @@ export async function PUT(
     };
 
     console.log('Certificate template updated:', {
-      templateId: params.id,
+      templateId: id,
       updatedBy: user.email,
       changes: updateData,
       timestamp: new Date().toISOString()

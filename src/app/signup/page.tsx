@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { 
@@ -36,27 +36,72 @@ interface SignupFormData {
   userType: UserType;
 }
 
-export default function SignupPage() {
+const userTypeOptions = [
+  { type: UserType.INDIVIDUAL, title: 'Individual', icon: User, gradient: 'from-blue-500 to-cyan-500', description: 'Personal impact tracking' },
+  { type: UserType.NGO, title: 'NGO', icon: Heart, gradient: 'from-pink-500 to-rose-500', description: 'Non-profit organization' },
+  { type: UserType.CORPORATE, title: 'Corporate', icon: Building2, gradient: 'from-purple-500 to-indigo-500', description: 'Corporate social responsibility' },
+  { type: UserType.SCHOOL, title: 'School', icon: GraduationCap, gradient: 'from-green-500 to-emerald-500', description: 'Educational institution' },
+  { type: UserType.HEALTHCARE, title: 'Healthcare', icon: Home, gradient: 'from-orange-500 to-amber-500', description: 'Medical organization' }
+];
+
+function SignupContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [selectedUserType, setSelectedUserType] = useState<UserType | null>(null);
+  const [userType, setUserType] = useState<UserType | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     watch,
+    setValue
   } = useForm<SignupFormData>();
 
-  // Redirect if already authenticated
-  React.useEffect(() => {
+  // Get user type from URL params and redirect if already authenticated
+  useEffect(() => {
     if (session) {
       router.push('/profile-setup');
+      return;
     }
-  }, [session, router]);
+
+    // Get user type from URL params
+    const typeParam = searchParams?.get('type');
+    if (typeParam) {
+      const selectedType = typeParam.toUpperCase() as UserType;
+      if (Object.values(UserType).includes(selectedType)) {
+        setUserType(selectedType);
+        setValue('userType', selectedType);
+      } else {
+        // Invalid type, redirect to journey page
+        router.push('/journey');
+      }
+    } else {
+      // No type specified, redirect to journey page
+      router.push('/journey');
+    }
+  }, [session, router, searchParams, setValue]);
+
+  // Show loading while determining user type
+  if (!userType) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="inline-flex items-center space-x-2 mb-4">
+            <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              impaktr
+            </span>
+          </div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+          <p className="text-gray-600 dark:text-gray-300">Setting up your account...</p>
+        </div>
+      </div>
+    );
+  }
 
   const password = watch('password');
 
@@ -66,24 +111,34 @@ export default function SignupPage() {
     }
 
     setIsLoading(true);
+    setError(null); // Clear any previous errors
+    
     try {
       // Create account with credentials
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: selectedUserType === UserType.INDIVIDUAL 
+          name: userType === UserType.INDIVIDUAL 
             ? `${data.firstName} ${data.lastName || ''}`.trim()
             : data.organizationName,
           email: data.email,
           password: data.password,
-          userType: selectedUserType,
+          userType: userType,
         }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Registration failed');
+        const errorData = await response.json();
+        const errorMessage = errorData.message || 'Registration failed';
+        
+        // Set user-friendly error message
+        if (errorMessage.includes('already exists')) {
+          setError('An account with this email already exists. Please sign in instead.');
+        } else {
+          setError(errorMessage);
+        }
+        return; // Stop execution here
       }
 
       // Sign in with the new credentials
@@ -95,13 +150,14 @@ export default function SignupPage() {
       });
 
       if (signInResult?.error) {
-        throw new Error('Sign in failed after registration');
+        setError('Sign in failed after registration. Please try signing in manually.');
+        return;
       }
 
       router.push('/profile-setup');
     } catch (error) {
       console.error('Registration error:', error);
-      // Handle error (show toast notification)
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -109,49 +165,12 @@ export default function SignupPage() {
 
   const handleOAuthSignup = (provider: string) => {
     // Store the selected user type for after OAuth
-    if (selectedUserType) {
-      sessionStorage.setItem('selectedUserType', selectedUserType);
+    if (userType) {
+      sessionStorage.setItem('selectedProfileType', userType);
     }
     signIn(provider, { callbackUrl: '/profile-setup' });
   };
 
-  const userTypeOptions = [
-    {
-      type: UserType.INDIVIDUAL,
-      icon: User,
-      title: 'Individual',
-      description: 'Personal impact tracking',
-      gradient: 'from-blue-500 to-cyan-500',
-    },
-    {
-      type: UserType.NGO,
-      icon: Users,
-      title: 'NGO',
-      description: 'Organize & manage events',
-      gradient: 'from-green-500 to-emerald-500',
-    },
-    {
-      type: UserType.CORPORATE,
-      icon: Building2,
-      title: 'Corporate',
-      description: 'CSR & employee programs',
-      gradient: 'from-purple-500 to-violet-500',
-    },
-    {
-      type: UserType.SCHOOL,
-      icon: GraduationCap,
-      title: 'School',
-      description: 'Educational programs',
-      gradient: 'from-orange-500 to-amber-500',
-    },
-    {
-      type: UserType.HEALTHCARE,
-      icon: Heart,
-      title: 'Healthcare',
-      description: 'Medical institutions',
-      gradient: 'from-red-500 to-rose-500',
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950">
@@ -295,77 +314,34 @@ export default function SignupPage() {
                     Create Account
                   </CardTitle>
                   <CardDescription className="text-center text-gray-600 dark:text-gray-400">
-                    {!selectedUserType ? "Choose your account type" : "Complete your registration"}
+                    Complete your {userTypeOptions.find(opt => opt.type === userType)?.title.toLowerCase()} registration
                   </CardDescription>
                 </CardHeader>
                 
                 <CardContent className="space-y-6">
-                  {/* User Type Selection */}
-                  {!selectedUserType && (
-                    <div className="space-y-3">
-                      {/* Individual option - full width */}
-                      <button
-                        onClick={() => setSelectedUserType(UserType.INDIVIDUAL)}
-                        className="w-full p-3 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/20 bg-white dark:bg-gray-800 hover:shadow-md transition-all duration-200 group text-center hover:scale-[1.02]"
+                  {/* Show Selected User Type */}
+                  {userType && (
+                    <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
+                      <Link
+                        href="/journey"
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-normal text-sm flex items-center"
                       >
-                        <div className="w-8 h-8 mx-auto mb-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <User className="w-4 h-4 text-white" />
+                        <ArrowLeft className="w-4 h-4 mr-1" />
+                        Change type
+                      </Link>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-6 h-6 rounded-lg bg-gradient-to-r ${userTypeOptions.find(opt => opt.type === userType)?.gradient} flex items-center justify-center`}>
+                          {React.createElement(userTypeOptions.find(opt => opt.type === userType)?.icon || User, { className: "w-3 h-3 text-white" })}
                         </div>
-                        <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100">Individual</h4>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Personal impact tracking</p>
-                      </button>
-                      
-                      {/* Other options in 2x2 grid */}
-                      <div className="grid grid-cols-2 gap-2">
-                        {userTypeOptions.slice(1).map((option) => {
-                          const IconComponent = option.icon;
-                          return (
-                            <button
-                              key={option.type}
-                              onClick={() => setSelectedUserType(option.type)}
-                              className="p-3 rounded-lg border-2 border-gray-200 hover:border-gray-300 bg-white dark:bg-gray-800 hover:shadow-md transition-all duration-200 group text-center hover:scale-[1.02]"
-                            >
-                              <div className={`w-8 h-8 mx-auto mb-2 rounded-lg bg-gradient-to-r ${option.gradient} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                <IconComponent className="w-4 h-4 text-white" />
-                              </div>
-                              <h4 className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                                {option.title}
-                              </h4>
-                              <p className="text-xs text-gray-600 dark:text-gray-400">
-                                {option.description}
-                              </p>
-                            </button>
-                          );
-                        })}
+                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                          {userTypeOptions.find(opt => opt.type === userType)?.title} Account
+                        </span>
                       </div>
                     </div>
                   )}
 
-              {/* Back Button */}
-              {selectedUserType && (
-                <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedUserType(null)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-normal p-0"
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-1" />
-                    Change type
-                  </Button>
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-6 h-6 rounded-lg bg-gradient-to-r ${userTypeOptions.find(opt => opt.type === selectedUserType)?.gradient} flex items-center justify-center`}>
-                      {React.createElement(userTypeOptions.find(opt => opt.type === selectedUserType)?.icon || User, { className: "w-3 h-3 text-white" })}
-                    </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                      {userTypeOptions.find(opt => opt.type === selectedUserType)?.title}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {/* Signup Form */}
-              {selectedUserType && (
+              {userType && (
                 <>
                   {/* OAuth Buttons */}
                   <div className="space-y-3">
@@ -410,8 +386,45 @@ export default function SignupPage() {
 
                   {/* Compact Form */}
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                    {/* Error Alert */}
+                    {error && (
+                      <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="ml-3 flex-1">
+                            <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                              {error}
+                            </p>
+                            {error.includes('already exists') && (
+                              <button
+                                type="button"
+                                onClick={() => signIn()}
+                                className="mt-2 inline-flex items-center text-sm font-semibold text-red-700 dark:text-red-300 hover:text-red-600 dark:hover:text-red-200 underline"
+                              >
+                                Go to Sign In →
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setError(null)}
+                            className="ml-3 flex-shrink-0 text-red-400 hover:text-red-600 dark:text-red-300 dark:hover:text-red-100"
+                          >
+                            <span className="sr-only">Dismiss</span>
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Name Fields - Different for Individual vs Organization */}
-                    {selectedUserType === UserType.INDIVIDUAL ? (
+                    {userType === UserType.INDIVIDUAL ? (
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <Label htmlFor="firstName" className="text-xs font-medium text-gray-700 dark:text-gray-300">First Name</Label>
@@ -549,9 +562,13 @@ export default function SignupPage() {
                   <div className="text-center pt-2">
                     <p className="text-xs text-gray-600 dark:text-gray-400">
                       Already have an account?{' '}
-                      <Link href="/api/auth/signin" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => signIn()}
+                        className="font-medium text-blue-600 hover:text-blue-500 transition-colors underline"
+                      >
                         Sign in
-                      </Link>
+                      </button>
                     </p>
                   </div>
                 </>
@@ -575,5 +592,25 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="inline-flex items-center space-x-2 mb-4">
+            <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              impaktr
+            </span>
+          </div>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignupContent />
+    </React.Suspense>
   );
 }

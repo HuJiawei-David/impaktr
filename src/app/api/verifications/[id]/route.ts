@@ -16,7 +16,7 @@ const updateVerificationSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -24,6 +24,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const { status, comments, rating } = updateVerificationSchema.parse(body);
 
@@ -36,7 +37,7 @@ export async function PUT(
     }
 
     const verification = await prisma.verification.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         participation: {
           include: {
@@ -67,7 +68,7 @@ export async function PUT(
     }
 
     const updatedVerification = await prisma.verification.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status,
         comments,
@@ -159,13 +160,15 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { id } = await params;
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -176,7 +179,7 @@ export async function DELETE(
     }
 
     const verification = await prisma.verification.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         participation: {
           include: {
@@ -213,7 +216,7 @@ export async function DELETE(
     }
 
     await prisma.verification.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Verification deleted successfully' });

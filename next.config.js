@@ -1,11 +1,26 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Allow each user to set a unique build folder via env
+  distDir: process.env.DIST_DIR || '.next',
+  // Disable development indicators
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-right',
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
+  // Increase timeout for chunk loading
+  onDemandEntries: {
+    // period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 60 * 1000,
+    // number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 5,
   },
+  experimental: {
+    // Moved to serverExternalPackages in Next.js 15
+  },
+  serverExternalPackages: ['@prisma/client', 'bcryptjs', 'socket.io'],
   // Fix chunk loading issues
   webpack: (config, { dev, isServer }) => {
     // External packages
@@ -14,30 +29,24 @@ const nextConfig = {
       'bufferutil': 'commonjs bufferutil',
     });
     
-    // Fix chunk loading in development
+    // Disable aggressive chunk splitting in development to prevent timeout issues
     if (dev && !isServer) {
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
-          default: false,
-          vendors: false,
-          // Vendor chunk
-          vendor: {
-            name: 'vendor',
-            chunks: 'all',
-            test: /node_modules/,
-            priority: 20
-          },
-          // Common chunk
-          common: {
-            name: 'common',
+          default: {
+            chunks: 'async',
             minChunks: 2,
-            chunks: 'all',
             priority: 10,
             reuseExistingChunk: true,
-            enforce: true
-          }
-        }
+          },
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            priority: 20,
+            chunks: 'all',
+          },
+        },
       };
     }
     

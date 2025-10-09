@@ -1,0 +1,73 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { Server as SocketIOServer } from 'socket.io';
+import { Server as HTTPServer } from 'http';
+
+// Global Socket.IO server instance
+let io: SocketIOServer | null = null;
+
+export async function GET(request: NextRequest) {
+  // This route is just for initialization
+  // Socket.IO will handle the actual WebSocket connections
+  return NextResponse.json({ message: 'Socket.IO server initialized' });
+}
+
+// Initialize Socket.IO server
+export function initSocketIO(server: HTTPServer) {
+  if (io) return io;
+
+  io = new SocketIOServer(server, {
+    path: '/api/socket',
+    cors: {
+      origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
+
+  io.on('connection', (socket) => {
+    console.log('Client connected:', socket.id);
+
+    // Handle authentication
+    socket.on('authenticate', (data) => {
+      const { userId } = data;
+      if (userId) {
+        socket.userId = userId;
+        socket.join(`user:${userId}`);
+        console.log(`User ${userId} authenticated`);
+      }
+    });
+
+    // Handle joining rooms
+    socket.on('join-room', (roomId) => {
+      socket.join(roomId);
+      console.log(`Socket ${socket.id} joined room: ${roomId}`);
+    });
+
+    // Handle leaving rooms
+    socket.on('leave-room', (roomId) => {
+      socket.leave(roomId);
+      console.log(`Socket ${socket.id} left room: ${roomId}`);
+    });
+
+    // Handle custom events
+    socket.on('notification', (data) => {
+      if (socket.userId) {
+        io?.to(`user:${socket.userId}`).emit('notification', data);
+      }
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('Client disconnected:', socket.id, 'Reason:', reason);
+    });
+  });
+
+  return io;
+}
+
+export function getSocketServer(): SocketIOServer | null {
+  return io;
+}
+
+
+
+

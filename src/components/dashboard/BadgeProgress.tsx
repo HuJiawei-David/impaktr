@@ -215,7 +215,7 @@ export function BadgeProgress() {
               </div>
               
               {badge.earned && (
-                <Badge variant="success" className="text-xs">
+                <Badge variant="success" className="text-xs px-2 py-1">
                   Earned
                 </Badge>
               )}

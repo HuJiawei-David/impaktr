@@ -69,22 +69,34 @@ export const authOptions: AuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, account }) {
-      // Include user info in JWT token
-      if (user) {
-        token.id = user.id
-        token.userType = (user as any).userType
-        token.profileComplete = (user as any).profileComplete
+      try {
+        // Include user info in JWT token
+        if (user) {
+          token.id = user.id
+          token.userType = (user as any).userType
+          token.profileComplete = (user as any).profileComplete
+        }
+        return token
+      } catch (error) {
+        console.error('JWT callback error:', error)
+        // Return minimal token on error to prevent crashes
+        return token
       }
-      return token
     },
     async session({ session, token }) {
-      // Include token info in session
-      if (token && session.user) {
-        session.user.id = token.id as string
-        session.user.userType = token.userType as string
-        session.user.profileComplete = token.profileComplete as boolean
+      try {
+        // Include token info in session
+        if (token && session.user) {
+          session.user.id = token.id as string
+          session.user.userType = token.userType as string
+          session.user.profileComplete = token.profileComplete as boolean
+        }
+        return session
+      } catch (error) {
+        console.error('Session callback error:', error)
+        // Return minimal session on error
+        return session
       }
-      return session
     },
     async signIn({ user, account, profile }) {
       // Custom sign-in logic
@@ -116,6 +128,37 @@ export const authOptions: AuthOptions = {
   },
   session: {
     strategy: 'jwt' as const, // Changed to JWT for middleware compatibility
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    // Force token refresh on secret change by encoding version
+    encode: async ({ token, secret }) => {
+      const jose = await import('jose')
+      const secretKey = typeof secret === 'string' ? secret : String(secret)
+      return await new jose.EncryptJWT({ ...token, v: 1 })
+        .setProtectedHeader({ alg: 'dir', enc: 'A256GCM' })
+        .setIssuedAt()
+        .setExpirationTime('30d')
+        .encrypt(new TextEncoder().encode(secretKey))
+    },
+    decode: async ({ token, secret }) => {
+      try {
+        const jose = await import('jose')
+        const secretKey = typeof secret === 'string' ? secret : String(secret)
+        const { payload } = await jose.jwtDecrypt(
+          token!,
+          new TextEncoder().encode(secretKey),
+          { clockTolerance: 15 }
+        )
+        return payload as any
+      } catch (error: any) {
+        console.warn('JWT decode error (likely old token):', error?.message || 'Unknown error')
+        // Return null to force re-authentication with old tokens
+        return null
+      }
+    }
   },
   secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development',
 }
