@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:clean": "sudo rm -rf .next && next dev",
     "dev:with-socket": "concurrently \"npm run socket:dev\" \"next dev\"",
+    "postinstall": "prisma generate",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
