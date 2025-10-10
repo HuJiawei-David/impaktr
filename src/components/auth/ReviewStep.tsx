@@ -5,8 +5,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, User, Mail, MapPin, Globe, Calendar } from 'lucide-react';
 
+interface BasicInfo {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  nationality?: string;
+  country?: string;
+  languages?: string[];
+  bio?: string;
+}
+
+interface Preferences {
+  isPublic?: boolean;
+  showEmail?: boolean;
+  notifications?: {
+    email?: boolean;
+    push?: boolean;
+    marketing?: boolean;
+  };
+}
+
+interface FormData {
+  basicInfo?: BasicInfo;
+  preferences?: Preferences;
+}
+
 interface ReviewStepProps {
-  formData?: any;
+  formData?: FormData;
 }
 
 export default function ReviewStep({ formData }: ReviewStepProps) {
