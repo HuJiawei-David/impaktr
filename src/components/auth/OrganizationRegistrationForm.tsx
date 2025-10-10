@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { UserType } from '@prisma/client';
 import { countries } from '@/constants/countries';
 import { industries } from '@/constants/industries';
-import { SDGSelector } from '@/components/ui/sdg-selector';
+import { sdgs } from '@/constants/sdgs';
 
 interface OrganizationRegistrationData {
   organizationName: string;
@@ -125,9 +125,12 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
     return organizationName && contactEmail;
   };
 
-  const handleSDGChange = (sdgs: number[]) => {
-    setSelectedSDGs(sdgs);
-    setValue('sdgFocus', sdgs);
+  const handleSDGToggle = (sdgId: number) => {
+    const newSDGs = selectedSDGs.includes(sdgId)
+      ? selectedSDGs.filter(id => id !== sdgId)
+      : [...selectedSDGs, sdgId];
+    setSelectedSDGs(newSDGs);
+    setValue('sdgFocus', newSDGs);
   };
 
   const handleVerificationDocsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -456,26 +459,54 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
           {/* SDG Focus Areas */}
           <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
-              <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                <Globe className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
-                SDG Focus Areas
-              </CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">UN Sustainable Development Goals</CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Select the SDGs you&apos;re most passionate about (optional, select up to 8)
+              </p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label>Select SDGs your organization focuses on (up to 8)</Label>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Choose the UN Sustainable Development Goals that align with your organization's mission
-                  </p>
-                </div>
-                
-                <SDGSelector
-                  selectedSDGs={selectedSDGs}
-                  onSelectionChange={handleSDGChange}
-                  maxSelection={8}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {sdgs.map((sdg) => (
+                  <label 
+                    key={sdg.id} 
+                    className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
+                      selectedSDGs.includes(sdg.id)
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSDGs.includes(sdg.id)}
+                      onChange={() => handleSDGToggle(sdg.id)}
+                      disabled={!selectedSDGs.includes(sdg.id) && selectedSDGs.length >= 8}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                    />
+                    <div className="flex items-center space-x-3 flex-1">
+                      <span className="text-2xl">{sdg.icon}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            SDG {sdg.id}
+                          </span>
+                          <div 
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: sdg.color }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {sdg.shortTitle}
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+                ))}
               </div>
+              {selectedSDGs.length >= 8 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                  Maximum of 8 SDGs selected. Deselect one to choose another.
+                </p>
+              )}
             </CardContent>
           </Card>
 

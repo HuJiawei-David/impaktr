@@ -194,7 +194,7 @@ export default function OnboardingPage() {
                 Choose Your Impact Focus
               </CardTitle>
               <p className="text-muted-foreground">
-                Select up to 5 UN Sustainable Development Goals that you're most passionate about
+                Select up to 5 UN Sustainable Development Goals that you&apos;re most passionate about
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -302,7 +302,7 @@ export default function OnboardingPage() {
                 Verification Preferences
               </CardTitle>
               <p className="text-muted-foreground">
-                Choose how you'd like your impact hours to be verified for maximum credibility
+                Choose how you&apos;d like your impact hours to be verified for maximum credibility
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -478,7 +478,7 @@ export default function OnboardingPage() {
           </div>
           
           <h1 className="text-3xl font-bold mb-2">
-            Let's Personalize Your Impact Journey
+            Let&apos;s Personalize Your Impact Journey
           </h1>
           <p className="text-muted-foreground mb-6">
             Help us understand your interests and goals so we can provide the best experience
@@ -563,7 +563,7 @@ export default function OnboardingPage() {
             <CardContent className="p-6">
               <div className="flex items-center space-x-3 mb-4">
                 <TrendingUp className="w-6 h-6 text-primary" />
-                <h3 className="font-semibold text-lg">You're All Set!</h3>
+                <h3 className="font-semibold text-lg">You&apos;re All Set!</h3>
               </div>
               
               <div className="grid md:grid-cols-3 gap-4 text-sm">
