@@ -34,6 +34,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Footer } from '@/components/layout/Footer';
 import { SDGSimple } from '@/components/home/SDGSimple';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 // Build For Everyone Interactive Box Component
 function BuildForEveryoneBox() {
@@ -437,26 +438,12 @@ export default function HomePage() {
   }, [isLoading, user, router]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-          <p className="text-slate-600 dark:text-slate-300">Loading Impaktr...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen text="Loading Impaktr..." />;
   }
 
   // Don't render landing page content for authenticated users
   if (user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-          <p className="text-slate-600 dark:text-slate-300">Redirecting to dashboard...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen text="Redirecting to dashboard..." />;
   }
 
   return (
