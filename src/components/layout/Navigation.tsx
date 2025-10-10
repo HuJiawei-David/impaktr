@@ -95,7 +95,7 @@ export function Navigation() {
     <nav className={cn(
       "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ease-in-out",
       scrolled || !isHomePage 
-        ? "bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 shadow-xl" 
+        ? "bg-white/95 dark:bg-gray-900 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700 shadow-xl" 
         : "bg-transparent backdrop-blur-md"
     )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -122,7 +122,7 @@ export function Navigation() {
                       className={cn(
                         "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
                         isActive
-                          ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
+                          ? "text-blue-600 bg-blue-50 dark:bg-gray-700 dark:text-blue-400"
                           : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
                       )}
                     >
@@ -131,9 +131,6 @@ export function Navigation() {
                         isActive ? "scale-110" : "group-hover:scale-110"
                       )} />
                       <span className="truncate">{item.label}</span>
-                      {isActive && (
-                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full"></div>
-                      )}
                     </Link>
                   );
                 })}
@@ -145,7 +142,7 @@ export function Navigation() {
                     className={cn(
                       "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
                       pathname.startsWith('/analytics')
-                        ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
+                        ? "text-blue-600 bg-blue-50 dark:bg-gray-700 dark:text-blue-400"
                         : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
                     )}
                   >
@@ -154,9 +151,6 @@ export function Navigation() {
                       pathname.startsWith('/analytics') ? "scale-110" : "group-hover:scale-110"
                     )} />
                     <span className="truncate">Analytics</span>
-                    {pathname.startsWith('/analytics') && (
-                      <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full"></div>
-                    )}
                   </Link>
 
                   {/* Notification beside Analytics */}

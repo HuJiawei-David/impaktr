@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function CommunityPage() {
   const { data: session, status } = useSession();
@@ -54,6 +55,7 @@ export default function CommunityPage() {
   const [feedFilter, setFeedFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   const communityGroups = [
     {
@@ -267,7 +269,7 @@ export default function CommunityPage() {
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" text="Loading community..." />
       </div>
     );
   }
@@ -310,35 +312,105 @@ export default function CommunityPage() {
 
         {/* Search and Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
+          <div className="relative md:flex-1 md:max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               placeholder="Search communities, posts, or people..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 h-10"
             />
           </div>
           
           <div className="flex gap-2">
             <Select value={feedFilter} onValueChange={setFeedFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-48 h-10">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Posts</SelectItem>
-                <SelectItem value="following">Following</SelectItem>
-                <SelectItem value="trending">Trending</SelectItem>
-                <SelectItem value="recent">Recent</SelectItem>
-                <SelectItem value="achievements">Achievements</SelectItem>
+              <SelectContent className="bg-white dark:bg-gray-800">
+                <SelectItem value="all" className="pl-8">All Posts</SelectItem>
+                <SelectItem value="following" className="pl-8">Following</SelectItem>
+                <SelectItem value="trending" className="pl-8">Trending</SelectItem>
+                <SelectItem value="recent" className="pl-8">Recent</SelectItem>
+                <SelectItem value="achievements" className="pl-8">Achievements</SelectItem>
               </SelectContent>
             </Select>
 
-            <Button variant="outline" size="icon">
+            <Button variant="outline" className="px-3 h-10" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="w-4 h-4" />
             </Button>
           </div>
         </div>
+
+        {/* Advanced Filters */}
+        {showFilters && (
+          <Card className="mb-6">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    Post Type
+                  </label>
+                  <Select defaultValue="all">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-gray-800">
+                      <SelectItem value="all" className="pl-8">All Types</SelectItem>
+                      <SelectItem value="text" className="pl-8">Text Posts</SelectItem>
+                      <SelectItem value="image" className="pl-8">Images</SelectItem>
+                      <SelectItem value="achievement" className="pl-8">Achievements</SelectItem>
+                      <SelectItem value="event" className="pl-8">Events</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    Time Range
+                  </label>
+                  <Select defaultValue="week">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-gray-800">
+                      <SelectItem value="today" className="pl-8">Today</SelectItem>
+                      <SelectItem value="week" className="pl-8">This Week</SelectItem>
+                      <SelectItem value="month" className="pl-8">This Month</SelectItem>
+                      <SelectItem value="all" className="pl-8">All Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                    Sort By
+                  </label>
+                  <Select defaultValue="recent">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white dark:bg-gray-800">
+                      <SelectItem value="recent" className="pl-8">Most Recent</SelectItem>
+                      <SelectItem value="popular" className="pl-8">Most Popular</SelectItem>
+                      <SelectItem value="comments" className="pl-8">Most Comments</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setShowFilters(false)}
+                  className="mr-2"
+                >
+                  Cancel
+                </Button>
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white">
+                  Apply Filters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -375,19 +447,19 @@ export default function CommunityPage() {
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button variant="outline" size="sm" className="w-full justify-start px-4 py-2">
                   <Calendar className="w-4 h-4 mr-2" />
                   Find Events
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button variant="outline" size="sm" className="w-full justify-start px-4 py-2">
                   <Users className="w-4 h-4 mr-2" />
                   Browse Members
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button variant="outline" size="sm" className="w-full justify-start px-4 py-2">
                   <Award className="w-4 h-4 mr-2" />
                   View Leaderboards
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start">
+                <Button variant="outline" size="sm" className="w-full justify-start px-4 py-2">
                   <Globe className="w-4 h-4 mr-2" />
                   Global Impact
                 </Button>
@@ -404,8 +476,8 @@ export default function CommunityPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {upcomingEvents.map((event, index) => (
-                  <div key={index} className="border-l-4 border-blue-500 pl-4">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                  <div key={index} className="border-l-4 border-blue-500 pl-4 py-2 cursor-pointer group">
+                    <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-1">
                       {event.title}
                     </h4>
                     <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
@@ -422,7 +494,13 @@ export default function CommunityPage() {
                         <span>{event.attendees} attending</span>
                       </div>
                     </div>
-                    <Badge variant="outline" className="mt-2 text-xs">
+                    <Badge className={`mt-2 text-xs ${
+                      event.type === 'Volunteer' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                      event.type === 'Fundraiser' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                      event.type === 'Workshop' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                      event.type === 'Cleanup' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                    }`}>
                       {event.type}
                     </Badge>
                   </div>
@@ -492,6 +570,7 @@ export default function CommunityPage() {
                         <Button 
                           variant="outline" 
                           className="w-full justify-start text-gray-600 dark:text-gray-400"
+                          onClick={() => alert('Create post functionality coming soon!')}
                         >
                           Share your impact with the community...
                         </Button>
@@ -500,20 +579,20 @@ export default function CommunityPage() {
                     
                     <div className="flex items-center justify-between pt-4 border-t">
                       <div className="flex items-center space-x-4">
-                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
+                        <button className="flex items-center text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors px-3 py-2 text-sm">
                           <Image className="w-4 h-4 mr-2" />
                           Photo
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
+                        </button>
+                        <button className="flex items-center text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors px-3 py-2 text-sm">
                           <Calendar className="w-4 h-4 mr-2" />
                           Event
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400">
+                        </button>
+                        <button className="flex items-center text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors px-3 py-2 text-sm">
                           <Award className="w-4 h-4 mr-2" />
                           Achievement
-                        </Button>
+                        </button>
                       </div>
-                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white">
+                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2">
                         Share
                       </Button>
                     </div>
@@ -657,7 +736,7 @@ export default function CommunityPage() {
                         <div className="flex space-x-3">
                           <Button 
                             size="sm" 
-                            className={group.isJoined ? "bg-green-600 hover:bg-green-700" : ""}
+                            className={`px-4 py-2 ${group.isJoined ? "bg-green-600 hover:bg-green-700" : ""}`}
                           >
                             {group.isJoined ? (
                               <>
@@ -671,11 +750,11 @@ export default function CommunityPage() {
                               </>
                             )}
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="px-4 py-2">
                             <Eye className="w-4 h-4 mr-2" />
                             View
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="px-4 py-2">
                             <Share2 className="w-4 h-4 mr-2" />
                             Share
                           </Button>
@@ -727,15 +806,15 @@ export default function CommunityPage() {
                         </div>
 
                         <div className="flex space-x-3">
-                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 px-4 py-2">
                             <Calendar className="w-4 h-4 mr-2" />
                             Attend
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="px-4 py-2">
                             <Eye className="w-4 h-4 mr-2" />
                             Details
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" className="px-4 py-2">
                             <Share2 className="w-4 h-4 mr-2" />
                             Share
                           </Button>
@@ -763,11 +842,43 @@ export default function CommunityPage() {
                             <span className="text-sm text-gray-600 dark:text-gray-400">{discussion.replies} replies</span>
                           </div>
                           <div className="flex space-x-1">
-                            {discussion.tags.map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
+                            {discussion.tags.map((tag) => {
+                              // Check if tag is an SDG
+                              const sdgMatch = tag.match(/SDG (\d+)/);
+                              if (sdgMatch) {
+                                const sdgNumber = parseInt(sdgMatch[1]);
+                                const SDG_COLORS: { [key: number]: string } = {
+                                  1: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                                  2: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+                                  3: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                                  4: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+                                  5: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+                                  6: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+                                  7: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+                                  8: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
+                                  9: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+                                  10: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+                                  11: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+                                  12: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200',
+                                  13: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+                                  14: 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200',
+                                  15: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+                                  16: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
+                                  17: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+                                };
+                                return (
+                                  <Badge key={tag} className={`text-xs ${SDG_COLORS[sdgNumber] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
+                                    {tag}
+                                  </Badge>
+                                );
+                              }
+                              // Regular tag (non-SDG)
+                              return (
+                                <Badge key={tag} className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                  {tag}
+                                </Badge>
+                              );
+                            })}
                           </div>
                         </div>
                       </CardContent>

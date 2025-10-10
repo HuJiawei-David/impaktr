@@ -133,6 +133,7 @@ function EventsPageContent() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showVirtualDropdown, setShowVirtualDropdown] = useState(false);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [countrySearchQuery, setCountrySearchQuery] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState<EventFilters>({
     search: '',
@@ -389,7 +390,7 @@ function EventsPageContent() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-blue-800 text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 
           <div className="text-center mb-8">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
@@ -439,30 +440,61 @@ function EventsPageContent() {
                     </Button>
                     
                     {showCountryDropdown && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                        <button
-                          onClick={() => {
-                            setSelectedCountry('all');
-                            setShowCountryDropdown(false);
-                          }}
-                          className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
-                        >
-                          <span className="mr-2">🌍</span>
-                          Any Country
-                        </button>
-                        {countries.map(country => (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
+                        {/* Search Input */}
+                        <div className="p-3 border-b border-gray-200 dark:border-gray-600">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input
+                              type="text"
+                              placeholder="Search countries..."
+                              value={countrySearchQuery}
+                              onChange={(e) => setCountrySearchQuery(e.target.value)}
+                              className="pl-10 h-10"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Country List */}
+                        <div className="overflow-y-auto max-h-60">
                           <button
-                            key={country.code}
                             onClick={() => {
-                              setSelectedCountry(country.code.toLowerCase());
+                              setSelectedCountry('all');
                               setShowCountryDropdown(false);
+                              setCountrySearchQuery('');
                             }}
                             className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
                           >
-                            <span className="mr-2">{country.flag}</span>
-                            {country.name}
+                            <span className="mr-2">🌍</span>
+                            Any Country
                           </button>
-                        ))}
+                          {countries
+                            .filter(country => 
+                              country.name.toLowerCase().includes(countrySearchQuery.toLowerCase())
+                            )
+                            .map(country => (
+                              <button
+                                key={country.code}
+                                onClick={() => {
+                                  setSelectedCountry(country.code.toLowerCase());
+                                  setShowCountryDropdown(false);
+                                  setCountrySearchQuery('');
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
+                              >
+                                <span className="mr-2">{country.flag}</span>
+                                {country.name}
+                              </button>
+                            ))}
+                          {countries.filter(country => 
+                            country.name.toLowerCase().includes(countrySearchQuery.toLowerCase())
+                          ).length === 0 && countrySearchQuery && (
+                            <div className="px-4 py-3 text-gray-500 dark:text-gray-400 text-center">
+                              No countries found
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -470,7 +502,7 @@ function EventsPageContent() {
                 
                 <div>
                   <Button 
-                    className="h-12 w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    className="h-12 w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                     onClick={() => fetchEvents()}
                   >
                     <Search className="w-4 h-4 mr-2" />
@@ -483,23 +515,23 @@ function EventsPageContent() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-center gap-4 mt-8">
-            <Button variant="ghost" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+            <Button variant="ghost" className="!bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:!bg-white/20 px-6 py-3 shadow-none hover:shadow-none">
               <TrendingUp className="w-4 h-4 mr-2" />
               Trending Events
             </Button>
-            <Button variant="ghost" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+            <Button variant="ghost" className="!bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:!bg-white/20 px-6 py-3 shadow-none hover:shadow-none">
               <Globe className="w-4 h-4 mr-2" />
               Featured Events
             </Button>
             {user && (
               <Link href="/events/create">
-                <Button className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+                <Button variant="ghost" className="!bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:!bg-white/20 px-6 py-3 shadow-none hover:shadow-none">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Event
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20">
+            <Button variant="ghost" className="!bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:!bg-white/20 px-6 py-3 shadow-none hover:shadow-none">
               <Users className="w-4 h-4 mr-2" />
               Join Community
             </Button>
@@ -523,60 +555,78 @@ function EventsPageContent() {
 
       {/* Filters Section - Full Width White Container */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Event Tabs */}
           <div className="mb-6">
             <div className="flex flex-wrap gap-2 mb-6">
-              <Button
-                variant={activeTab === 'near-you' ? 'default' : 'outline'}
+              <button
                 onClick={() => handleTabChange('near-you')}
-                className="text-sm"
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                  activeTab === 'near-you' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                }`}
               >
                 <MapPin className="w-4 h-4 mr-2" />
                 Near You
-              </Button>
-              <Button
-                variant={activeTab === 'latest' ? 'default' : 'outline'}
+              </button>
+              <button
                 onClick={() => handleTabChange('latest')}
-                className="text-sm"
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                  activeTab === 'latest' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                }`}
               >
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Latest
-              </Button>
-              <Button
-                variant={activeTab === 'upcoming' ? 'default' : 'outline'}
+              </button>
+              <button
                 onClick={() => handleTabChange('upcoming')}
-                className="text-sm"
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                  activeTab === 'upcoming' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                }`}
               >
                 <Calendar className="w-4 h-4 mr-2" />
                 Upcoming
-              </Button>
-              <Button
-                variant={activeTab === 'past' ? 'default' : 'outline'}
+              </button>
+              <button
                 onClick={() => handleTabChange('past')}
-                className="text-sm"
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                  activeTab === 'past' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                }`}
               >
                 <Clock className="w-4 h-4 mr-2" />
                 Past
-              </Button>
+              </button>
               {user && (
                 <>
-                  <Button
-                    variant={activeTab === 'attending' ? 'default' : 'outline'}
+                  <button
                     onClick={() => handleTabChange('attending')}
-                    className="text-sm"
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                      activeTab === 'attending' 
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                        : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                    }`}
                   >
                     <Users className="w-4 h-4 mr-2" />
                     Attending
-                  </Button>
-                  <Button
-                    variant={activeTab === 'favorites' ? 'default' : 'outline'}
+                  </button>
+                  <button
                     onClick={() => handleTabChange('favorites')}
-                    className="text-sm"
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                      activeTab === 'favorites' 
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                        : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                    }`}
                   >
                     <Heart className="w-4 h-4 mr-2" />
                     Favorites
-                  </Button>
+                  </button>
                 </>
               )}
             </div>
@@ -615,7 +665,7 @@ function EventsPageContent() {
                       variant="ghost"
                       size="sm"
                       onClick={clearAllSDGs}
-                      className="text-xs text-gray-500 hover:text-gray-700"
+                      className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                     >
                       Clear all ({filters.sdgs.length})
                     </Button>
@@ -658,8 +708,8 @@ function EventsPageContent() {
                         onClick={() => toggleSDG(sdgNumber)}
                         className={`p-3 rounded-lg border-2 transition-all text-xs font-medium ${
                           isSelected
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                            ? 'border-blue-500 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                            : 'border-gray-200 dark:border-gray-600 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
                         }`}
                       >
                         <div className="text-center">
@@ -813,7 +863,7 @@ function EventsPageContent() {
                   </label>
                   <Button 
                     onClick={clearFilters} 
-                    className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white"
+                    className="w-full h-10 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                   >
                     Clear All Filters
                   </Button>
@@ -853,7 +903,7 @@ function EventsPageContent() {
               </p>
               {user && (
                 <Link href="/events/create">
-                  <Button size="lg">
+                  <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white">
                     <Plus className="w-4 h-4 mr-2" />
                     Create an Event
                   </Button>
@@ -911,14 +961,14 @@ const EventCard = ({ event, onToggleFavorite }: {
         )}
         
         {event.trending && (
-          <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+          <Badge className="absolute top-2 left-2 bg-red-500 text-white px-3 py-1.5">
             <TrendingUp className="w-3 h-3 mr-1" />
             Trending
           </Badge>
         )}
         
         {event.featured && (
-          <Badge className="absolute top-2 right-2 bg-yellow-500 text-white">
+          <Badge className="absolute top-2 right-2 bg-yellow-500 text-white px-3 py-1.5">
             <Star className="w-3 h-3 mr-1" />
             Featured
           </Badge>
@@ -928,14 +978,16 @@ const EventCard = ({ event, onToggleFavorite }: {
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-semibold text-lg line-clamp-2">{event.title}</h3>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => onToggleFavorite(event.id)}
-            className="ml-2 text-gray-500 hover:text-red-500"
+            className="ml-2 mt-1 transition-colors duration-200 group flex-shrink-0"
           >
-            <Heart className={`w-4 h-4 ${event.isFavorited ? 'fill-red-500 text-red-500' : ''}`} />
-          </Button>
+            <Heart className={`w-4 h-4 transition-colors ${
+              event.isFavorited 
+                ? 'fill-red-500 text-red-500' 
+                : 'text-gray-400 group-hover:text-red-500 group-hover:fill-red-500'
+            }`} />
+          </button>
         </div>
         
         <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
@@ -974,13 +1026,16 @@ const EventCard = ({ event, onToggleFavorite }: {
 
         {/* SDG Tags */}
         <div className="flex flex-wrap gap-1 mt-3">
-          {event.sdgTags.slice(0, 3).map(sdg => (
-            <Badge key={sdg} variant="outline" className="text-xs">
-              SDG {sdg}
-            </Badge>
-          ))}
+          {event.sdgTags.slice(0, 3).map(sdg => {
+            const sdgInfo = SDG_DEFINITIONS[sdg as keyof typeof SDG_DEFINITIONS];
+            return (
+              <Badge key={sdg} className={`text-xs px-2.5 py-1 ${sdgInfo?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
+                SDG {sdg}
+              </Badge>
+            );
+          })}
           {event.sdgTags.length > 3 && (
-            <Badge variant="outline" className="text-xs">
+            <Badge className="text-xs px-2.5 py-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
               +{event.sdgTags.length - 3}
             </Badge>
           )}

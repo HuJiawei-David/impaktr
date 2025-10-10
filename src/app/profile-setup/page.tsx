@@ -10,6 +10,7 @@ import { ProfileTypeSelector } from '@/components/auth/ProfileTypeSelector';
 import { IndividualRegistrationForm } from '@/components/auth/IndividualRegistrationForm';
 import { OrganizationRegistrationForm } from '@/components/auth/OrganizationRegistrationForm';
 import { StepByStepOnboarding } from '@/components/auth/StepByStepOnboarding';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 function RegisterContent() {
   const { data: session, status } = useSession();
@@ -121,19 +122,7 @@ function RegisterContent() {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="inline-flex items-center space-x-2 mb-4">
-            <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              impaktr
-            </span>
-          </div>
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSpinner fullScreen />}>
       <RegisterContent />
     </Suspense>
   );

@@ -80,44 +80,46 @@ const opportunityCategories = [
 
 export default function OpportunitiesPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 text-white">
-        <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 xl:px-16 py-16">
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-6">
-              <h1 className="text-4xl md:text-6xl font-bold">
-                Explore Opportunities
-              </h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Page Header */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                  <Globe className="w-6 h-6 text-white" />
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
+                  Explore Opportunities
+                </h1>
+              </div>
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
+                Discover meaningful ways to make an impact. Choose from volunteer work, research positions, scholarships, and more.
+              </p>
             </div>
-            <p className="text-xl md:text-2xl mb-8 opacity-90 max-w-3xl mx-auto">
-              Discover meaningful ways to make an impact. Choose from volunteer work, research positions, scholarships, and more.
-            </p>
-            
-            {/* CTA to Events Page */}
-            <div className="flex flex-col gap-4 justify-center items-center">
+            <div className="hidden lg:block">
               <Link href="/events">
-                <Button size="lg" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 px-8 py-4 text-lg">
-                  <Globe className="w-5 h-5 mr-2" />
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+                >
+                  <Globe className="w-4 h-4 mr-2" />
                   View All Impact Events
                 </Button>
               </Link>
-              <div className="text-white/80 text-sm">
-                Or browse by category below ↓
-              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Opportunities Grid */}
-      <div className="max-w-6xl mx-auto px-6 sm:px-8 lg:px-12 xl:px-16 py-16">
-        <div className="mb-12 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-            What type of opportunity are you looking for?
+        {/* Opportunities Grid */}
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Browse by Category
           </h2>
-          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Browse through different categories to find the perfect match for your interests and goals.
+          <p className="text-gray-600 dark:text-gray-400">
+            Find the perfect opportunity that matches your interests and goals.
           </p>
         </div>
 
@@ -169,14 +171,14 @@ export default function OpportunitiesPage() {
         <div className="mt-16 text-center">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200 dark:border-gray-700">
             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-              Can't find what you're looking for?
+              Can&apos;t find what you&apos;re looking for?
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-2xl mx-auto">
               Browse all opportunities or use our advanced search and filtering options to find exactly what you need.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/events">
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
                   <Globe className="w-5 h-5 mr-2" />
                   Browse All Opportunities
                 </Button>

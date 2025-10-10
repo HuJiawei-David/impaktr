@@ -24,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import Link from 'next/link';
 
 interface SignupFormData {
@@ -585,19 +586,7 @@ function SignupContent() {
 
 export default function SignupPage() {
   return (
-    <React.Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 flex items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="inline-flex items-center space-x-2 mb-4">
-            <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              impaktr
-            </span>
-          </div>
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
-        </div>
-      </div>
-    }>
+    <React.Suspense fallback={<LoadingSpinner fullScreen />}>
       <SignupContent />
     </React.Suspense>
   );

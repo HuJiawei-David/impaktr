@@ -525,7 +525,7 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
   }, [currentStep, selectedProfileType, validateBasicInfo, steps]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800" style={{ paddingTop: '80px' }}>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <Card className="mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-0 shadow-xl dark:shadow-2xl">
