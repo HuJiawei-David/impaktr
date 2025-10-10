@@ -151,6 +151,7 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
       });
       return () => subscription.unsubscribe();
     }
+    return undefined;
   }, [isStepMode, onDataChange, watch]);
 
   const onSubmit = async (data: OrganizationRegistrationData) => {

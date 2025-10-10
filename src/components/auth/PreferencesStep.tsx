@@ -41,6 +41,7 @@ export default function PreferencesStep({ onDataChange }: PreferencesStepProps) 
       });
       return () => subscription.unsubscribe();
     }
+    return undefined;
   }, [onDataChange, watch]);
 
   return (

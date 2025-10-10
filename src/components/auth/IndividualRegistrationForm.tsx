@@ -124,6 +124,7 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
       });
       return () => subscription.unsubscribe();
     }
+    return undefined;
   }, [isStepMode, onDataChange, watch]);
 
   const onSubmit: SubmitHandler<IndividualRegistrationData> = async (data) => {
