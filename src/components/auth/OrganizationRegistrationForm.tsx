@@ -483,11 +483,11 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {/* Large Preview */}
-                <div className="flex flex-col items-center">
+              <div className="grid md:grid-cols-2 gap-8 items-center">
+                {/* Left: Large Preview */}
+                <div className="flex justify-center">
                   <div className="relative group">
-                    <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600 shadow-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-105">
+                    <div className="w-48 h-48 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center border-4 border-blue-200 dark:border-blue-700 shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-blue-300 dark:hover:shadow-blue-900 hover:scale-105 hover:border-blue-400 dark:hover:border-blue-500">
                       {logo ? (
                         <img
                           src={URL.createObjectURL(logo)}
@@ -496,8 +496,8 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                         />
                       ) : (
                         <div className="flex flex-col items-center text-gray-400 dark:text-gray-500">
-                          <Building2 className="w-12 h-12 mb-2" />
-                          <span className="text-sm font-medium">No logo</span>
+                          <Building2 className="w-16 h-16 mb-3" />
+                          <span className="text-base font-medium">Upload Logo</span>
                         </div>
                       )}
                     </div>
@@ -505,30 +505,35 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                       <button
                         type="button"
                         onClick={() => setLogo(null)}
-                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110"
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2.5 shadow-xl transition-all duration-200 hover:scale-110 ring-4 ring-white dark:ring-gray-800"
                         title="Remove logo"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Upload Area */}
-                <div className="space-y-3">
+                {/* Right: Upload Area */}
+                <div className="space-y-4">
                   <label 
                     htmlFor="logo-upload" 
-                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200 hover:border-blue-500 dark:hover:border-blue-400 group"
+                    className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg group"
                   >
-                    <div className="flex flex-col items-center justify-center py-4">
-                      <Upload className="w-10 h-10 mb-3 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
-                      <p className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                        Click to upload or drag and drop
+                    <div className="flex flex-col items-center justify-center p-6 text-center">
+                      <div className="w-16 h-16 mb-4 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800/60 transition-colors">
+                        <Upload className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <p className="mb-2 text-base font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        Click to upload
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Max file size: 5MB • Recommended: 200x200px • JPG, PNG, SVG
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                        or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 px-4">
+                        JPG, PNG or SVG (max. 5MB)<br/>Recommended: 200x200px
                       </p>
                     </div>
                     <Input
@@ -550,19 +555,19 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                   </label>
                   
                   {logo && (
-                    <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl p-4 shadow-sm">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
                             {logo.name}
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {(logo.size / 1024 / 1024).toFixed(2)} MB
+                          <p className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                            {(logo.size / 1024 / 1024).toFixed(2)} MB • Ready to upload
                           </p>
                         </div>
                       </div>
