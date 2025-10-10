@@ -291,7 +291,10 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
 
   // Stable callback for form data updates
   const handleFormDataChange = useCallback((data: FormData | PreferencesData) => {
-    setFormData(data as FormData);
+    setFormData(prevData => ({
+      ...prevData,
+      ...data as FormData
+    }));
   }, []);
 
   // Validation function for basic information step - pure function to prevent recreation
