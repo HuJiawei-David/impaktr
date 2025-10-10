@@ -415,20 +415,33 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
         showEmail: formData.privacy?.showEmail ?? false,
       };
 
+      console.log('Submitting form data:', allFormData);
 
       // Create FormData for submission
       const submitData = new FormData();
       
-      // Append all form data
+      // Append all form data with proper formatting
       Object.entries(allFormData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null && key !== 'privacy' && key !== 'sdgInterests') {
           if (Array.isArray(value)) {
             submitData.append(key, JSON.stringify(value));
+          } else if (typeof value === 'boolean') {
+            submitData.append(key, value.toString());
+          } else if (typeof value === 'object') {
+            // Skip nested objects that aren't arrays
+            return;
           } else {
             submitData.append(key, value.toString());
           }
         }
       });
+
+      // Log what we're sending
+      const formDataEntries: Record<string, string> = {};
+      submitData.forEach((value, key) => {
+        formDataEntries[key] = value.toString();
+      });
+      console.log('FormData entries:', formDataEntries);
 
       // Submit to registration API
       const response = await fetch('/api/users/register', {
@@ -438,6 +451,16 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Registration failed:', errorData);
+        
+        // Show detailed error message
+        if (errorData.details) {
+          const fieldErrors = errorData.details.map((d: { field: string; message: string }) => 
+            `${d.field}: ${d.message}`
+          ).join(', ');
+          throw new Error(`Validation failed: ${fieldErrors}`);
+        }
+        
         throw new Error(errorData.error || 'Registration failed');
       }
 
@@ -452,7 +475,7 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
       }
     } catch (error) {
       console.error('Error completing onboarding:', error);
-      // You might want to show an error message to the user here
+      alert(error instanceof Error ? error.message : 'Failed to complete registration. Please check all required fields.');
     } finally {
       setIsLoading(false);
     }
