@@ -483,36 +483,91 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                    {logo ? (
-                      <img
-                        src={URL.createObjectURL(logo)}
-                        alt="Logo preview"
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <Building2 className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              <div className="space-y-6">
+                {/* Large Preview */}
+                <div className="flex flex-col items-center">
+                  <div className="relative group">
+                    <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600 shadow-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-105">
+                      {logo ? (
+                        <img
+                          src={URL.createObjectURL(logo)}
+                          alt="Logo preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center text-gray-400 dark:text-gray-500">
+                          <Building2 className="w-12 h-12 mb-2" />
+                          <span className="text-sm font-medium">No logo</span>
+                        </div>
+                      )}
+                    </div>
+                    {logo && (
+                      <button
+                        type="button"
+                        onClick={() => setLogo(null)}
+                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110"
+                        title="Remove logo"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     )}
                   </div>
-                  
-                  <div className="flex-1">
+                </div>
+
+                {/* Upload Area */}
+                <div className="space-y-3">
+                  <label 
+                    htmlFor="logo-upload" 
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-900 transition-all duration-200 hover:border-blue-500 dark:hover:border-blue-400 group"
+                  >
+                    <div className="flex flex-col items-center justify-center py-4">
+                      <Upload className="w-10 h-10 mb-3 text-gray-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
+                      <p className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                        Click to upload or drag and drop
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Max file size: 5MB • Recommended: 200x200px • JPG, PNG, SVG
+                      </p>
+                    </div>
                     <Input
+                      id="logo-upload"
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file && file.size <= 5 * 1024 * 1024) {
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            alert('File size must be less than 5MB');
+                            return;
+                          }
                           setLogo(file);
                         }
                       }}
-                      className="cursor-pointer"
+                      className="hidden"
                     />
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                      Max file size: 5MB. Recommended size: 200x200px. Formats: JPG, PNG, SVG
-                    </p>
-                  </div>
+                  </label>
+                  
+                  {logo && (
+                    <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                            {logo.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {(logo.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

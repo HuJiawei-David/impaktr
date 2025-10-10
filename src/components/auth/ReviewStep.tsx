@@ -174,7 +174,7 @@ export default function ReviewStep({ formData }: ReviewStepProps) {
             Ready to Complete Your Profile!
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            Click "Complete Setup" to finish creating your impaktr profile and start making an impact.
+            Click &quot;Complete Setup&quot; to finish creating your impaktr profile and start making an impact.
           </p>
         </CardContent>
       </Card>

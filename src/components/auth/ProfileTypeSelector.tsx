@@ -146,7 +146,7 @@ export function ProfileTypeSelector({ onSelect, isStepMode = false }: ProfileTyp
             🌍 Choose Your Impact Profile
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Select how you want to create impact on Impaktr. Your profile type customizes the opportunities, dashboards, and recognition you'll get.
+            Select how you want to create impact on Impaktr. Your profile type customizes the opportunities, dashboards, and recognition you&apos;ll get.
           </p>
         </div>
 
