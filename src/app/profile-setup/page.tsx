@@ -23,10 +23,13 @@ function RegisterContent() {
   // Handle completion of onboarding - must be defined before any early returns
   const handleOnboardingComplete = useCallback(async () => {
     sessionStorage.setItem('registrationComplete', 'true');
+    sessionStorage.setItem('onboardingComplete', 'true');
     // Clear the selected profile type since onboarding is complete
     sessionStorage.removeItem('selectedProfileType');
-    router.push('/onboarding');
-  }, []);
+    
+    // Redirect directly to dashboard
+    router.push('/dashboard');
+  }, [router]);
 
   useEffect(() => {
     // Check if user is already authenticated but not onboarded
