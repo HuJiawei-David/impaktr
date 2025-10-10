@@ -33,13 +33,15 @@ export default function PreferencesStep({ onDataChange }: PreferencesStepProps) 
   });
 
   // Watch form data and update parent component in real-time
-  const watchedData = watch();
-  
   useEffect(() => {
     if (onDataChange) {
-      onDataChange(watchedData);
+      // Use a subscription to watch form changes instead of watching the entire object
+      const subscription = watch((value) => {
+        onDataChange(value);
+      });
+      return () => subscription.unsubscribe();
     }
-  }, [watchedData, onDataChange]);
+  }, [onDataChange, watch]);
 
   return (
     <div className="space-y-6">

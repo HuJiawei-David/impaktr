@@ -118,9 +118,13 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
   
   useEffect(() => {
     if (isStepMode && onDataChange) {
-      onDataChange(watchedData);
+      // Use a subscription to watch form changes instead of watching the entire object
+      const subscription = watch((value) => {
+        onDataChange(value);
+      });
+      return () => subscription.unsubscribe();
     }
-  }, [watchedData, isStepMode, onDataChange]);
+  }, [isStepMode, onDataChange, watch]);
 
   const onSubmit: SubmitHandler<IndividualRegistrationData> = async (data) => {
     // In step mode, just update the data and let the parent handle submission
@@ -241,7 +245,6 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="dateOfBirth">Date of Birth *</Label>
                   <Input
@@ -252,7 +255,8 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                     className={hasFieldError('dateOfBirth') ? 'border-red-500 focus:border-red-500' : ''}
                   />
                 </div>
-                <div>
+                
+                <div className="mb-6">
                   <Label htmlFor="gender">Gender (Optional)</Label>
                   <SearchableSelect
                     options={[
@@ -267,9 +271,8 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                     onValueChange={(value) => setValue('gender', value)}
                   />
                 </div>
-              </div>
 
-                <div>
+                <div className="mb-6">
                   <Label htmlFor="nationality">Nationality *</Label>
                   <SearchableSelect
                     options={countries.map(country => ({
@@ -300,7 +303,7 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
+              <div className="mb-6">
                 <Label htmlFor="country">Country *</Label>
                 <SearchableSelect
                   options={countries.map(country => ({
@@ -326,7 +329,7 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                   <Input
                     id="city"
                     {...register('city', { required: 'City is required' })}
-                    placeholder="e.g. Kuala Lumpur"
+                    placeholder="e.g. New York City"
                     error={errors.city?.message || (hasFieldError('city') ? 'City is required' : undefined)}
                     className={hasFieldError('city') ? 'border-red-500 focus:border-red-500' : ''}
                   />
@@ -336,7 +339,7 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                   <Input
                     id="state"
                     {...register('state', { required: 'State is required' })}
-                    placeholder="e.g. Selangor"
+                    placeholder="e.g. New York"
                     error={errors.state?.message || (hasFieldError('state') ? 'State is required' : undefined)}
                     className={hasFieldError('state') ? 'border-red-500 focus:border-red-500' : ''}
                   />
@@ -368,7 +371,7 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                 <Input
                   id="organization"
                   {...register('organization')}
-                  placeholder="e.g. University of Malaya, Microsoft"
+                  placeholder="e.g. Stanford University, Microsoft"
                 />
               </div>
 

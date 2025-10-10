@@ -145,9 +145,13 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
   
   useEffect(() => {
     if (isStepMode && onDataChange) {
-      onDataChange(watchedData);
+      // Use a subscription to watch form changes instead of watching the entire object
+      const subscription = watch((value) => {
+        onDataChange(value);
+      });
+      return () => subscription.unsubscribe();
     }
-  }, [watchedData, isStepMode, onDataChange]);
+  }, [isStepMode, onDataChange, watch]);
 
   const onSubmit = async (data: OrganizationRegistrationData) => {
     // In step mode, just update the data and let the parent handle submission

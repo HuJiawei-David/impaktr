@@ -11,11 +11,46 @@ import { IndividualRegistrationForm } from './IndividualRegistrationForm';
 import { OrganizationRegistrationForm } from './OrganizationRegistrationForm';
 import { sdgs } from '@/constants/sdgs';
 
+interface FormData {
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  nationality?: string;
+  city?: string;
+  state?: string;
+  occupation?: string;
+  organization?: string;
+  bio?: string;
+  gender?: string;
+  country?: string;
+  languages?: string[];
+  sdgInterests?: number[];
+  privacy?: {
+    isPublic: boolean;
+    showEmail: boolean;
+  };
+  [key: string]: unknown;
+}
+
+interface PreferencesData {
+  notifications: {
+    email: boolean;
+    push: boolean;
+    badges: boolean;
+    events: boolean;
+  };
+  privacy: {
+    isPublic: boolean;
+    showEmail: boolean;
+  };
+  sdgInterests: number[];
+}
+
 interface OnboardingStep {
   id: string;
   title: string;
-  component: React.ComponentType<any>;
-  props?: any;
+  component: React.ComponentType<{ onDataChange?: (data: FormData | PreferencesData) => void; formData?: FormData }>;
+  props?: Record<string, unknown>;
   validation?: () => boolean;
 }
 
@@ -25,7 +60,7 @@ interface StepByStepOnboardingProps {
 }
 
 // Preferences Step Component
-const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { onDataChange?: (data: any) => void }) {
+const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { onDataChange?: (data: PreferencesData) => void }) {
   const [preferences, setPreferences] = useState({
     notifications: {
       email: true,
@@ -56,7 +91,7 @@ const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { 
     if (onDataChange) {
       onDataChange(preferences);
     }
-  }, [preferences]);
+  }, [preferences, onDataChange]);
 
   return (
     <div className="space-y-8">
@@ -155,7 +190,7 @@ const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { 
           UN Sustainable Development Goals
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Select the SDGs you're most passionate about (optional, select up to 8)
+          Select the SDGs you&apos;re most passionate about (optional, select up to 8)
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {sdgs.map((sdg) => (
@@ -205,7 +240,7 @@ const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { 
 });
 
 // Review Step Component
-const ReviewStep = React.memo(function ReviewStep({ onDataChange, formData }: { onDataChange?: (data: any) => void; formData?: any }) {
+const ReviewStep = React.memo(function ReviewStep({ onDataChange, formData }: { onDataChange?: (data: FormData) => void; formData?: FormData }) {
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -233,7 +268,7 @@ const ReviewStep = React.memo(function ReviewStep({ onDataChange, formData }: { 
           </li>
           <li className="flex items-center space-x-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-            <span>You'll receive a welcome email with next steps</span>
+            <span>You&apos;ll receive a welcome email with next steps</span>
           </li>
           <li className="flex items-center space-x-2">
             <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
@@ -251,16 +286,16 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
   const [currentStep, setCurrentStep] = useState(1); // Always start from step 1, will be adjusted based on profile type
   const [selectedProfileType, setSelectedProfileType] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<FormData>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // Stable callback for form data updates
-  const handleFormDataChange = useCallback((data: any) => {
-    setFormData(data);
+  const handleFormDataChange = useCallback((data: FormData | PreferencesData) => {
+    setFormData(data as FormData);
   }, []);
 
   // Validation function for basic information step - pure function to prevent recreation
-  const validateBasicInfo = useCallback((data: any) => {
+  const validateBasicInfo = useCallback((data: FormData) => {
     const errors: string[] = [];
     
     if (!data.firstName?.trim()) {
@@ -374,10 +409,10 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
       const allFormData = {
         ...formData,
         // Ensure SDG interests are included in the final submission
-        sdgFocus: formData.preferences?.sdgInterests || [],
+        sdgFocus: formData.sdgInterests || [],
         // Include other preferences
-        isPublic: formData.preferences?.privacy?.isPublic ?? true,
-        showEmail: formData.preferences?.privacy?.showEmail ?? false,
+        isPublic: formData.privacy?.isPublic ?? true,
+        showEmail: formData.privacy?.showEmail ?? false,
       };
 
 
@@ -454,7 +489,7 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
     return <StepComponent />;
   };
 
-  const canProceed = useCallback((data: any) => {
+  const canProceed = useCallback((data: FormData) => {
     // Only validate basic info step
     const currentStepData = steps[currentStep - 1];
     if (currentStepData?.id === 'basic-info' && selectedProfileType) {
@@ -464,7 +499,7 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
   }, [currentStep, selectedProfileType, validateBasicInfo, steps]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800" style={{ paddingTop: '80px' }}>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
         <Card className="mb-8 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-0 shadow-xl dark:shadow-2xl">
@@ -480,7 +515,7 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
                 Complete Your Profile
               </h1>
               <p className="text-lg text-gray-600 dark:text-gray-300">
-                Let's get you set up to start making an impact
+                Let&apos;s get you set up to start making an impact
               </p>
             </div>
           </CardContent>
@@ -532,7 +567,7 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
         </Card>
 
         {/* Navigation */}
-        <div className="flex justify-between items-center bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 shadow-lg dark:shadow-xl">
+        <div className="relative z-10 flex justify-between items-center bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 shadow-lg dark:shadow-xl">
           <Button
             variant="outline"
             onClick={handlePrevious}
