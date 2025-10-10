@@ -41,6 +41,7 @@ import { StatsCards } from '@/components/dashboard/StatsCards';
 import { GamificationJourney } from '@/components/dashboard/GamificationJourney';
 import { SDGBadgeCollection } from '@/components/dashboard/SDGBadgeCollection';
 import { AchievementFeed } from '@/components/dashboard/AchievementFeed';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { sdgs, getSDGById } from '@/constants/sdgs';
 import Link from 'next/link';
 
@@ -146,7 +147,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Compact Professional Header */}
         <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 mb-6">
@@ -231,9 +232,8 @@ export default function DashboardPage() {
         {profileLoading ? (
           <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 mb-8">
             <CardContent className="p-6">
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span className="ml-2 text-gray-600 dark:text-gray-400">Loading SDG focus areas...</span>
+              <div className="flex items-center justify-center py-4">
+                <LoadingSpinner text="Loading SDG focus areas..." size="sm" />
               </div>
             </CardContent>
           </Card>
@@ -365,20 +365,27 @@ export default function DashboardPage() {
                       {user.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <Button variant="outline" className="flex-1 justify-start text-gray-500 hover:bg-gray-50">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 justify-start text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 pl-4"
+                    onClick={() => {
+                      // TODO: Open create post modal/dialog
+                      alert('Create post functionality coming soon!');
+                    }}
+                  >
                     Share your impact journey...
                   </Button>
                 </div>
                 <div className="flex justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
+                  <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-4 py-2">
                     <Plus className="w-4 h-4 mr-2" />
                     Create Event
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-green-600 hover:bg-green-50">
+                  <Button variant="ghost" size="sm" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 px-4 py-2">
                     <Users className="w-4 h-4 mr-2" />
                     Join Event
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-purple-600 hover:bg-purple-50">
+                  <Button variant="ghost" size="sm" className="text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 px-4 py-2">
                     <Award className="w-4 h-4 mr-2" />
                     Share Badge
                   </Button>
@@ -415,10 +422,20 @@ export default function DashboardPage() {
                     <div className="text-xs text-gray-500">Saturday 2:00 PM</div>
                   </div>
                 </div>
-                <Link href="/events">
-                  <Button variant="ghost" size="sm" className="w-full text-xs mt-2">
-                    View all events
-                  </Button>
+                <Link href="/events" className="block w-full mt-3">
+                  <div className="group relative w-full p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border border-blue-200/50 dark:border-gray-700 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-gray-700 dark:hover:to-gray-700 transition-all duration-200 cursor-pointer">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+                          <Calendar className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          View All Events
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+                    </div>
+                  </div>
                 </Link>
               </CardContent>
             </Card>

@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export default function LeaderboardsPage() {
   const { data: session, status } = useSession();
@@ -202,7 +203,7 @@ export default function LeaderboardsPage() {
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" text="Loading leaderboards..." />
       </div>
     );
   }
@@ -214,7 +215,7 @@ export default function LeaderboardsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Page Header */}
         <div className="mb-12">
           <div className="flex items-center justify-between mb-8">
@@ -301,8 +302,9 @@ export default function LeaderboardsPage() {
                 </span>
               </div>
               <div className="relative">
-                <Progress value={96} className="h-4 bg-gray-200 dark:bg-gray-700" />
-                <div className="absolute top-0 left-0 h-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-500" style={{ width: '96%' }} />
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-500" style={{ width: '96%' }} />
+                </div>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 font-medium">
                 Only 103 points to go! 🎯
@@ -330,7 +332,7 @@ export default function LeaderboardsPage() {
             {topPerformers.map((performer) => (
               <Card key={performer.rank} className={`transition-all duration-300 hover:shadow-xl border-0 ${
                 performer.rank <= 3 
-                  ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 ring-2 ring-yellow-200 dark:ring-yellow-800' 
+                  ? 'bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-500/10 dark:to-amber-500/10 ring-2 ring-yellow-200 dark:ring-yellow-500/50' 
                   : 'bg-white dark:bg-gray-800 shadow-lg hover:shadow-2xl'
               }`}>
                 <CardContent className="p-8">

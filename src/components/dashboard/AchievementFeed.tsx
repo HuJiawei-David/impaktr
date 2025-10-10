@@ -228,11 +228,11 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
 
   const getAchievementColor = (type: string) => {
     switch (type) {
-      case 'badge_earned': return 'from-yellow-50 to-orange-50 border-yellow-200';
-      case 'level_up': return 'from-blue-50 to-indigo-50 border-blue-200';
-      case 'milestone': return 'from-purple-50 to-pink-50 border-purple-200';
-      case 'event_completed': return 'from-green-50 to-emerald-50 border-green-200';
-      default: return 'from-gray-50 to-slate-50 border-gray-200';
+      case 'badge_earned': return 'from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-800 border-yellow-200 dark:border-gray-700';
+      case 'level_up': return 'from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border-blue-200 dark:border-gray-700';
+      case 'milestone': return 'from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-800 border-purple-200 dark:border-gray-700';
+      case 'event_completed': return 'from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-800 border-green-200 dark:border-gray-700';
+      default: return 'from-gray-50 to-slate-50 dark:from-gray-800 dark:to-gray-800 border-gray-200 dark:border-gray-700';
     }
   };
 
@@ -297,7 +297,7 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
             const sdg = post.achievement.sdgNumber ? getSDGById(post.achievement.sdgNumber) : null;
             
             return (
-              <div key={post.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+              <div key={post.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                 {/* Post Header */}
                 <div className="flex items-start space-x-3 mb-3">
                   <Avatar className="w-10 h-10">

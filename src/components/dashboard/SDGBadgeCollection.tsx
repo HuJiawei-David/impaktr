@@ -526,7 +526,7 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
           {/* View All Button */}
           <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
             <Link href="/profile?tab=badges" className="block w-full">
-              <div className="group relative w-full p-3 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border border-blue-200/50 dark:border-blue-800/50 hover:from-blue-100 hover:to-purple-100 dark:hover:from-blue-900/40 dark:hover:to-purple-900/40 transition-all duration-200 cursor-pointer">
+              <div className="group relative w-full p-3 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 border border-blue-200/50 dark:border-gray-700 hover:from-blue-100 hover:to-purple-100 dark:hover:from-gray-700 dark:hover:to-gray-700 transition-all duration-200 cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
