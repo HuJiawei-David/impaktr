@@ -129,8 +129,17 @@ function SignupContent() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.message || 'Registration failed';
+        // Try to parse JSON error, fallback to text if it fails
+        let errorMessage = 'Registration failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (jsonError) {
+          // If JSON parsing fails, try to get text
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText);
+          errorMessage = errorText || `Server error (${response.status})`;
+        }
         
         // Set user-friendly error message
         if (errorMessage.includes('already exists')) {
@@ -139,6 +148,15 @@ function SignupContent() {
           setError(errorMessage);
         }
         return; // Stop execution here
+      }
+
+      // Parse successful response
+      let result;
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse success response:', jsonError);
+        // Continue anyway as registration might have succeeded
       }
 
       // Sign in with the new credentials
