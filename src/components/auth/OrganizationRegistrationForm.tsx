@@ -111,6 +111,7 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
     watch
   } = useForm<OrganizationRegistrationData>({
     defaultValues: {
+      organizationName: user?.name || '',
       contactPersonEmail: user?.email || '',
       sdgFocus: []
     }
@@ -164,6 +165,7 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
     setIsLoading(true);
     
     try {
+      console.log('Starting organization registration...');
       const formData = new FormData();
       
       // Append organization data
@@ -182,30 +184,41 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
 
       // Append logo if selected
       if (logo) {
+        console.log('Uploading logo...');
         formData.append('logo', logo);
       }
 
       // Append verification documents
+      if (verificationDocs.length > 0) {
+        console.log(`Uploading ${verificationDocs.length} verification documents...`);
+      }
       verificationDocs.forEach((doc, index) => {
         formData.append(`verificationDoc_${index}`, doc);
       });
 
+      console.log('Sending registration request...');
       const response = await fetch('/api/organizations/register', {
         method: 'POST',
         body: formData,
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Registration failed');
+        console.error('Registration failed:', result);
+        alert(`Registration failed: ${result.error || 'Unknown error'}\n${result.details ? JSON.stringify(result.details) : ''}`);
+        throw new Error(result.error || 'Registration failed');
       }
 
-      await response.json();
-      
+      console.log('Registration successful!');
       sessionStorage.setItem('registrationComplete', 'true');
       router.push('/onboarding');
       
     } catch (error) {
       console.error('Registration error:', error);
+      if (error instanceof Error) {
+        alert(`Registration failed: ${error.message}`);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -255,18 +268,16 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="type">Organization Type *</Label>
-                  <Select onValueChange={(value) => setValue('type', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {organizationTypes[profileType]?.map((typeOption: Option) => (
-                        <SelectItem key={typeOption.value} value={typeOption.value}>
-                          {typeOption.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={organizationTypes[profileType]?.map((typeOption: Option) => ({
+                      value: typeOption.value,
+                      label: typeOption.label
+                    })) || []}
+                    value={watch('type')}
+                    placeholder="Search organization type..."
+                    onValueChange={(value) => setValue('type', value)}
+                    error={!!errors.type}
+                  />
                   {errors.type && (
                     <p className="text-destructive text-sm mt-1">{errors.type.message}</p>
                   )}
@@ -290,34 +301,28 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="industry">Industry</Label>
-                    <Select onValueChange={(value) => setValue('industry', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select industry" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {industries.map((industry: Option) => (
-                          <SelectItem key={industry.value} value={industry.value}>
-                            {industry.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={industries.map((industry: Option) => ({
+                        value: industry.value,
+                        label: industry.label
+                      }))}
+                      value={watch('industry')}
+                      placeholder="Search industry..."
+                      onValueChange={(value) => setValue('industry', value)}
+                    />
                   </div>
 
                   <div>
                     <Label htmlFor="companySize">Company Size</Label>
-                    <Select onValueChange={(value) => setValue('companySize', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {companySizes.map((size: Option) => (
-                          <SelectItem key={size.value} value={size.value}>
-                            {size.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={companySizes.map((size: Option) => ({
+                        value: size.value,
+                        label: size.label
+                      }))}
+                      value={watch('companySize')}
+                      placeholder="Search company size..."
+                      onValueChange={(value) => setValue('companySize', value)}
+                    />
                   </div>
                 </div>
               )}
