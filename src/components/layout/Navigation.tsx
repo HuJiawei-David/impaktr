@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
 
@@ -92,12 +93,12 @@ export function Navigation() {
   return (
     <>
     <nav className={cn(
-      "sticky top-0 z-50 w-full transition-all duration-300",
+      "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ease-in-out",
       scrolled || !isHomePage 
-        ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm" 
-        : "bg-white/80 dark:bg-gray-900/80 backdrop-blur-md"
+        ? "bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 shadow-xl" 
+        : "bg-transparent backdrop-blur-md"
     )}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center">
@@ -106,10 +107,10 @@ export function Navigation() {
             </span>
           </Link>
 
-          {/* Desktop Navigation - LinkedIn Style */}
+          {/* Desktop Navigation - Clean Style */}
           {user ? (
             <div className="hidden md:flex items-center justify-center flex-1 max-w-3xl mx-8">
-              <div className="flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-2">
+              <div className="flex items-center space-x-1">
                 {navigationItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
@@ -226,32 +227,32 @@ export function Navigation() {
               </div>
             </div>
           ) : (
-            <div className="hidden md:flex items-center space-x-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 px-2">
+            <div className="hidden md:flex items-center space-x-2">
               {/* Public navigation for non-authenticated users */}
               <Link 
                 href="/demo/dashboard" 
-                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <Home className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
                 <span className="truncate">Dashboard</span>
               </Link>
               <Link 
                 href="/demo/opportunities" 
-                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <Globe className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
                 <span className="truncate">Opportunities</span>
               </Link>
               <Link 
                 href="/demo/leaderboards" 
-                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <Trophy className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
                 <span className="truncate">Leaderboards</span>
               </Link>
               <Link 
                 href="/demo/community" 
-                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <Users className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
                 <span className="truncate">Community</span>
@@ -397,27 +398,30 @@ export function Navigation() {
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
+
+                {/* Theme Toggle */}
+                <ThemeToggle />
               </>
             ) : (
               <>
-                {!isLoading && (
-                  <div className="flex items-center space-x-4">
-                    <Button 
-                      variant="ghost" 
-                      className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium"
-                      onClick={() => signIn()}
-                    >
-                      Sign In
-                    </Button>
-                    <Link href="/signup">
-                      <Button 
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium px-6 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-                      >
-                        Get Started
-                      </Button>
-                    </Link>
-                  </div>
-                )}
+                {/* Theme Toggle */}
+                <ThemeToggle />
+
+              <Link href="/signin">
+                <Button 
+                  variant="outline"
+                  className="border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-semibold px-6 py-2.5 rounded-lg transition-all duration-200 hover:shadow-md"
+                >
+                  Sign In
+                </Button>
+              </Link>
+                <Link href="/journey">
+                  <Button 
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                  >
+                    Get Started
+                  </Button>
+                </Link>
               </>
             )}
 
@@ -555,6 +559,14 @@ export function Navigation() {
                     <LogOut className="w-5 h-5" />
                     <span>Sign Out</span>
                   </button>
+
+                  {/* Theme Toggle for Mobile */}
+                  <div className="px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-medium text-gray-700 dark:text-gray-300">Theme</span>
+                      <ThemeToggle />
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
@@ -588,16 +600,15 @@ export function Navigation() {
                 </Link>
 
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3 space-y-2">
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-2 border-gray-300 hover:border-blue-500 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 py-3 rounded-lg font-medium"
-                    onClick={() => {
-                      setIsOpen(false);
-                      signIn();
-                    }}
-                  >
-                    Sign In
-                  </Button>
+                  <Link href="/signin" className="w-full">
+                    <Button 
+                      variant="outline" 
+                      className="w-full border-2 border-gray-300 hover:border-blue-500 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 py-3 rounded-lg font-medium"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      Sign In
+                    </Button>
+                  </Link>
                   <Link href="/signup">
                     <Button 
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-lg font-medium shadow-lg"
@@ -606,6 +617,14 @@ export function Navigation() {
                       Get Started
                     </Button>
                   </Link>
+                </div>
+
+                {/* Theme Toggle for Mobile (Non-authenticated) */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-base font-medium text-gray-700 dark:text-gray-300">Theme</span>
+                    <ThemeToggle />
+                  </div>
                 </div>
               </>
             )}

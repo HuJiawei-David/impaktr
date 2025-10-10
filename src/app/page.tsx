@@ -460,10 +460,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
       <main>
         {/* Polished Tech Hero Section */}
-        <section className="relative min-h-[70vh] sm:h-[60vh] md:h-[50vh] flex items-center justify-center overflow-hidden bg-white dark:bg-gray-900">
+        <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-white dark:bg-gray-950 pt-20 pb-12">
           {/* Dreamy animated background elements */}
           <div className="absolute inset-0 overflow-hidden">
             {/* Large dreamy floating bubbles with glow */}
@@ -500,9 +500,9 @@ export default function HomePage() {
           <div className="relative container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 text-center max-w-6xl py-8 sm:py-0">
             {/* Trust indicator */}
             <div className="mb-6 sm:mb-8 flex justify-center px-4 sm:px-0">
-              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-50 border border-blue-200 rounded-full shadow-lg">
-                <Star className="w-3 sm:w-4 h-3 sm:h-4 mr-2 text-yellow-500" />
-                <span className="text-blue-700 text-xs sm:text-sm font-medium">Trusted by 50,000+ impact makers worldwide</span>
+              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/50 rounded-full shadow-lg">
+                <Star className="w-3 sm:w-4 h-3 sm:h-4 mr-2 text-yellow-500 dark:text-yellow-400" />
+                <span className="text-blue-700 dark:text-blue-300 text-xs sm:text-sm font-medium">Trusted by 50,000+ impact makers worldwide</span>
               </div>
             </div>
 
@@ -537,7 +537,7 @@ export default function HomePage() {
                   <Button 
                     variant="outline" 
                     size="lg" 
-                  className="border-2 border-blue-600 bg-white text-blue-600 hover:bg-blue-50 hover:border-blue-700 px-8 sm:px-14 py-4 sm:py-5 text-lg sm:text-xl font-medium rounded-2xl transition-all duration-300 w-full sm:w-auto min-w-[280px] sm:min-w-[320px] shadow-lg"
+                  className="border-2 border-blue-600 dark:border-blue-500 bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-gray-800 hover:border-blue-700 dark:hover:border-blue-400 px-8 sm:px-14 py-4 sm:py-5 text-lg sm:text-xl font-medium rounded-2xl transition-all duration-300 w-full sm:w-auto min-w-[280px] sm:min-w-[320px] shadow-lg"
                   >
                   <span>Sign In</span>
                   </Button>
@@ -553,7 +553,7 @@ export default function HomePage() {
         <SDGSimple />
 
         {/* Polished Stats Section with Plain White Background */}
-        <section className="relative py-20 bg-white dark:bg-gray-900">
+        <section className="relative py-20 bg-gray-50 dark:bg-gray-900">
 
           <div className="relative container mx-auto px-8 lg:px-12">
             {/* Enhanced Header */}
@@ -989,7 +989,7 @@ export default function HomePage() {
             {/* Header */}
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
-                Build for{' '}
+                Built for{' '}
                 <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
                   Everyone
                 </span>

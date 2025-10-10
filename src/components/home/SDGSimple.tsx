@@ -112,9 +112,9 @@ const sdgData = [
 
 export function SDGSimple() {
   return (
-    <section className="relative py-20 overflow-hidden" style={{background: 'rgba(59, 130, 246, 0.1)'}}>
+    <section className="relative py-20 overflow-hidden bg-blue-50/50 dark:bg-gray-900/50">
       {/* Purple overlay on top of blue background */}
-      <div className="absolute inset-0" style={{background: 'rgba(147, 51, 234, 0.08)'}}></div>
+      <div className="absolute inset-0 bg-purple-50/30 dark:bg-purple-950/20"></div>
       {/* Wave pattern background */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Transitional bubbles from hero section */}
@@ -147,25 +147,17 @@ export function SDGSimple() {
         
         {/* Subtle grid pattern overlay - exactly like hero section */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDU5LCAxMzAsIDI0NiwgMC4wMykiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-15"></div>
-        
-        {/* White bottom wave - transitional element to next section */}
-        <div className="absolute bottom-0 left-0 w-full h-32 overflow-hidden">
-          <svg className="w-full h-full" viewBox="0 0 1200 100" preserveAspectRatio="none">
-            <path d="M0,50 Q300,20 600,50 T1200,50 L1200,100 L0,100 Z" fill="rgba(255, 255, 255, 0.8)" />
-            <path d="M0,70 Q300,40 600,70 T1200,70 L1200,100 L0,100 Z" fill="rgba(255, 255, 255, 0.6)" />
-          </svg>
-        </div>
       </div>
       
       <div className="relative container mx-auto px-4 z-10">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Aligned with the{' '}
-            <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            <span className="block">Aligned with the</span>
+            <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 dark:from-blue-400 dark:via-purple-400 dark:to-cyan-400 bg-clip-text text-transparent">
               UN Sustainable Development Goals
             </span>
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Make impact that matters by contributing to the world's most important goals for sustainable development
           </p>
         </div>

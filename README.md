@@ -61,29 +61,15 @@ The first comprehensive platform to measure, verify, and benchmark social impact
    ```
 
 5. **Run the development server**
-   
-   **For multi-user development (recommended):**
    ```bash
-   # Each user gets their own build directory and cache
-   npm run dev:user
-   
-   # Or specify a custom port
-   PORT=3001 npm run dev:user
-   
-   # Quick restart with cleanup (if you encounter chunk loading errors)
-   ./restart-dev.sh [PORT]
-   ```
-   
-   **For single-user development:**
-   ```bash
-   # Recommended: Uses cache cleaning automatically
-   npm run turbo
-
-   # Alternative: Clean everything and restart
-   npm run turbo:clean
-
    # Basic development server
    npm run dev
+   
+   # Or clean cache and restart (if you encounter build errors)
+   npm run dev:clean
+   
+   # With Socket.io for real-time features
+   npm run dev:with-socket
    ```
 
 6. **Open your browser**
@@ -135,11 +121,11 @@ impaktrweb/
 - **Bull Queue** - Background job processing
 
 ### Infrastructure
+- **Vercel** - Hosting platform
+- **Neon** - Managed PostgreSQL database
 - **AWS S3** - File storage
 - **AWS SES** - Email service
 - **Socket.io** - Real-time communication
-- **Docker** - Containerization
-- **Vercel/AWS** - Deployment platform
 
 ## 🔧 Configuration
 
@@ -300,87 +286,25 @@ All API routes except public endpoints require authentication via Auth0.
 
 ## 🔧 Troubleshooting
 
-### SSH Disconnection Issues (Multi-User Environment)
-
-**Problem**: Users get disconnected when both SSH in simultaneously, or IDE becomes unresponsive.
-
-**Cause**: Memory pressure on EC2 instance. Development tools (TypeScript servers, Next.js, IDEs) consume too much RAM.
-
-**Solution**:
-```bash
-# Check memory usage
-npm run monitor
-
-# Use memory-optimized development
-npm run dev:safe [PORT]
-
-# Or manually clean up
-npm run monitor -- --cleanup
-```
-
-**Prevention**:
-- Use `npm run dev:user` instead of `npm run dev` (limits Node.js memory)
-- Close unused IDE tabs and extensions
-- Use different ports: `PORT=3001 npm run dev:user`
-- Monitor memory regularly: `npm run monitor`
-
-### Chunk Loading Errors
-
-**Problem**: Getting `ChunkLoadError: Loading chunk app/layout failed` or similar timeout errors.
-
-**Cause**: Webpack chunk loading timeouts, often in multi-user environments or after server restarts.
-
-**Solution**:
-```bash
-# Quick fix - use the restart script
-./restart-dev.sh [PORT]
-
-# Or manually:
-npm run clean:user
-PORT=3001 npm run dev:user
-```
-
-**For multi-user environments**:
-- Each user should use `npm run dev:user` instead of `npm run dev`
-- Use different ports: `PORT=3001 npm run dev:user`
-- Clean only your own cache: `npm run clean:user`
-
 ### Build Cache Issues
 
-**Problem**: Getting errors like `ENOENT: no such file or directory, open '/home/ubuntu/impaktrweb/.next/routes-manifest.json'` or similar cache-related errors.
+**Problem**: Getting errors like `ENOENT: no such file or directory` or similar cache-related errors.
 
 **Cause**: Next.js build cache gets corrupted when the development server is interrupted during compilation.
 
 **Solution**:
 ```bash
 # Clean build cache and restart
-npm run turbo:clean
+npm run dev:clean
 
 # Or manually:
-sudo rm -rf .next node_modules/.cache
+rm -rf .next node_modules/.cache
 npm run dev
 ```
 
 **Prevention**:
-- Always use `npm run turbo` or `npm run turbo:clean` instead of `npm run dev`
+- Use `npm run dev:clean` if you encounter cache issues
 - Let the build process complete before stopping the server
-- Use the turbo script which automatically cleans cache on startup
-
-### Permission Issues
-
-**Problem**: `Permission denied` errors when running build commands.
-
-**Cause**: Cache files created by different users or processes.
-
-**Solution**:
-```bash
-# The turbo script automatically handles permissions
-npm run turbo
-
-# Or manually clean with sudo
-sudo rm -rf .next
-npm run dev
-```
 
 ### Database Connection Issues
 

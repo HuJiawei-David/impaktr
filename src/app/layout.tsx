@@ -1,7 +1,7 @@
 //home/ubuntu/impaktrweb/src/app/layout.tsx
 
 import './globals.css';
-import { Inter } from 'next/font/google';
+import { Ubuntu, Raleway } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
@@ -9,7 +9,17 @@ import { SocketProvider } from '@/components/providers/SocketProvider';
 import { NextAuthProvider } from '@/components/providers/NextAuthProvider';
 import { Navigation } from '@/components/layout/Navigation';
 
-const inter = Inter({ subsets: ['latin'] });
+const ubuntu = Ubuntu({ 
+  subsets: ['latin'],
+  variable: '--font-ubuntu',
+  weight: ['300', '400', '500', '700']
+});
+
+const raleway = Raleway({ 
+  subsets: ['latin'],
+  variable: '--font-raleway',
+  weight: ['300', '400', '500', '600', '700']
+});
 
 export const metadata = {
   title: {
@@ -84,11 +94,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={`${raleway.variable} ${ubuntu.variable} font-sans`}>
         <NextAuthProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
+            defaultTheme="light"
             enableSystem
             disableTransitionOnChange
           >

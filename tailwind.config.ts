@@ -120,7 +120,8 @@ const config: Config = {
         "bounce-gentle": "bounce-gentle 2s ease-in-out infinite",
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-raleway)', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-ubuntu)', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       fontSize: {

@@ -95,7 +95,7 @@ export default withAuth(
       },
     },
     pages: {
-      signIn: '/signup', // Redirect to signup instead of default sign-in
+      signIn: '/signin', // Redirect to signin page
     }
   }
 )
