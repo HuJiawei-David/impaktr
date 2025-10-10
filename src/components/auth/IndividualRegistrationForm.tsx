@@ -423,15 +423,16 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
               </div>
 
               {selectedLanguages.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {selectedLanguages.map((language) => (
                     <Badge
                       key={language}
                       variant="secondary"
-                      className="cursor-pointer"
+                      className="cursor-pointer px-4 py-2 text-sm font-semibold bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 text-blue-900 dark:text-blue-100 hover:from-blue-200 hover:to-indigo-200 dark:hover:from-blue-800/60 dark:hover:to-indigo-800/60 border-2 border-blue-200 dark:border-blue-700 hover:border-blue-300 dark:hover:border-blue-600 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105"
                       onClick={() => handleLanguageRemove(language)}
                     >
-                      {language} ×
+                      <span className="mr-2">{language}</span>
+                      <span className="text-blue-600 dark:text-blue-300 font-bold text-base">×</span>
                     </Badge>
                   ))}
                 </div>
