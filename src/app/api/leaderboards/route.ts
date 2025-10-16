@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 
 const leaderboardQuerySchema = z.object({
   type: z.enum(['individuals', 'organizations', 'countries']).default('individuals'),
@@ -16,6 +19,32 @@ const leaderboardQuerySchema = z.object({
   page: z.string().transform((str) => parseInt(str)).default('1'),
 });
 
+interface RankingEntry {
+  rank: number;
+  id?: string;
+  name: string;
+  avatar?: string | null;
+  logo?: string | null;
+  location?: string | null;
+  score: number;
+  rank_title?: string;
+  tier?: string;
+  type?: string | null;
+  badges?: Array<{
+    sdg: string;
+    tier: string;
+    name: string;
+    progress: number;
+    earned: boolean;
+  }>;
+  stats?: Record<string, number>;
+  country?: string;
+  user_count?: number;
+  avg_score?: number;
+  total_score?: number;
+  total_events?: number;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
@@ -24,19 +53,21 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    let rankings: any[] = [];
+    let rankings: RankingEntry[] = [];
     let total = 0;
+    let currentUserRanking: RankingEntry | undefined = undefined;
+
+    // Get current user for individual leaderboards
+    const session = await getServerSession(authOptions);
 
     if (type === 'individuals') {
       // Individual leaderboard
-      const where: any = {};
+      const where: Prisma.UserWhereInput = {};
       
       if (country) {
-        where.profile = {
-          location: {
-            path: ['country'],
-            string_contains: country,
-          }
+        where.country = {
+          contains: country,
+          mode: 'insensitive'
         };
       }
 
@@ -45,17 +76,15 @@ export async function GET(request: NextRequest) {
         where.badges = {
           some: {
             badge: {
-              sdgNumber: sdg,
-            },
-            progress: {
-              gt: 0,
+              category: sdg.toString(), // Convert number to string for category field
             }
+            // earnedAt has a default value and is not nullable, so no filter needed
           }
         };
       }
 
       // Apply period filter for score calculation
-      let scoreFilter = {};
+      let scoreFilter: Prisma.UserWhereInput = {};
       if (period === 'yearly') {
         const startOfYear = new Date();
         startOfYear.setMonth(0, 1);
@@ -88,17 +117,15 @@ export async function GET(request: NextRequest) {
         where: {
           ...where,
           ...scoreFilter,
-          userType: 'INDIVIDUAL',
         },
         include: {
-          profile: true,
           badges: {
             include: {
               badge: true,
             },
             where: sdg ? {
               badge: {
-                sdgNumber: sdg,
+                category: { equals: sdg.toString() },
               }
             } : undefined,
           },
@@ -107,11 +134,10 @@ export async function GET(request: NextRequest) {
               participations: {
                 where: { status: 'VERIFIED' }
               },
-              certificates: true,
             }
           }
         },
-        orderBy: { impaktrScore: 'desc' },
+        orderBy: { impactScore: 'desc' },
         skip,
         take: limit,
       });
@@ -120,62 +146,108 @@ export async function GET(request: NextRequest) {
         where: {
           ...where,
           ...scoreFilter,
-          userType: 'INDIVIDUAL',
         }
       });
 
-      rankings = users.map((user, index) => ({
+      type UserWithRelations = typeof users[0];
+      
+      rankings = users.map((user: UserWithRelations, index) => ({
         rank: skip + index + 1,
         id: user.id,
-        name: user.profile?.displayName || `${user.profile?.firstName} ${user.profile?.lastName}`.trim(),
-        avatar: user.profile?.avatar,
-        location: user.profile?.location,
-        score: user.impaktrScore,
-        rank_title: user.currentRank,
-        badges: user.badges.map(ub => ({
-          sdg: ub.badge.sdgNumber,
-          tier: ub.badge.tier,
+        name: user.name || 'Anonymous User',
+        avatar: user.image,
+        location: user.location,
+        score: user.impactScore,
+        rank_title: user.tier,
+        badges: user.badges?.map((ub) => ({
+          sdg: ub.badge.category,
+          tier: ub.badge.rarity,
           name: ub.badge.name,
-          progress: ub.progress,
+          progress: 100, // Default progress since we don't have this field
           earned: !!ub.earnedAt,
         })),
         stats: {
-          verified_hours: user._count.participations,
-          certificates: user._count.certificates,
+          verified_hours: user._count?.participations || 0,
+          certificates: 0,
         }
       }));
+
+      // Find current user's ranking if logged in
+      if (session?.user?.id) {
+        const currentUserIndex = rankings.findIndex(r => r.id === session.user.id);
+        if (currentUserIndex !== -1) {
+          currentUserRanking = rankings[currentUserIndex];
+        } else {
+          // Current user not in current page, fetch their ranking separately
+          const currentUser = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            include: {
+              badges: {
+                include: { badge: true },
+                where: sdg ? {
+                  badge: { category: sdg.toString() }
+                } : undefined,
+              },
+              _count: {
+                select: {
+                  participations: { where: { status: 'VERIFIED' } }
+                }
+              }
+            }
+          });
+
+          if (currentUser) {
+            // Calculate their rank by counting users with higher scores
+            const higherScoreCount = await prisma.user.count({
+              where: {
+                ...where,
+                ...scoreFilter,
+                impactScore: { gt: currentUser.impactScore }
+              }
+            });
+
+            currentUserRanking = {
+              rank: higherScoreCount + 1,
+              id: currentUser.id,
+              name: currentUser.name || 'Anonymous User',
+              avatar: currentUser.image,
+              location: currentUser.location,
+              score: currentUser.impactScore,
+              rank_title: currentUser.tier,
+              badges: currentUser.badges?.map((ub) => ({
+                sdg: ub.badge.category,
+                tier: ub.badge.rarity,
+                name: ub.badge.name,
+                progress: 100,
+                earned: !!ub.earnedAt,
+              })),
+              stats: {
+                verified_hours: currentUser._count?.participations || 0,
+                certificates: 0,
+              }
+            };
+          }
+        }
+      }
     } else if (type === 'organizations') {
       // Organization leaderboard
-      const where: any = {};
+      const where: Prisma.OrganizationWhereInput = {};
 
       if (country) {
-        // This would need to be implemented based on organization location
-        // For now, we'll filter by owner's location
-        where.owner = {
-          profile: {
-            location: {
-              path: ['country'],
-              string_contains: country,
-            }
-          }
-        };
+        // Filter by organization country
+        where.country = country;
       }
 
       const organizations = await prisma.organization.findMany({
         where,
         include: {
-          owner: {
-            include: {
-              profile: true,
-            }
-          },
-          badges: {
+          corporateBadges: {
             include: {
               badge: true,
             },
             where: sdg ? {
               badge: {
-                sdgNumber: sdg,
+                category: { equals: sdg.toString() },
               }
             } : undefined,
           },
@@ -186,78 +258,107 @@ export async function GET(request: NextRequest) {
             }
           },
         },
-        orderBy: { impaktrScore: 'desc' },
+        orderBy: { esgScore: 'desc' },
         skip,
         take: limit,
       });
 
       total = await prisma.organization.count({ where });
 
-      rankings = organizations.map((org, index) => ({
+      type OrgWithRelations = typeof organizations[0];
+
+      rankings = organizations.map((org: OrgWithRelations, index) => ({
         rank: skip + index + 1,
         id: org.id,
         name: org.name,
         type: org.type,
-        logo: org.owner.profile?.logo,
-        score: org.impaktrScore,
-        tier: org.tier,
-        badges: org.badges.map(ob => ({
-          sdg: ob.badge.sdgNumber,
+        logo: org.logo,
+        score: org.esgScore || 0,
+        tier: org.subscriptionTier,
+        badges: org.corporateBadges?.map((ob) => ({
+          sdg: ob.badge.category,
           tier: ob.badge.tier,
           name: ob.badge.name,
-          progress: ob.progress,
+          progress: 100, // Default progress
           earned: !!ob.earnedAt,
         })),
         stats: {
-          members: org.members.length,
-          events: org.events.length,
+          members: org.members?.length || 0,
+          events: org.events?.length || 0,
         }
       }));
     } else if (type === 'countries') {
       // Country leaderboard - aggregate by country
-      const result = await prisma.$queryRaw`
+      interface CountryRow {
+        country: string;
+        user_count: bigint;
+        avg_score: number;
+        total_score: number;
+        total_events: bigint;
+      }
+      
+      const result = await prisma.$queryRaw<CountryRow[]>`
         SELECT 
-          (profile.location->>'country') as country,
+          users.country as country,
           COUNT(DISTINCT users.id) as user_count,
-          AVG(users.impaktr_score) as avg_score,
-          SUM(users.impaktr_score) as total_score,
+          AVG(users."impactScore") as avg_score,
+          SUM(users."impactScore") as total_score,
           COUNT(DISTINCT p.id) as total_events
         FROM users
-        LEFT JOIN user_profiles profile ON users.id = profile.user_id
-        LEFT JOIN participations p ON users.id = p.user_id AND p.status = 'VERIFIED'
-        WHERE users.user_type = 'INDIVIDUAL'
-          AND profile.location->>'country' IS NOT NULL
-        GROUP BY (profile.location->>'country')
+        LEFT JOIN participations p ON users.id = p."userId" AND p.status = 'VERIFIED'
+        WHERE users.country IS NOT NULL
+        GROUP BY users.country
         ORDER BY total_score DESC
         LIMIT ${limit}
         OFFSET ${skip}
       `;
 
-      rankings = (result as any[]).map((row, index) => ({
+      rankings = result.map((row, index) => ({
         rank: skip + index + 1,
+        name: row.country, // Use country as name for country leaderboards
+        score: Number(row.total_score), // Use total_score as the main score
         country: row.country,
-        user_count: parseInt(row.user_count),
-        avg_score: parseFloat(row.avg_score),
-        total_score: parseFloat(row.total_score),
-        total_events: parseInt(row.total_events),
+        user_count: Number(row.user_count),
+        avg_score: Number(row.avg_score),
+        total_score: Number(row.total_score),
+        total_events: Number(row.total_events),
       }));
 
       total = rankings.length; // This is approximate
     }
 
-    return NextResponse.json({
-      type,
-      period,
-      sdg,
-      country,
-      rankings,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    // Return different structure based on type
+    if (type === 'individuals') {
+      return NextResponse.json({
+        type,
+        period,
+        sdg,
+        country,
+        users: rankings,
+        currentUser: currentUserRanking,
+        totalUsers: total,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      });
+    } else {
+      return NextResponse.json({
+        type,
+        period,
+        sdg,
+        country,
+        rankings,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
+      });
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

@@ -222,7 +222,7 @@ function SignupContent() {
                 </span>
               </h1>
               <p className="text-xl text-blue-100 mb-8 leading-relaxed">
-                Join the world's first platform to verify, measure, and celebrate your social impact. Turn your good deeds into a globally recognized impact score.
+                Join the world&apos;s first platform to verify, measure, and celebrate your social impact. Turn your good deeds into a globally recognized impact score.
               </p>
             </div>
 

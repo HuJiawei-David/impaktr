@@ -33,9 +33,7 @@ export async function POST(request: NextRequest) {
       where: { token },
       include: {
         organization: true,
-        inviter: {
-          include: { profile: true }
-        }
+        inviter: true
       }
     });
 
@@ -82,7 +80,7 @@ export async function POST(request: NextRequest) {
         where: { id: invitation.id },
         data: { 
           status: 'ACCEPTED',
-          acceptedAt: new Date()
+          // acceptedAt field doesn't exist in OrganizationInvitation model
         }
       });
 
@@ -103,9 +101,7 @@ export async function POST(request: NextRequest) {
         },
         include: {
           organization: true,
-          user: {
-            include: { profile: true }
-          }
+          user: true
         }
       }),
       // Update invitation status
@@ -113,7 +109,7 @@ export async function POST(request: NextRequest) {
         where: { id: invitation.id },
         data: { 
           status: 'ACCEPTED',
-          acceptedAt: new Date()
+          // acceptedAt field doesn't exist in OrganizationInvitation model
         }
       })
     ]);
@@ -165,9 +161,7 @@ export async function GET(request: NextRequest) {
       where: { token },
       include: {
         organization: true,
-        inviter: {
-          include: { profile: true }
-        }
+        inviter: true
       }
     });
 
@@ -191,7 +185,7 @@ export async function GET(request: NextRequest) {
         email: invitation.email,
         role: invitation.role,
         status: isExpired ? 'EXPIRED' : invitation.status,
-        message: invitation.message,
+        message: `You've been invited to join ${invitation.organization.name}`,
         expiresAt: invitation.expiresAt,
         isExpired,
         organization: {
@@ -200,9 +194,7 @@ export async function GET(request: NextRequest) {
           type: invitation.organization.type
         },
         invitedBy: {
-          name: invitation.inviter.profile?.displayName || 
-                `${invitation.inviter.profile?.firstName} ${invitation.inviter.profile?.lastName}`.trim() ||
-                invitation.inviter.email,
+          name: invitation.inviter.name || invitation.inviter.email,
           email: invitation.inviter.email
         }
       }

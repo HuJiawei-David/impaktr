@@ -26,8 +26,7 @@ export async function POST(request: NextRequest) {
     const { participantId, eventId, customMessage } = createOrgCertificateSchema.parse(body);
 
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { profile: true }
+      where: { id: session.user.id }
     });
 
     if (!user) {
@@ -38,13 +37,11 @@ export async function POST(request: NextRequest) {
     const event = await prisma.event.findUnique({
       where: { id: eventId },
       include: {
-        creator: { include: { profile: true } },
         organization: {
           include: {
             members: {
               where: { userId: user.id }
             },
-            owner: { include: { profile: true } }
           }
         },
         participations: {
@@ -53,7 +50,7 @@ export async function POST(request: NextRequest) {
             status: 'VERIFIED'
           },
           include: {
-            user: { include: { profile: true } }
+            user: true
           }
         }
       }
@@ -64,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check permissions
-    const isEventCreator = event.creatorId === user.id;
+    const isEventCreator = event.organizerId === user.id;
     const hasOrgPermission = event.organization?.members.some(
       member => member.role === 'admin' || member.role === 'owner'
     );
@@ -86,22 +83,21 @@ export async function POST(request: NextRequest) {
 
     // Prepare certificate data
     const certificateData = {
-      organizationName: event.organization?.name || (event.creator.profile?.organizationName || 'Independent Organizer'),
-      recipientName: participation.user.profile?.displayName || 
-                     `${participation.user.profile?.firstName} ${participation.user.profile?.lastName}`.trim(),
+      organizationName: event.organization?.name || 'Independent Organizer',
+      recipientName: participation.user.name || participation.user.email,
       eventTitle: event.title,
-      hoursContributed: participation.hoursActual || participation.hoursCommitted,
+      hoursContributed: participation.hours || 0,
       eventDate: event.startDate,
-      organizationLogo: event.organization?.owner?.profile?.logo ?? undefined,
-      sdgTags: event.sdgTags,
-      verificationMethod: String(event.verificationType)
+      organizationLogo: event.organization?.logo ?? undefined,
+      sdgTags: event.sdg ? [parseInt(event.sdg)] : [],
+      verificationMethod: 'ORGANIZER'
     };
 
     // Generate certificate PDF
     const pdfBuffer = await generateOrganizationCertificate(certificateData);
 
     // Upload to S3
-    const s3Key = `certificates/organizations/${event.organizationId || event.creatorId}/${Date.now()}-${participantId}.pdf`;
+    const s3Key = `certificates/organizations/${event.organizationId || event.organizerId}/${Date.now()}-${participantId}.pdf`;
     const certificateUrl = await uploadToS3(pdfBuffer, s3Key, 'application/pdf');
 
     // Create certificate record
@@ -114,7 +110,6 @@ export async function POST(request: NextRequest) {
           `Certificate issued by ${certificateData.organizationName} for participation in ${event.title}` +
           (customMessage && customMessage.trim().length > 0 ? `\n\nNote: ${customMessage.trim()}` : ''),
         eventId,
-        participationId: participation.id,
         certificateUrl,
         issuedAt: new Date()
       }

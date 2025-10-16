@@ -18,7 +18,6 @@ import {
   Grid3X3,
   List
 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { sdgs, getSDGById } from '@/constants/sdgs';
 import { SDGCredentialCard } from './SDGCredentialCard';
 import Link from 'next/link';
@@ -562,13 +561,38 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
           
           <div className="flex items-center space-x-2">
             {/* Filter */}
-            <Tabs value={filterStatus} onValueChange={(value: any) => setFilterStatus(value)}>
-              <TabsList className="h-8">
-                <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-                <TabsTrigger value="earned" className="text-xs">Earned</TabsTrigger>
-                <TabsTrigger value="progress" className="text-xs">In Progress</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setFilterStatus('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  filterStatus === 'all'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFilterStatus('earned')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  filterStatus === 'earned'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                Earned
+              </button>
+              <button
+                onClick={() => setFilterStatus('progress')}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  filterStatus === 'progress'
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                In Progress
+              </button>
+            </div>
             
             {/* View Mode */}
             <div className="flex border rounded-md">

@@ -2,46 +2,37 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-import Link from 'next/link';
-import {
-  Plus,
-  Calendar,
-  Users,
-  MapPin,
+import { useRouter } from 'next/navigation';
+import { 
+  Calendar, 
+  Plus, 
+  Users, 
+  MapPin, 
   Clock,
-  BarChart3,
-  Edit3,
+  Filter,
+  Search,
   Eye,
+  Edit,
   Trash2,
-  Download,
-  Award,
-  CheckCircle,
-  AlertCircle,
-  XCircle
+  Copy
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { formatDate, formatTimeAgo } from '@/lib/utils';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'react-hot-toast';
 
-interface OrganizationEvent {
+interface Event {
   id: string;
   title: string;
   description: string;
@@ -50,481 +41,429 @@ interface OrganizationEvent {
   location: {
     address?: string;
     city: string;
+    coordinates?: { lat: number; lng: number };
     isVirtual: boolean;
   };
   maxParticipants?: number;
   currentParticipants: number;
-  sdgTags: number[];
-  skills: string[];
-  intensity: number;
-  verificationType: string;
-  images: string[];
-  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-  createdAt: string;
-  updatedAt: string;
-  participations: Array<{
-    id: string;
-    status: string;
-    user: {
-      id: string;
-      name: string;
-      email: string;
-      avatar?: string;
-    };
-    hoursCommitted: number;
-    hoursActual?: number;
-    verifiedAt?: string;
-  }>;
+  status: string;
+  sdg: number[];
+  isPublic: boolean;
 }
 
-interface EventStats {
-  totalEvents: number;
-  activeEvents: number;
-  completedEvents: number;
-  totalParticipants: number;
-  totalHours: number;
-  avgRating: number;
+interface OrganizationData {
+  id: string;
+  name: string;
+  events: Event[];
 }
 
 export default function OrganizationEventsPage() {
   const { data: session, status } = useSession();
-  const [events, setEvents] = useState<OrganizationEvent[]>([]);
-  const [stats, setStats] = useState<EventStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const user = session?.user;
+  const isLoading = status === 'loading';
+  const router = useRouter();
+  
+  const [organizationData, setOrganizationData] = useState<OrganizationData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [activeTab, setActiveTab] = useState('events');
+  const [typeFilter, setTypeFilter] = useState('all');
+
+  const fetchOrganizationData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/organization/events');
+      
+      if (response.status === 401) {
+        router.push('/signin');
+        return;
+      }
+
+      if (response.status === 404) {
+        router.push('/dashboard');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch organization events');
+      }
+
+      const data = await response.json();
+      setOrganizationData({
+        id: 'temp', // We don't need the org ID for this page
+        name: 'Organization', // We don't need the org name for this page
+        events: data.events || []
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching organization events:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
 
   useEffect(() => {
-    if (status === 'loading') return;
-    if (status === 'unauthenticated') {
-      redirect('/auth/signin');
+    if (!isLoading && !user) {
+      router.push('/signin');
       return;
     }
 
-    if (session?.user) {
-      fetchEvents();
-      fetchStats();
+    if (user) {
+      fetchOrganizationData();
     }
-  }, [session, status]);
+  }, [isLoading, user, router, fetchOrganizationData]);
 
-  const fetchEvents = async () => {
-    try {
-      const response = await fetch('/api/organization/events');
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data.events);
-      }
-    } catch (error) {
-      console.error('Error fetching events:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleCreateEvent = () => {
+    router.push('/organization/events/create');
   };
 
-  const fetchStats = async () => {
+  const handleDuplicateEvent = async (eventId: string) => {
     try {
-      const response = await fetch('/api/organization/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.eventStats);
+      const response = await fetch(`/api/organization/events/${eventId}/duplicate`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate event');
       }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
+
+      toast.success('Event duplicated successfully');
+      fetchOrganizationData(); // Refresh data
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to duplicate event');
     }
   };
 
   const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+      return;
+    }
+
     try {
       const response = await fetch(`/api/events/${eventId}`, {
         method: 'DELETE',
       });
 
-      if (response.ok) {
-        setEvents(events.filter(event => event.id !== eventId));
+      if (!response.ok) {
+        throw new Error('Failed to delete event');
       }
-    } catch (error) {
-      console.error('Error deleting event:', error);
+
+      toast.success('Event deleted successfully');
+      fetchOrganizationData(); // Refresh data
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete event');
     }
   };
 
-  const handleGenerateCertificates = async (eventId: string) => {
-    try {
-      const response = await fetch(`/api/events/${eventId}/certificates`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Show success message
-        console.log(`Generated ${data.count} certificates`);
-      }
-    } catch (error) {
-      console.error('Error generating certificates:', error);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'DRAFT':
-        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
-      case 'COMPLETED':
-        return <CheckCircle className="w-4 h-4 text-blue-500" />;
-      case 'CANCELLED':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-muted-foreground" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'bg-green-100 text-green-800';
-      case 'DRAFT':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'COMPLETED':
-        return 'bg-blue-100 text-blue-800';
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const filteredEvents = events.filter(event => {
+  const filteredEvents = organizationData?.events?.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || event.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+    const matchesType = typeFilter === 'all' || 
+                       (typeFilter === 'public' && event.isPublic) ||
+                       (typeFilter === 'private' && !event.isPublic);
+    return matchesSearch && matchesStatus && matchesType;
+  }) || [];
 
-  if (status === 'loading' || isLoading) {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'bg-green-100 text-green-800';
+      case 'DRAFT': return 'bg-gray-100 text-gray-800';
+      case 'COMPLETED': return 'bg-blue-100 text-blue-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getTypeColor = (isPublic: boolean) => {
+    return isPublic ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800';
+  };
+
+  if (isLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Error</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!organizationData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">No Organization Found</h2>
+          <p className="text-muted-foreground mb-4">You are not part of any organization.</p>
+          <Button onClick={() => router.push('/dashboard')}>
+            Go to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Event Management</h1>
-            <p className="text-muted-foreground">
-              Manage your organization's impact events and track participation
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-3 mt-4 md:mt-0">
-            <Link href="/events/create">
-              <Button className="flex items-center space-x-2">
-                <Plus className="w-4 h-4" />
-                <span>Create Event</span>
-              </Button>
-            </Link>
-          </div>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[22px] pb-8">
+
+        {/* Compact Professional Header */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              {/* Left: Page Info */}
+              <div className="flex items-center space-x-4">
+                <div className="relative group">
+                  <div className="w-16 h-16 border-2 border-gray-100 dark:border-gray-700 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center cursor-pointer transition-all duration-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2">
+                    <Calendar className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Event Management
+                  </h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Create and manage your organization&apos;s events
+                  </p>
+                </div>
+              </div>
+
+              {/* Right: Action Button */}
+              <div className="flex items-center space-x-3">
+                <Button 
+                  onClick={handleCreateEvent} 
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Event
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Events</CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalEvents}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.activeEvents} currently active
-                </p>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Calendar className="h-8 w-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Total Events</p>
+                  <p className="text-2xl font-bold">{organizationData.events.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Participants</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalParticipants}</div>
-                <p className="text-xs text-muted-foreground">
-                  Across all events
-                </p>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Eye className="h-8 w-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Active Events</p>
+                  <p className="text-2xl font-bold">
+                    {organizationData.events.filter(e => e.status === 'ACTIVE').length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Impact Hours</CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalHours.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Total verified hours
-                </p>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-purple-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Total Participants</p>
+                  <p className="text-2xl font-bold">
+                    {organizationData.events.reduce((sum, e) => sum + e.currentParticipants, 0)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg Rating</CardTitle>
-                <Award className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.avgRating.toFixed(1)}</div>
-                <p className="text-xs text-muted-foreground">
-                  Event satisfaction
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Calendar className="h-8 w-8 text-orange-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Public Events</p>
+                  <p className="text-2xl font-bold">
+                    {organizationData.events.filter(e => e.isPublic).length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="participants">Participants</TabsTrigger>
-            <TabsTrigger value="certificates">Certificates</TabsTrigger>
-          </TabsList>
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search events..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="md:w-48">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:w-48">
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="public">Public Events</SelectItem>
+                    <SelectItem value="private">Private Events</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="events" className="space-y-6">
-            {/* Filters */}
-            <Card>
+        {/* Events List */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredEvents.map((event) => (
+            <Card key={event.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle>Filter Events</CardTitle>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg mb-2">{event.title}</CardTitle>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Badge className={getStatusColor(event.status)}>
+                        {event.status}
+                      </Badge>
+                      <Badge className={getTypeColor(event.isPublic)}>
+                        {event.isPublic ? 'Public' : 'Private'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <Filter className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={() => router.push(`/events/${event.id}`)}>
+                        <Eye className="w-4 h-4 mr-3" />
+                        View Event
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push(`/events/${event.id}/edit`)}>
+                        <Edit className="w-4 h-4 mr-3" />
+                        Edit Event
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicateEvent(event.id)}>
+                        <Copy className="w-4 h-4 mr-3" />
+                        Duplicate Event
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <Trash2 className="w-4 h-4 mr-3" />
+                        Delete Event
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
-                    <Input
-                      placeholder="Search events..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                  {event.description}
+                </p>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm">
+                    <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span>{new Date(event.startDate).toLocaleDateString()}</span>
+                    {event.endDate && (
+                      <span className="mx-1">-</span>
+                    )}
+                    {event.endDate && (
+                      <span>{new Date(event.endDate).toLocaleDateString()}</span>
+                    )}
                   </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full md:w-[180px]">
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Events</SelectItem>
-                      <SelectItem value="DRAFT">Draft</SelectItem>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  
+                  {event.location && (
+                    <div className="flex items-center text-sm">
+                      <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <span className="truncate">
+                        {typeof event.location === 'string' 
+                          ? event.location 
+                          : event.location?.city || 'Location TBD'
+                        }
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center text-sm">
+                    <Users className="w-4 h-4 mr-2 text-muted-foreground" />
+                    <span>
+                      {event.currentParticipants}
+                      {event.maxParticipants && ` / ${event.maxParticipants}`} participants
+                    </span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-
-            {/* Events List */}
-            <div className="space-y-4">
-              {filteredEvents.length === 0 ? (
-                <Card>
-                  <CardContent className="p-12 text-center">
-                    <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold mb-2">No events found</h3>
-                    <p className="text-muted-foreground mb-4">
-                      {searchQuery ? 'No events match your search criteria.' : 'Create your first event to get started.'}
-                    </p>
-                    <Link href="/events/create">
-                      <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Event
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ) : (
-                filteredEvents.map((event) => (
-                  <Card key={event.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-3">
-                            <h3 className="text-xl font-semibold">{event.title}</h3>
-                            <Badge className={getStatusColor(event.status)}>
-                              {getStatusIcon(event.status)}
-                              <span className="ml-1">{event.status}</span>
-                            </Badge>
-                          </div>
-
-                          <p className="text-muted-foreground mb-4 line-clamp-2">
-                            {event.description}
-                          </p>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div className="flex items-center space-x-2 text-sm">
-                              <Calendar className="w-4 h-4 text-muted-foreground" />
-                              <span>{formatDate(event.startDate)}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-sm">
-                              <MapPin className="w-4 h-4 text-muted-foreground" />
-                              <span>
-                                {event.location.isVirtual ? 'Virtual' : event.location.city}
-                              </span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-sm">
-                              <Users className="w-4 h-4 text-muted-foreground" />
-                              <span>
-                                {event.currentParticipants}
-                                {event.maxParticipants && `/${event.maxParticipants}`} participants
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap gap-1 mb-4">
-                            {event.sdgTags.slice(0, 3).map((sdg) => (
-                              <Badge key={sdg} variant="sdg" sdgNumber={sdg} className="text-xs">
-                                SDG {sdg}
-                              </Badge>
-                            ))}
-                            {event.sdgTags.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{event.sdgTags.length - 3} more
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col space-y-2 ml-4">
-                          <Link href={`/events/${event.id}`}>
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4 mr-1" />
-                              View
-                            </Button>
-                          </Link>
-                          
-                          <Link href={`/events/${event.id}/edit`}>
-                            <Button variant="outline" size="sm">
-                              <Edit3 className="w-4 h-4 mr-1" />
-                              Edit
-                            </Button>
-                          </Link>
-
-                          {event.status === 'COMPLETED' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleGenerateCertificates(event.id)}
-                            >
-                              <Award className="w-4 h-4 mr-1" />
-                              Certificates
-                            </Button>
-                          )}
-
-                          <Button variant="outline" size="sm">
-                            <BarChart3 className="w-4 h-4 mr-1" />
-                            Analytics
-                          </Button>
-
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete "{event.title}" and all associated data. 
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => handleDeleteEvent(event.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete Event
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </div>
-
-                      {/* Participation Summary */}
-                      {event.participations.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-border">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">Recent participants:</span>
-                            <Link 
-                              href={`/events/${event.id}/participants`}
-                              className="text-primary hover:underline"
-                            >
-                              View all
-                            </Link>
-                          </div>
-                          <div className="flex -space-x-2 mt-2">
-                            {event.participations.slice(0, 5).map((participation) => (
-                              <div
-                                key={participation.id}
-                                className="w-8 h-8 rounded-full bg-primary/20 border-2 border-background flex items-center justify-center text-xs font-medium"
-                                title={participation.user.name}
-                              >
-                                {participation.user.name.charAt(0).toUpperCase()}
-                              </div>
-                            ))}
-                            {event.participations.length > 5 && (
-                              <div className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium">
-                                +{event.participations.length - 5}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
+          ))}
+          
+          {filteredEvents.length === 0 && (
+            <div className="col-span-full text-center py-12">
+              <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No events found</h3>
+              <p className="text-muted-foreground mb-6">
+                {searchQuery || statusFilter !== 'all' || typeFilter !== 'all'
+                  ? 'Try adjusting your search or filters'
+                  : 'Create your first event to get started'
+                }
+              </p>
+              {(!searchQuery && statusFilter === 'all' && typeFilter === 'all') && (
+                <Button onClick={handleCreateEvent} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Event
+                </Button>
               )}
             </div>
-          </TabsContent>
-
-          <TabsContent value="participants">
-            <Card>
-              <CardHeader>
-                <CardTitle>Participant Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Participant management features will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="certificates">
-            <Card>
-              <CardHeader>
-                <CardTitle>Certificate Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Certificate generation and management features will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
     </div>
   );

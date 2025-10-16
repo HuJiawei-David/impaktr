@@ -1,18 +1,83 @@
-//home/ubuntu/impaktrweb/src/app/api/social/posts/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { uploadToS3 } from '@/lib/aws';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 const createPostSchema = z.object({
   content: z.string().max(2000).optional(),
-  type: z.enum(['general', 'achievement', 'event_share']).default('general'),
+  type: z.enum(['TEXT', 'IMAGE', 'EVENT', 'POLL', 'ANNOUNCEMENT']).default('TEXT'),
+  visibility: z.enum(['PUBLIC', 'FOLLOWERS_ONLY', 'MEMBERS_ONLY']).default('PUBLIC'),
   location: z.string().optional(),
   tags: z.string().optional(),
 });
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const formData = await request.formData();
+    const validatedData = createPostSchema.parse({
+      content: formData.get('content'),
+      type: formData.get('type'),
+      visibility: formData.get('visibility'),
+      location: formData.get('location'),
+      tags: formData.get('tags'),
+    });
+
+    // Handle file uploads
+    const mediaUrls: string[] = [];
+    const files = formData.getAll('media') as File[];
+    
+    for (const file of files) {
+      if (file.size > 0) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const fileName = `posts/${session.user.id}/${Date.now()}-${file.name}`;
+        const url = await uploadToS3(buffer, fileName, file.type);
+        mediaUrls.push(url);
+      }
+    }
+
+    const post = await prisma.post.create({
+      data: {
+        userId: session.user.id,
+        content: validatedData.content || '',
+        type: validatedData.type,
+        visibility: validatedData.visibility,
+        tags: validatedData.tags ? JSON.parse(validatedData.tags) : [],
+        location: validatedData.location,
+        mediaUrls,
+        imageUrl: mediaUrls[0] || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            tier: true,
+          }
+        },
+        _count: {
+          select: {
+            likes: true,
+            comments: true,
+          }
+        }
+      }
+    });
+
+    return NextResponse.json({ post }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating post:', error);
+    return NextResponse.json({ error: 'Failed to create post' }, { status: 500 });
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,40 +93,53 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
-    let where: any = {};
+    let where: Prisma.PostWhereInput = {};
 
     // Apply filters
     if (achievementsOnly) {
       where.type = {
-        in: ['badge_earned', 'achievement', 'rank_up', 'event_joined']
+        in: ['TEXT', 'IMAGE']
       };
     }
 
     if (search) {
       where.OR = [
         { content: { contains: search, mode: 'insensitive' } },
-        { user: { profile: { displayName: { contains: search, mode: 'insensitive' } } } }
+        { user: { name: { contains: search, mode: 'insensitive' } } },
+        { organization: { name: { contains: search, mode: 'insensitive' } } }
       ];
     }
 
     if (filter === 'following') {
-      // Get posts from users that current user follows
+      // Get posts from users and organizations that current user follows
       const following = await prisma.follow.findMany({
         where: { followerId: session.user.id },
-        select: { followingId: true }
+        select: { followingId: true, followingOrgId: true }
       });
       
-      where.userId = {
-        in: following.map(f => f.followingId)
-      };
+      where.OR = [
+        { userId: { in: following.map((f: any) => f.followingId).filter(Boolean) as string[] } },
+        { organizationId: { in: following.map((f: any) => f.followingOrgId).filter(Boolean) as string[] } }
+      ];
     }
 
     const posts = await prisma.post.findMany({
       where,
       include: {
         user: {
-          include: {
-            profile: true,
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            tier: true,
+          }
+        },
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            tier: true,
           }
         },
         likes: {
@@ -70,45 +148,20 @@ export async function GET(request: NextRequest) {
         comments: {
           include: {
             user: {
-              include: {
-                profile: true
+              select: {
+                id: true,
+                name: true,
+                image: true,
               }
             }
           },
           orderBy: { createdAt: 'desc' },
           take: 3
         },
-        event: {
-          select: {
-            id: true,
-            title: true,
-            startDate: true,
-            endDate: true,
-            location: true
-          }
-        },
-        badge: {
-          select: {
-            id: true,
-            name: true,
-            sdgNumber: true,
-            tier: true,
-            icon: true
-          }
-        },
-        achievement: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            icon: true
-          }
-        },
         _count: {
           select: {
             likes: true,
             comments: true,
-            shares: true
           }
         }
       },
@@ -121,159 +174,43 @@ export async function GET(request: NextRequest) {
 
     const formattedPosts = posts.map(post => ({
       id: post.id,
-      type: post.type,
       content: post.content,
-      images: post.images,
-      author: {
-        id: post.user.id,
-        name: post.user.profile?.displayName || 'Unknown User',
-        avatar: post.user.profile?.avatar || '',
-        rank: post.user.currentRank,
-        organization: post.user.profile?.organization
-      },
+      type: post.type,
+      visibility: post.visibility,
+      tags: post.tags,
+      location: post.location,
+      sdg: post.sdg,
+      mediaUrls: post.mediaUrls,
+      imageUrl: post.imageUrl,
+      isPinned: post.isPinned,
       createdAt: post.createdAt,
-      likes: post._count.likes,
-      comments: post._count.comments,
-      shares: post._count.shares,
+      author: {
+        id: post.user?.id || post.organization?.id,
+        name: post.user?.name || post.organization?.name,
+        avatar: post.user?.image || post.organization?.logo,
+        type: post.user ? 'user' : 'organization',
+        tier: post.user?.tier || post.organization?.tier,
+      },
+      stats: {
+        likes: post._count.likes,
+        comments: post._count.comments,
+      },
       isLiked: post.likes.length > 0,
-      isBookmarked: false, // Would need to implement bookmarks
-      recentComments: post.comments.slice(0, 2).map(comment => ({
+      recentComments: post.comments.map(comment => ({
         id: comment.id,
         content: comment.content,
+        createdAt: comment.createdAt,
         author: {
           id: comment.user.id,
-          name: comment.user.profile?.displayName || 'Unknown User',
-          avatar: comment.user.profile?.avatar || ''
-        },
-        createdAt: comment.createdAt
-      })),
-      // Additional fields based on post type
-      ...(post.event && {
-        eventId: post.event.id,
-        eventTitle: post.event.title,
-        eventDate: post.event.startDate,
-        eventLocation: typeof post.event.location === 'object' && post.event.location !== null 
-          ? (post.event.location as any)?.address || (post.event.location as any)?.city || 'Virtual'
-          : 'Location not specified'
-      }),
-      ...(post.badge && {
-        badgeId: post.badge.id,
-        badgeName: post.badge.name,
-        sdgNumber: post.badge.sdgNumber,
-        badgeTier: post.badge.tier,
-        badgeIcon: post.badge.icon
-      }),
-      ...(post.achievement && {
-        achievementId: post.achievement.id,
-        achievementName: post.achievement.name,
-        achievementDescription: post.achievement.description,
-        achievementIcon: post.achievement.icon
-      })
+          name: comment.user.name,
+          avatar: comment.user.image,
+        }
+      }))
     }));
 
     return NextResponse.json({ posts: formattedPosts });
-
   } catch (error) {
     console.error('Error fetching posts:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const formData = await request.formData();
-    const content = formData.get('content') as string;
-    const type = formData.get('type') as string;
-    const location = formData.get('location') as string;
-    const tagsString = formData.get('tags') as string;
-
-    const validatedData = createPostSchema.parse({
-      content: content || undefined,
-      type: type as any,
-      location: location || undefined,
-      tags: tagsString
-    });
-
-    if (!validatedData.content?.trim() && !formData.get('image_0')) {
-      return NextResponse.json({ error: 'Post content or image required' }, { status: 400 });
-    }
-
-    // Handle image uploads
-    const images: string[] = [];
-    for (let i = 0; i < 4; i++) {
-      const image = formData.get(`image_${i}`) as File;
-      if (image) {
-        const buffer = await image.arrayBuffer();
-        const s3Key = `posts/${session.user.id}/${Date.now()}-${i}.${image.name.split('.').pop()}`;
-        const imageUrl = await uploadToS3(Buffer.from(buffer), s3Key, image.type);
-        images.push(imageUrl);
-      }
-    }
-
-    // Parse tags
-    const tags = validatedData.tags ? JSON.parse(validatedData.tags) : [];
-
-    const post = await prisma.post.create({
-      data: {
-        userId: session.user.id,
-        type: validatedData.type,
-        content: validatedData.content,
-        images,
-        location: validatedData.location,
-        tags,
-      },
-      include: {
-        user: {
-          include: {
-            profile: true
-          }
-        },
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-            shares: true
-          }
-        }
-      }
-    });
-
-    return NextResponse.json({ 
-      message: 'Post created successfully',
-      post: {
-        id: post.id,
-        type: post.type,
-        content: post.content,
-        images: post.images,
-        author: {
-          id: post.user.id,
-          name: post.user.profile?.displayName || 'Unknown User',
-          avatar: post.user.profile?.avatar || '',
-          rank: post.user.currentRank
-        },
-        createdAt: post.createdAt,
-        likes: post._count.likes,
-        comments: post._count.comments,
-        shares: post._count.shares,
-        isLiked: false,
-        isBookmarked: false
-      }
-    }, { status: 201 });
-
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid data', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error('Error creating post:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 });
   }
 }

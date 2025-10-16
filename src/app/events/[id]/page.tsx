@@ -26,6 +26,7 @@ import {
   ExternalLink,
   Building2
 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -272,7 +273,7 @@ export default function EventDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -340,7 +341,7 @@ export default function EventDetailPage() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 {eventStatus && (
-                  <Badge variant={eventStatus.color as any} className="flex items-center">
+                  <Badge variant={eventStatus.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="flex items-center">
                     <eventStatus.icon className="w-3 h-3 mr-1" />
                     {eventStatus.label}
                   </Badge>
@@ -354,7 +355,7 @@ export default function EventDetailPage() {
                 )}
                 
                 {intensityInfo && (
-                  <Badge variant={intensityInfo.color as any}>
+                  <Badge variant={intensityInfo.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"}>
                     {intensityInfo.label} Intensity
                   </Badge>
                 )}

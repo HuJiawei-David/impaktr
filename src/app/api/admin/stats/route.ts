@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, User } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
           status: 'VERIFIED'
         },
         _sum: {
-          hoursActual: true
+          hours: true
         }
       }),
       
@@ -130,13 +130,6 @@ export async function GET(request: NextRequest) {
           createdAt: 'desc'
         },
         include: {
-          profile: {
-            select: {
-              displayName: true,
-              firstName: true,
-              lastName: true
-            }
-          }
         }
       })
     ]);
@@ -157,19 +150,19 @@ export async function GET(request: NextRequest) {
       totalUsers,
       totalOrganizations,
       totalEvents,
-      totalHours: totalHours._sum.hoursActual || 0,
+      totalHours: totalHours._sum.hours || 0,
       monthlyRevenue,
       activeSubscriptions,
       pendingVerifications,
       systemHealth: 98.7, // This would come from your monitoring system
       userGrowthRate,
       orgGrowthRate,
-      recentActivity: recentActivity.map((user: any) => ({
+      recentActivity: recentActivity.map((user: User) => ({
         id: user.id,
         type: 'user_signup',
-        name: user.profile?.displayName || `${user.profile?.firstName} ${user.profile?.lastName}`.trim() || 'Unknown User',
+        name: user.name || 'Unknown User',
         timestamp: user.createdAt,
-        userType: user.userType
+        tier: user.tier // Using tier instead of removed userType field
       }))
     };
 

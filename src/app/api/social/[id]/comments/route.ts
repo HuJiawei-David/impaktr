@@ -33,11 +33,7 @@ export async function POST(
         content
       },
       include: {
-        user: {
-          include: {
-            profile: true
-          }
-        }
+        user: true
       }
     });
 
@@ -48,8 +44,8 @@ export async function POST(
         content: comment.content,
         author: {
           id: comment.user.id,
-          name: comment.user.profile?.displayName || 'Unknown User',
-          avatar: comment.user.profile?.avatar || ''
+          name: comment.user.name || 'Unknown User',
+          avatar: comment.user.image || ''
         },
         createdAt: comment.createdAt
       }

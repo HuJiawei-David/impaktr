@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadToS3 } from '@/lib/aws';
 import { z } from 'zod';
-import { UserType, OrganizationTier } from '@prisma/client';
+import { UserType } from '@/types/enums';
 
 const organizationRegistrationSchema = z.object({
   organizationName: z.string().min(1, 'Organization name is required'),
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     
     // Extract form fields
-    const data: any = {};
+    const data: Record<string, FormDataEntryValue> = {};
     const files: { [key: string]: File } = {};
     
     formData.forEach((value, key) => {
@@ -89,81 +89,53 @@ export async function POST(request: NextRequest) {
     console.log('[Registration] Creating organization record...');
     const organization = await prisma.organization.create({
       data: {
-        ownerId: user.id,
         name: validatedData.organizationName,
-        type: validatedData.profileType,
-        tier: OrganizationTier.REGISTERED,
-        isVerified: false,
-        impaktrScore: 0,
+        email: user.email,
+        type: validatedData.profileType || 'CORPORATE',
+        slug: validatedData.organizationName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+        subscriptionTier: 'REGISTERED',
+        esgScore: 0,
       },
     });
 
-    // Update user profile with organization data
-    console.log('[Registration] Updating user profile...');
-    await prisma.userProfile.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        organizationName: validatedData.organizationName,
-        registrationNumber: validatedData.registrationNumber,
-        industry: validatedData.industry,
-        companySize: validatedData.companySize,
-        description: validatedData.description,
-        logo: logoUrl,
-        website: validatedData.website || undefined,
-        location: {
-          city: validatedData.city,
-          country: validatedData.country,
-        },
-        contactPerson: {
-          name: validatedData.contactPersonName,
-          role: validatedData.contactPersonRole,
-          email: validatedData.contactPersonEmail,
-          phone: validatedData.contactPersonPhone,
-        },
-        sdgFocus: validatedData.sdgFocus,
-      },
-      update: {
-        organizationName: validatedData.organizationName,
-        registrationNumber: validatedData.registrationNumber,
-        industry: validatedData.industry,
-        companySize: validatedData.companySize,
-        description: validatedData.description,
-        logo: logoUrl,
-        website: validatedData.website || undefined,
-        location: {
-          city: validatedData.city,
-          country: validatedData.country,
-        },
-        contactPerson: {
-          name: validatedData.contactPersonName,
-          role: validatedData.contactPersonRole,
-          email: validatedData.contactPersonEmail,
-          phone: validatedData.contactPersonPhone,
-        },
-        sdgFocus: validatedData.sdgFocus,
-      },
-    });
-
-    // Update user type
-    console.log('[Registration] Updating user type...');
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { 
-        userType: validatedData.profileType,
-        isVerified: verificationDocUrls.length > 0, // Auto-verify if documents provided
-      },
-    });
-
-    // Create organization member relationship
-    console.log('[Registration] Creating organization member relationship...');
+    // Create organization member (owner)
+    console.log('[Registration] Creating organization membership...');
     await prisma.organizationMember.create({
       data: {
         organizationId: organization.id,
         userId: user.id,
         role: 'owner',
+        status: 'active',
       },
     });
+
+    // Update organization with additional details
+    console.log('[Registration] Updating organization details...');
+    await prisma.organization.update({
+      where: { id: organization.id },
+      data: {
+        industry: validatedData.industry,
+        companySize: validatedData.companySize,
+        description: validatedData.description,
+        logo: logoUrl,
+        website: validatedData.website || undefined,
+        city: validatedData.city,
+        country: validatedData.country,
+        phone: validatedData.contactPersonPhone,
+      },
+    });
+
+    // Update user type
+    console.log('[Registration] Updating user type to:', validatedData.profileType);
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        userType: validatedData.profileType,
+      },
+    });
+    console.log('[Registration] User updated with userType:', updatedUser.userType);
+
+    // Organization member relationship already created above
 
     // Store verification documents metadata
     if (verificationDocUrls.length > 0) {
@@ -177,18 +149,18 @@ export async function POST(request: NextRequest) {
       console.log('[Registration] Initializing SDG badges...');
       const sdgBadges = await prisma.badge.findMany({
         where: {
-          sdgNumber: {
-            in: validatedData.sdgFocus
+          category: {
+            in: validatedData.sdgFocus.map(sdg => sdg.toString())
           }
         }
       });
       
       if (sdgBadges.length > 0) {
-        await prisma.organizationBadge.createMany({
+        await prisma.corporateBadgeEarned.createMany({
           data: sdgBadges.map(badge => ({
             organizationId: organization.id,
             badgeId: badge.id,
-            progress: 0,
+            earnedAt: new Date()
           })),
           skipDuplicates: true,
         });
@@ -205,15 +177,10 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         type: 'organization_registered',
-        name: 'Organization Registered',
+        title: 'Organization Registered',
         description: `Successfully registered ${validatedData.organizationName} on Impaktr`,
-        icon: '/icons/organization.svg',
-        data: {
-          organizationType: validatedData.profileType,
-          organizationName: validatedData.organizationName,
-          sdgFocus: validatedData.sdgFocus,
-        },
-      },
+        points: 100
+      }
     });
 
     console.log('[Registration] Registration completed successfully!');

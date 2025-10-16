@@ -19,7 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatHours, formatScore, getSDGName, getSDGColor } from '@/lib/utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, AreaChart, Area } from 'recharts';
@@ -316,16 +316,57 @@ export function ImpactStatistics({ userId }: ImpactStatisticsProps) {
         </CardContent>
       </Card>
 
-      {/* Chart Tabs */}
-      <Tabs value={activeChart} onValueChange={setActiveChart}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Activity Trends</TabsTrigger>
-          <TabsTrigger value="sdg">SDG Distribution</TabsTrigger>
-          <TabsTrigger value="verification">Verification</TabsTrigger>
-          <TabsTrigger value="skills">Skills Impact</TabsTrigger>
-        </TabsList>
+      {/* Chart Pills Navigation */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={activeChart === 'overview' ? 'default' : 'outline'}
+          onClick={() => setActiveChart('overview')}
+          className={`rounded-full px-6 py-2 ${
+            activeChart === 'overview' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Activity Trends
+        </Button>
+        <Button
+          variant={activeChart === 'sdg' ? 'default' : 'outline'}
+          onClick={() => setActiveChart('sdg')}
+          className={`rounded-full px-6 py-2 ${
+            activeChart === 'sdg' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          SDG Distribution
+        </Button>
+        <Button
+          variant={activeChart === 'verification' ? 'default' : 'outline'}
+          onClick={() => setActiveChart('verification')}
+          className={`rounded-full px-6 py-2 ${
+            activeChart === 'verification' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Verification
+        </Button>
+        <Button
+          variant={activeChart === 'skills' ? 'default' : 'outline'}
+          onClick={() => setActiveChart('skills')}
+          className={`rounded-full px-6 py-2 ${
+            activeChart === 'skills' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Skills Impact
+        </Button>
+      </div>
 
-        <TabsContent value="overview" className="space-y-4">
+      {/* Chart Content */}
+      <div className="space-y-4">
+        {activeChart === 'overview' && (
           <Card>
             <CardHeader>
               <CardTitle>Monthly Activity Overview</CardTitle>
@@ -351,9 +392,9 @@ export function ImpactStatistics({ userId }: ImpactStatisticsProps) {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        <TabsContent value="sdg" className="space-y-4">
+        {activeChart === 'sdg' && (
           <Card>
             <CardHeader>
               <CardTitle>SDG Impact Distribution</CardTitle>
@@ -413,9 +454,9 @@ export function ImpactStatistics({ userId }: ImpactStatisticsProps) {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        <TabsContent value="verification" className="space-y-4">
+        {activeChart === 'verification' && (
           <div className="grid md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -470,9 +511,9 @@ export function ImpactStatistics({ userId }: ImpactStatisticsProps) {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="skills" className="space-y-4">
+        {activeChart === 'skills' && (
           <Card>
             <CardHeader>
               <CardTitle>Skills Impact Analysis</CardTitle>
@@ -514,8 +555,8 @@ export function ImpactStatistics({ userId }: ImpactStatisticsProps) {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       {/* Recent Achievements */}
       <Card>

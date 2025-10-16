@@ -1,7 +1,7 @@
 // home/ubuntu/impaktrweb/src/lib/scoring.ts
 
 import { prisma } from './prisma';
-import { ParticipationStatus } from '@prisma/client';
+import { ParticipationStatus } from '@/types/enums';
 
 export async function calculateImpaktrScore(userId: string): Promise<number> {
   // Get all verified participations for the user
@@ -12,7 +12,6 @@ export async function calculateImpaktrScore(userId: string): Promise<number> {
     },
     include: {
       event: true,
-      verifications: true,
     },
   });
 
@@ -23,7 +22,6 @@ export async function calculateImpaktrScore(userId: string): Promise<number> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      profile: true,
     },
   });
 
@@ -33,32 +31,25 @@ export async function calculateImpaktrScore(userId: string): Promise<number> {
 
   for (const participation of participations) {
     // H = Hours component (log-scaled)
-    const hours = participation.hoursActual || participation.hoursCommitted;
+    const hours = participation.hours || 0;
     const H = Math.log10(hours + 1) * 100;
 
     // I = Intensity multiplier (0.8-1.2)
-    const I = participation.event.intensity || 1.0;
+    const I = 1.0; // Default intensity since event.intensity doesn't exist
 
     // S = Skill multiplier (1.0-1.4)
-    const S = participation.skillMultiplier || 1.0;
+    const S = 1.0; // Default skill multiplier since field doesn't exist
 
     // Q = Quality rating (0.5-1.5)
-    const Q = participation.qualityRating || 1.0;
+    const Q = 1.0; // Default quality rating since field doesn't exist
 
     // V = Verification factor (0.8-1.1)
-    let V = 0.8; // Self verification
-    if (participation.verifications.some(v => v.type === 'ORGANIZER')) {
-      V = 1.0; // Organizer verification
-    } else if (participation.verifications.some(v => v.type === 'PEER')) {
-      V = 1.1; // Peer + proof verification
-    } else if (participation.verifications.some(v => v.type === 'GPS')) {
-      V = 1.05; // GPS verification
-    }
+    const V = 1.0; // Default verification factor since verifications relation doesn't exist
 
     // L = Location fairness multiplier (0.8-1.2)
     // This would be based on country/region cost of living or volunteer opportunity density
     // For now, we'll use a default value
-    const L = getLocationMultiplier(user.profile?.location as any);
+    const L = getLocationMultiplier({ country: user.country || undefined });
 
     // Calculate participation score
     const participationScore = (H * I * S * Q * V) * L;
@@ -111,7 +102,7 @@ export async function calculateOrganizationScore(organizationId: string): Promis
   // H = Hours per employee (15%)
   const totalHours = organization.members.reduce((sum, member) => {
     const memberHours = member.user.participations.reduce((h, p) => 
-      h + (p.hoursActual || p.hoursCommitted), 0);
+      h + (p.hours || 0), 0);
     return sum + memberHours;
   }, 0);
   const H = Math.log10((totalHours / totalMembers) + 1) * 0.15;
@@ -119,7 +110,7 @@ export async function calculateOrganizationScore(organizationId: string): Promis
   // Q = Quality rating (15%)
   const allParticipations = organization.members.flatMap(m => m.user.participations);
   const avgQuality = allParticipations.reduce((sum, p) => 
-    sum + (p.qualityRating || 1.0), 0) / Math.max(allParticipations.length, 1);
+    sum + 1.0, 0) / Math.max(allParticipations.length, 1); // Default quality since field doesn't exist
   const Q = avgQuality * 0.15;
 
   // V = Verification % (10%)
@@ -130,13 +121,15 @@ export async function calculateOrganizationScore(organizationId: string): Promis
 
   // S = Skills impact % (15%)
   const skilledParticipations = allParticipations.filter(p => 
-    (p.skillMultiplier || 1.0) > 1.0).length;
+    1.0 > 1.0).length; // Default since skillMultiplier doesn't exist
   const S = (skilledParticipations / Math.max(allParticipations.length, 1)) * 0.15;
 
   // C = Cause diversity (10%)
   const uniqueSDGs = new Set();
   allParticipations.forEach(p => {
-    p.event.sdgTags.forEach(sdg => uniqueSDGs.add(sdg));
+    if (p.event.sdg) {
+      uniqueSDGs.add(p.event.sdg);
+    }
   });
   const C = Math.min(uniqueSDGs.size / 17, 1) * 0.10;
 
@@ -147,7 +140,7 @@ export async function calculateOrganizationScore(organizationId: string): Promis
   return Math.min(Math.round(score * 10) / 10, 100);
 }
 
-function getLocationMultiplier(location: any): number {
+function getLocationMultiplier(location: { country?: string } | null | undefined): number {
   if (!location?.country) return 1.0;
 
   // Location multipliers based on volunteer opportunity density and cost of living

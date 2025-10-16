@@ -27,8 +27,7 @@ export const authOptions: AuthOptions = {
           const { prisma } = await import('@/lib/prisma')
 
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-            include: { profile: true }
+            where: { email: credentials.email }
           })
 
           if (!user) {
@@ -49,11 +48,11 @@ export const authOptions: AuthOptions = {
 
           return {
             id: user.id,
-            name: (user as any).name || user.email,
+            name: user.name || user.email,
             email: user.email,
-            image: user.profile?.avatar || null,
-            userType: (user as any).userType,
-            profileComplete: !!user.profile,
+            image: user.image || null,
+            userType: user.userType || 'INDIVIDUAL',
+            profileComplete: !!(user.firstName && user.lastName),
           }
         } catch (error) {
           console.error('Auth error:', error)
@@ -100,8 +99,7 @@ export const authOptions: AuthOptions = {
         if (account?.provider !== 'credentials' && user.email) {
           // Sync OAuth user with database
           const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
-            include: { profile: true }
+            where: { email: user.email }
           })
 
           if (!existingUser) {

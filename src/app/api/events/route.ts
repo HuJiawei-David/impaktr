@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { EventStatus, VerificationType } from '@prisma/client';
+import { EventStatus } from '@/types/events';
+import { Prisma } from '@prisma/client';
 
 const createEventSchema = z.object({
   title: z.string().min(1).max(200),
@@ -24,8 +25,9 @@ const createEventSchema = z.object({
   sdgTags: z.array(z.number().min(1).max(17)),
   skills: z.array(z.string()),
   intensity: z.number().min(0.8).max(1.2).default(1.0),
-  verificationType: z.nativeEnum(VerificationType).default(VerificationType.ORGANIZER),
+  verificationType: z.string().default('ORGANIZER'), // Using string since VerificationType doesn't exist
   organizationId: z.string().optional(),
+  isPublic: z.boolean().default(true),
 });
 
 const querySchema = z.object({
@@ -47,8 +49,8 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {
-      status: status || EventStatus.ACTIVE,
+    const where: Prisma.EventWhereInput = {
+      status: status || 'ACTIVE', // Using string literal since EventStatus.ACTIVE doesn't exist
     };
 
     if (search) {
@@ -59,13 +61,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (sdg) {
-      where.sdgTags = { has: sdg };
+      where.sdg = sdg.toString(); // Use sdg field instead of non-existent sdgTags
     }
 
     if (location) {
       where.location = {
-        path: ['city'],
-        string_contains: location,
+        contains: location,
+        mode: 'insensitive'
       };
     }
 
@@ -84,11 +86,6 @@ export async function GET(request: NextRequest) {
         take: limit,
         orderBy: { startDate: 'asc' },
         include: {
-          creator: {
-            include: {
-              profile: true,
-            },
-          },
           organization: true,
           _count: {
             select: {
@@ -166,16 +163,19 @@ export async function POST(request: NextRequest) {
 
     const event = await prisma.event.create({
       data: {
-        ...validatedData,
-        creatorId: user.id,
-        status: EventStatus.DRAFT,
+        title: validatedData.title,
+        description: validatedData.description,
+        startDate: validatedData.startDate,
+        endDate: validatedData.endDate || validatedData.startDate,
+        location: validatedData.location?.city || 'Virtual Event',
+        maxParticipants: validatedData.maxParticipants,
+        organizerId: user.id, // creatorId field doesn't exist, using organizerId instead
+        status: 'DRAFT', // Using string literal since EventStatus.DRAFT doesn't exist
+        type: 'VOLUNTEERING', // Default type
+        sdg: validatedData.sdgTags?.[0]?.toString() || null,
+        isPublic: validatedData.isPublic,
       },
       include: {
-        creator: {
-          include: {
-            profile: true,
-          },
-        },
         organization: true,
       },
     });

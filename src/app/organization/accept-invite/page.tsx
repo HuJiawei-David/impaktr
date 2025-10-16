@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { 
@@ -14,6 +14,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -50,17 +51,7 @@ function AcceptInviteContent() {
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!token) {
-      setError('No invitation token provided');
-      setIsLoading(false);
-      return;
-    }
-
-    fetchInvitationDetails();
-  }, [token]);
-
-  const fetchInvitationDetails = async () => {
+  const fetchInvitationDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/organization/accept-invite?token=${token}`);
       
@@ -77,7 +68,17 @@ function AcceptInviteContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setError('No invitation token provided');
+      setIsLoading(false);
+      return;
+    }
+
+    fetchInvitationDetails();
+  }, [token, fetchInvitationDetails]);
 
   const handleAcceptInvitation = async () => {
     if (!session?.user || !token) {
@@ -163,7 +164,7 @@ function AcceptInviteContent() {
             </div>
             <h1 className="text-3xl font-bold mb-2">Organization Invitation</h1>
             <p className="text-muted-foreground">
-              You've been invited to join an organization on Impaktr
+              You&apos;ve been invited to join an organization on Impaktr
             </p>
           </div>
 
@@ -232,7 +233,7 @@ function AcceptInviteContent() {
               {invitation.message && (
                 <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-500 rounded">
                   <h4 className="font-medium mb-2">Personal Message</h4>
-                  <p className="text-sm italic">"{invitation.message}"</p>
+                  <p className="text-sm italic">&quot;{invitation.message}&quot;</p>
                 </div>
               )}
 
@@ -254,7 +255,7 @@ function AcceptInviteContent() {
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    This invitation was sent to {invitation.email}, but you're signed in as {session.user.email}. 
+                    This invitation was sent to {invitation.email}, but you&apos;re signed in as {session.user.email}. 
                     Please sign in with the correct email address to accept this invitation.
                   </AlertDescription>
                 </Alert>
@@ -342,7 +343,7 @@ export default function AcceptInvitePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     }>
       <AcceptInviteContent />

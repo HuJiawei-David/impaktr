@@ -20,6 +20,7 @@ import {
   Image as ImageIcon,
   Sparkles
 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -216,7 +217,7 @@ export default function CreateCertificatePage() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -244,7 +245,7 @@ export default function CreateCertificatePage() {
                 Create Certificate Template
               </h1>
               <p className="text-muted-foreground">
-                Design and customize certificates for your organization's events and achievements
+                Design and customize certificates for your organization&apos;s events and achievements
               </p>
             </div>
           </div>
@@ -310,7 +311,7 @@ export default function CreateCertificatePage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="no_event">No specific event</SelectItem>
-                          {organizationEvents.map((event: any) => (
+                          {organizationEvents.map((event: { id: string; title: string }) => (
                             <SelectItem key={event.id} value={event.id}>
                               {event.title}
                             </SelectItem>
@@ -561,7 +562,7 @@ export default function CreateCertificatePage() {
                           <Label htmlFor="logoPosition">Logo Position</Label>
                           <Select 
                             value={watch('customization.logoPosition')}
-                            onValueChange={(value) => setValue('customization.logoPosition', value as any)}
+                            onValueChange={(value) => setValue('customization.logoPosition', value as "center" | "top" | "top-left" | "top-right")}
                           >
                             <SelectTrigger>
                               <SelectValue />

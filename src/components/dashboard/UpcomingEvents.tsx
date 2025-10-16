@@ -269,7 +269,10 @@ export function UpcomingEvents() {
           
           <div className="flex items-center space-x-2">
             <Link href="/events">
-              <Button variant="ghost" size="sm">
+              <Button 
+                size="sm" 
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+              >
                 Find More
                 <Plus className="w-4 h-4 ml-1" />
               </Button>
@@ -319,7 +322,7 @@ export function UpcomingEvents() {
               Join some events to see them here
             </p>
             <Link href="/events">
-              <Button>
+              <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3">
                 <Plus className="w-4 h-4 mr-2" />
                 Browse Events
               </Button>
@@ -469,7 +472,7 @@ export function UpcomingEvents() {
                         </Button>
                         
                         <Link href={`/events/${event.id}`}>
-                          <Button size="sm" className="text-xs h-7">
+                          <Button size="sm" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 text-xs py-2">
                             View Details
                             <ChevronRight className="w-3 h-3 ml-1" />
                           </Button>

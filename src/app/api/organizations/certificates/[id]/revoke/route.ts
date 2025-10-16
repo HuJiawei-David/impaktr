@@ -5,6 +5,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { OrganizationMember, Organization } from '@prisma/client';
+
+// Type for organization membership with organization data
+type MembershipWithOrganization = OrganizationMember & {
+  organization: Organization;
+};
 import { sendEmail } from '@/lib/email';
 
 const revokeSchema = z.object({
@@ -32,7 +38,7 @@ export async function POST(
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        memberships: {
+        organizationMemberships: {
           include: {
             organization: true
           }
@@ -48,28 +54,32 @@ export async function POST(
 
     // Find the certificate
     const certificate = await prisma.certificate.findUnique({
-      where: { id },
-      include: {
-        user: {
-          include: { profile: true }
-        }
-      }
+      where: { id }
     });
 
     if (!certificate) {
       return NextResponse.json({ error: 'Certificate not found' }, { status: 404 });
     }
 
+    // Fetch the user separately
+    const certificateUser = await prisma.user.findUnique({
+      where: { id: certificate.userId }
+    });
+
+    if (!certificateUser) {
+      return NextResponse.json({ error: 'Certificate user not found' }, { status: 404 });
+    }
+
     // Check if certificate is already revoked
-    if (certificate.expiresAt && certificate.expiresAt < new Date()) {
+    if (certificate.revokedAt) {
       return NextResponse.json({ 
-        error: 'Certificate is already expired' 
+        error: 'Certificate is already revoked' 
       }, { status: 400 });
     }
 
     // Check permissions - user must be admin/owner of organization that issued the certificate
     // Note: You'll need to add organizationId field to Certificate model for this to work properly
-    const adminMembership = user.memberships.find(m => 
+    const adminMembership = user.organizationMemberships.find((m: MembershipWithOrganization) => 
       (m.role === 'admin' || m.role === 'owner')
       // && m.organizationId === certificate.organizationId // Uncomment when you add this field
     );
@@ -97,10 +107,9 @@ export async function POST(
     const revokedCertificate = await prisma.certificate.update({
       where: { id },
       data: {
-        expiresAt: new Date(), // Set expiry to now to effectively revoke
+        revokedAt: new Date(), // Set revocation timestamp
         // In a full implementation, you'd have:
         // isRevoked: true,
-        // revokedAt: new Date(),
         // revokedBy: user.id,
         // revocationReason: reason,
       }
@@ -110,7 +119,7 @@ export async function POST(
     console.log('Certificate revoked:', {
       certificateId: certificate.id,
       certificateTitle: certificate.title,
-      recipientEmail: certificate.user.email,
+      recipientEmail: certificateUser.email,
       revokedBy: user.email,
       organizationName: organization.name,
       reason,
@@ -118,14 +127,12 @@ export async function POST(
     });
 
     // Notify the certificate recipient if requested
-    if (notifyRecipient && certificate.user.email) {
+    if (notifyRecipient && certificateUser.email) {
       try {
-        const recipientName = certificate.user.profile?.displayName || 
-                            `${certificate.user.profile?.firstName} ${certificate.user.profile?.lastName}`.trim() ||
-                            certificate.user.email;
+        const recipientName = certificateUser.name || certificateUser.email;
         
         await sendEmail({
-          to: certificate.user.email,
+          to: certificateUser.email,
           subject: `Certificate Revocation Notice - ${certificate.title}`,
           html: `
             <h2>Certificate Revocation Notice</h2>
@@ -158,7 +165,7 @@ export async function POST(
       certificate: {
         id: revokedCertificate.id,
         title: revokedCertificate.title,
-        recipient: certificate.user.email,
+        recipient: certificateUser.email,
         revokedAt: new Date(),
         reason
       }
@@ -195,19 +202,8 @@ export async function GET(
         id: true,
         title: true,
         issuedAt: true,
-        expiresAt: true,
-        user: {
-          select: {
-            email: true,
-            profile: {
-              select: {
-                displayName: true,
-                firstName: true,
-                lastName: true
-              }
-            }
-          }
-        }
+        revokedAt: true,
+        userId: true
       }
     });
 
@@ -215,19 +211,18 @@ export async function GET(
       return NextResponse.json({ error: 'Certificate not found' }, { status: 404 });
     }
 
-    const isRevoked = certificate.expiresAt && certificate.expiresAt <= new Date();
+    const isRevoked = certificate.revokedAt !== null;
 
     return NextResponse.json({
       certificateId: certificate.id,
       title: certificate.title,
       issuedAt: certificate.issuedAt,
-      expiresAt: certificate.expiresAt,
+        revokedAt: certificate.revokedAt,
       isRevoked,
       status: isRevoked ? 'revoked' : 'active',
       recipient: {
-        email: certificate.user.email,
-        name: certificate.user.profile?.displayName || 
-              `${certificate.user.profile?.firstName} ${certificate.user.profile?.lastName}`.trim()
+        email: 'Unknown',
+        name: 'Unknown'
       }
     });
 

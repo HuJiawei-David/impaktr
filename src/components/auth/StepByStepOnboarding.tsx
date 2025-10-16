@@ -2,28 +2,41 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { UserType } from '@prisma/client';
+import { UserType } from '@/types/user';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProfileTypeSelector } from './ProfileTypeSelector';
 import { IndividualRegistrationForm } from './IndividualRegistrationForm';
 import { OrganizationRegistrationForm } from './OrganizationRegistrationForm';
-import { sdgs } from '@/constants/sdgs';
+import { SDGSelector } from '@/components/ui/sdg-selector';
 
 interface FormData {
+  // Individual fields
   firstName?: string;
   lastName?: string;
   dateOfBirth?: string;
   nationality?: string;
+  gender?: string;
+  occupation?: string;
+  bio?: string;
+  languages?: string[];
+  
+  // Organization fields
+  organizationName?: string;
+  type?: string;
+  description?: string;
+  contactPersonName?: string;
+  contactPersonRole?: string;
+  contactPersonEmail?: string;
+  contactPersonPhone?: string;
+  website?: string;
+  
+  // Common fields
   city?: string;
   state?: string;
-  occupation?: string;
-  organization?: string;
-  bio?: string;
-  gender?: string;
   country?: string;
-  languages?: string[];
+  organization?: string;
   sdgInterests?: number[];
   privacy?: {
     isPublic: boolean;
@@ -75,16 +88,6 @@ const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { 
     sdgInterests: [] as number[], // Changed to store SDG IDs
   });
 
-  const handleSDGToggle = useCallback((sdgId: number) => {
-    setPreferences(prevPreferences => {
-      const newSDGInterests = prevPreferences.sdgInterests.includes(sdgId)
-        ? prevPreferences.sdgInterests.filter(id => id !== sdgId)
-        : [...prevPreferences.sdgInterests, sdgId];
-      
-      const newPreferences = { ...prevPreferences, sdgInterests: newSDGInterests };
-      return newPreferences;
-    });
-  }, []);
 
   // Call onDataChange when preferences change
   useEffect(() => {
@@ -190,50 +193,18 @@ const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { 
           UN Sustainable Development Goals
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Select the SDGs you&apos;re most passionate about (optional, select up to 8)
+          Select the SDGs you&apos;re most passionate about (optional)
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {sdgs.map((sdg) => (
-            <label 
-              key={sdg.id} 
-              className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
-                preferences.sdgInterests.includes(sdg.id)
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={preferences.sdgInterests.includes(sdg.id)}
-                onChange={() => handleSDGToggle(sdg.id)}
-                disabled={!preferences.sdgInterests.includes(sdg.id) && preferences.sdgInterests.length >= 8}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
-              />
-              <div className="flex items-center space-x-3 flex-1">
-                <span className="text-2xl">{sdg.icon}</span>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      SDG {sdg.id}
-                    </span>
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: sdg.color }}
-                    ></div>
-                  </div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {sdg.shortTitle}
-                  </span>
-                </div>
-              </div>
-            </label>
-          ))}
-        </div>
-        {preferences.sdgInterests.length >= 8 && (
-          <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-            Maximum of 8 SDGs selected. Deselect one to choose another.
-          </p>
-        )}
+        <SDGSelector
+          selectedSDGs={preferences.sdgInterests}
+          onSelectionChange={(sdgs) => {
+            setPreferences(prev => ({ ...prev, sdgInterests: sdgs }));
+          }}
+          maxSelection={17}
+          showDescription={true}
+          compact={false}
+          showSelectAll={true}
+        />
       </div>
     </div>
   );
@@ -241,6 +212,8 @@ const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { 
 
 // Review Step Component
 const ReviewStep = React.memo(function ReviewStep({ onDataChange, formData }: { onDataChange?: (data: FormData) => void; formData?: FormData }) {
+  const isIndividual = formData?.firstName !== undefined;
+  
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -250,11 +223,103 @@ const ReviewStep = React.memo(function ReviewStep({ onDataChange, formData }: { 
           </svg>
         </div>
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          Almost Done!
+          Review Your Information
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Review your information and complete your profile setup
+          Please verify your details before completing setup
         </p>
+      </div>
+
+      {/* Display submitted information */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="p-6 space-y-6">
+          <div>
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+              <span className="text-blue-600 mr-2">👤</span>
+              Basic Information
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              {isIndividual ? (
+                <>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Name:</span>
+                    <p className="font-medium text-gray-900 dark:text-white">{formData?.firstName} {formData?.lastName}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Date of Birth:</span>
+                    <p className="font-medium text-gray-900 dark:text-white">{formData?.dateOfBirth}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Nationality:</span>
+                    <p className="font-medium text-gray-900 dark:text-white">{formData?.nationality}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Organization Name:</span>
+                    <p className="font-medium text-gray-900 dark:text-white">{formData?.organizationName}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Type:</span>
+                    <p className="font-medium text-gray-900 dark:text-white">{formData?.type}</p>
+                  </div>
+                  {formData?.industry && (
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Industry:</span>
+                      <p className="font-medium text-gray-900 dark:text-white">{String(formData?.industry)}</p>
+                    </div>
+                  )}
+                  {formData?.companySize && (
+                    <div>
+                      <span className="text-gray-500 dark:text-gray-400">Company Size:</span>
+                      <p className="font-medium text-gray-900 dark:text-white">{String(formData?.companySize)}</p>
+                    </div>
+                  )}
+                </>
+              )}
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Location:</span>
+                <p className="font-medium text-gray-900 dark:text-white">{formData?.city}, {formData?.state}, {formData?.country}</p>
+              </div>
+            </div>
+          </div>
+
+          {formData?.sdgFocus && Array.isArray(formData.sdgFocus) && formData.sdgFocus.length > 0 ? (
+            <div>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                <span className="text-green-600 mr-2">🌍</span>
+                SDG Focus Areas
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {formData.sdgFocus.map((sdgId: number) => (
+                  <span 
+                    key={sdgId}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+                  >
+                    SDG {sdgId}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Privacy Settings */}
+          <div>
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+              <span className="text-purple-600 mr-2">🔒</span>
+              Privacy Settings
+            </h4>
+            <div className="space-y-2 text-sm">
+              <p className="text-gray-700 dark:text-gray-300">
+                Profile visibility: <span className="font-medium">{formData?.isPublic ? 'Public' : 'Private'}</span>
+              </p>
+              <p className="text-gray-700 dark:text-gray-300">
+                Email visibility: <span className="font-medium">{formData?.showEmail ? 'Visible' : 'Hidden'}</span>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
@@ -301,30 +366,60 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
   const validateBasicInfo = useCallback((data: FormData) => {
     const errors: string[] = [];
     
-    if (!data.firstName?.trim()) {
-      errors.push('First name is required');
-    }
-    if (!data.lastName?.trim()) {
-      errors.push('Last name is required');
-    }
-    if (!data.dateOfBirth) {
-      errors.push('Date of birth is required');
-    }
-    if (!data.nationality) {
-      errors.push('Nationality is required');
-    }
-    if (!data.city?.trim()) {
-      errors.push('City is required');
-    }
-    if (!data.state?.trim()) {
-      errors.push('State is required');
-    }
-    if (!data.country) {
-      errors.push('Country is required');
+    // Check if this is individual or organization registration
+    if (selectedProfileType === UserType.INDIVIDUAL) {
+      // Individual validation
+      if (!data.firstName?.trim()) {
+        errors.push('First name is required');
+      }
+      if (!data.lastName?.trim()) {
+        errors.push('Last name is required');
+      }
+      if (!data.dateOfBirth) {
+        errors.push('Date of birth is required');
+      }
+      if (!data.nationality) {
+        errors.push('Nationality is required');
+      }
+      if (!data.city?.trim()) {
+        errors.push('City is required');
+      }
+      if (!data.state?.trim()) {
+        errors.push('State is required');
+      }
+      if (!data.country) {
+        errors.push('Country is required');
+      }
+    } else {
+      // Organization validation
+      if (!data.organizationName?.trim()) {
+        errors.push('Organization name is required');
+      }
+      if (!data.type?.trim()) {
+        errors.push('Organization type is required');
+      }
+      if (!data.description?.trim()) {
+        errors.push('Description is required');
+      }
+      if (!data.city?.trim()) {
+        errors.push('City is required');
+      }
+      if (!data.country) {
+        errors.push('Country is required');
+      }
+      if (!data.contactPersonName?.trim()) {
+        errors.push('Contact person name is required');
+      }
+      if (!data.contactPersonRole?.trim()) {
+        errors.push('Contact person role is required');
+      }
+      if (!data.contactPersonEmail?.trim()) {
+        errors.push('Contact person email is required');
+      }
     }
     
     return { isValid: errors.length === 0, errors };
-  }, []);
+  }, [selectedProfileType]);
 
   // Check if profile type is already selected from sessionStorage or URL
   useEffect(() => {
@@ -446,25 +541,42 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
       });
       console.log('FormData entries:', formDataEntries);
 
-      // Submit to registration API
-      const response = await fetch('/api/users/register', {
+      // Add profileType for organizations
+      if (selectedProfileType && selectedProfileType !== UserType.INDIVIDUAL) {
+        submitData.append('profileType', selectedProfileType);
+      }
+
+      // Submit to the appropriate registration API based on profile type
+      const apiEndpoint = selectedProfileType === UserType.INDIVIDUAL 
+        ? '/api/users/register' 
+        : '/api/organizations/register';
+      
+      console.log('Submitting to:', apiEndpoint);
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         body: submitData,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          throw new Error(`Registration failed with status ${response.status}`);
+        }
+        
         console.error('Registration failed:', errorData);
         
         // Show detailed error message
-        if (errorData.details) {
+        if (errorData.details && Array.isArray(errorData.details)) {
           const fieldErrors = errorData.details.map((d: { field: string; message: string }) => 
             `${d.field}: ${d.message}`
           ).join(', ');
           throw new Error(`Validation failed: ${fieldErrors}`);
         }
         
-        throw new Error(errorData.error || 'Registration failed');
+        throw new Error(errorData.error || `Registration failed with status ${response.status}`);
       }
 
       // Handle completion logic here
@@ -473,8 +585,17 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
       } else {
         // Default completion behavior
         sessionStorage.setItem('onboardingComplete', 'true');
-        // Use window.location for navigation to avoid router issues
-        window.location.href = '/dashboard';
+        
+        // Force session refresh for organization users
+        if (selectedProfileType && selectedProfileType !== UserType.INDIVIDUAL) {
+          // Force a session update by calling the session endpoint
+          await fetch('/api/auth/session?update=true');
+          // Use window.location for navigation to avoid router issues
+          window.location.href = '/dashboard';
+        } else {
+          // Use window.location for navigation to avoid router issues
+          window.location.href = '/dashboard';
+        }
       }
     } catch (error) {
       console.error('Error completing onboarding:', error);

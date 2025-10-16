@@ -5,6 +5,24 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { OrganizationMember, Participation, User, Event } from '@prisma/client';
+
+// Extended types for relations
+type UserWithParticipations = User & {
+  participations: (Participation & {
+    event: Event;
+  })[];
+  badges: {
+    badge: {
+      id: string;
+      name: string;
+    };
+  }[];
+};
+
+type MembershipWithUser = OrganizationMember & {
+  user: UserWithParticipations;
+};
 
 const updateRoleSchema = z.object({
   role: z.enum(['member', 'admin']),
@@ -29,7 +47,7 @@ export async function PUT(
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        ownedOrganizations: true
+        organizationMemberships: true
       }
     });
 
@@ -43,7 +61,15 @@ export async function PUT(
       include: {
         organization: true,
         user: {
-          include: { profile: true }
+          include: { 
+            participations: {
+              where: { status: 'VERIFIED' },
+              include: { event: true }
+            },
+            badges: {
+              include: { badge: true }
+            }
+          }
         }
       }
     });
@@ -52,19 +78,26 @@ export async function PUT(
       return NextResponse.json({ error: 'Membership not found' }, { status: 404 });
     }
 
-    // Check permissions - only organization owner can change roles
-    const isOwner = membership.organization.ownerId === user.id;
+    // Check permissions - only organization admins can change roles
+    const userMembership = await prisma.organizationMember.findUnique({
+      where: {
+        organizationId_userId: {
+          organizationId: membership.organizationId,
+          userId: user.id
+        }
+      }
+    });
     
-    if (!isOwner) {
+    if (!userMembership || (userMembership.role !== 'admin' && userMembership.role !== 'owner')) {
       return NextResponse.json({ 
-        error: 'Only organization owners can change member roles' 
+        error: 'Only organization admins can change member roles' 
       }, { status: 403 });
     }
 
-    // Cannot change owner's role
-    if (membership.organization.ownerId === membership.userId) {
+    // Cannot change admin's role to non-admin
+    if (membership.role === 'admin' && role !== 'admin') {
       return NextResponse.json({ 
-        error: 'Cannot change organization owner role' 
+        error: 'Cannot demote organization admin' 
       }, { status: 400 });
     }
 
@@ -76,9 +109,7 @@ export async function PUT(
         updatedAt: new Date()
       },
       include: {
-        user: {
-          include: { profile: true }
-        },
+        user: true,
         organization: {
           select: {
             id: true,
@@ -92,15 +123,11 @@ export async function PUT(
     await prisma.organizationActivity.create({
       data: {
         organizationId: membership.organizationId,
-        type: 'MEMBER_ROLE_CHANGED',
-        description: `${membership.user.profile?.displayName || membership.user.email}'s role changed to ${role}`,
-        metadata: {
-          memberId: membership.userId,
-          oldRole: membership.role,
-          newRole: role,
-          changedBy: user.id
-        },
-        performedBy: user.id
+        description: `${(membership as MembershipWithUser).user?.name || (membership as MembershipWithUser).user?.email}'s role changed to ${role}`,
+        activityType: 'MEMBER_ROLE_CHANGED',
+        title: 'Member Role Changed',
+        impactPoints: 0,
+        participantCount: 1
       }
     });
 
@@ -116,12 +143,11 @@ export async function PUT(
         updatedAt: updatedMembership.updatedAt,
         user: {
           id: updatedMembership.user.id,
-          name: updatedMembership.user.profile?.displayName || 
-                `${updatedMembership.user.profile?.firstName} ${updatedMembership.user.profile?.lastName}`.trim(),
+          name: updatedMembership.user.name || updatedMembership.user.email,
           email: updatedMembership.user.email,
-          avatar: updatedMembership.user.profile?.avatar,
-          impaktrScore: updatedMembership.user.impaktrScore,
-          currentRank: updatedMembership.user.currentRank,
+          avatar: updatedMembership.user.image,
+          impaktrScore: updatedMembership.user.impactScore,
+          currentRank: updatedMembership.user.tier,
         }
       }
     });
@@ -170,14 +196,13 @@ export async function GET(
         organization: true,
         user: {
           include: { 
-            profile: true,
             participations: {
               where: { status: 'VERIFIED' },
               include: { event: true }
             },
             badges: {
               include: { badge: true },
-              where: { earnedAt: { not: null } }
+              // where: { earnedAt: { not: null } } // earnedAt field doesn't exist in UserBadge model
             }
           }
         }
@@ -189,7 +214,6 @@ export async function GET(
     }
 
     // Check if user has permission to view this membership
-    const isOwner = membership.organization.ownerId === user.id;
     const isMemberSelf = membership.userId === user.id;
     const userMembership = await prisma.organizationMember.findUnique({
       where: {
@@ -200,20 +224,22 @@ export async function GET(
       }
     });
     const isAdmin = userMembership?.role === 'admin';
+    const isOwner = userMembership?.role === 'owner';
 
     if (!isOwner && !isAdmin && !isMemberSelf) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
     // Calculate member stats
-    const totalHours = membership.user.participations.reduce((sum, p) => 
-      sum + (p.hoursActual || p.hoursCommitted), 0);
+    const membershipWithUser = membership as MembershipWithUser;
+    const totalHours = membershipWithUser.user?.participations?.reduce((sum: number, p: Participation) => 
+      sum + (p.hours || 0), 0);
     
-    const orgEvents = membership.user.participations.filter(p => 
+    const orgEvents = membershipWithUser.user?.participations?.filter((p: Participation & { event: Event }) => 
       p.event.organizationId === membership.organizationId);
     
-    const orgHours = orgEvents.reduce((sum, p) => 
-      sum + (p.hoursActual || p.hoursCommitted), 0);
+    const orgHours = orgEvents?.reduce((sum: number, p: Participation) => 
+      sum + (p.hours || 0), 0) || 0;
 
     return NextResponse.json({
       member: {
@@ -223,22 +249,21 @@ export async function GET(
         joinedAt: membership.joinedAt,
         user: {
           id: membership.user.id,
-          name: membership.user.profile?.displayName || 
-                `${membership.user.profile?.firstName} ${membership.user.profile?.lastName}`.trim(),
-          email: membership.user.email,
-          avatar: membership.user.profile?.avatar,
-          impaktrScore: membership.user.impaktrScore,
-          currentRank: membership.user.currentRank,
-          location: membership.user.profile?.location,
-          occupation: membership.user.profile?.occupation,
-          bio: membership.user.profile?.bio,
+          name: (membership as MembershipWithUser).user?.name || (membership as MembershipWithUser).user?.email,
+          email: (membership as MembershipWithUser).user?.email,
+          avatar: (membership as MembershipWithUser).user?.image,
+          impactScore: (membership as MembershipWithUser).user?.impactScore || 0,
+          tier: (membership as MembershipWithUser).user?.tier || 'BRONZE',
+          location: (membership as MembershipWithUser).user?.location,
+          occupation: (membership as MembershipWithUser).user?.bio,
+          bio: (membership as MembershipWithUser).user?.bio,
           stats: {
             totalHours,
             organizationHours: orgHours,
             organizationEvents: orgEvents.length,
-            totalEvents: membership.user.participations.length,
-            badgesEarned: membership.user.badges.length,
-            lastActive: membership.user.lastActiveAt
+            totalEvents: (membership as MembershipWithUser).user?.participations?.length || 0,
+            badgesEarned: (membership as MembershipWithUser).user?.badges?.length || 0,
+            lastActive: (membership as MembershipWithUser).user?.updatedAt
           }
         },
         organization: {

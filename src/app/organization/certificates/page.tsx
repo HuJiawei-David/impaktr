@@ -26,11 +26,11 @@ import {
   Upload
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -113,10 +113,22 @@ export default function OrganizationCertificatesPage() {
   const [isCreateTemplateOpen, setIsCreateTemplateOpen] = useState(false);
   const [isBulkIssueOpen, setIsBulkIssueOpen] = useState(false);
 
-  const [newTemplate, setNewTemplate] = useState({
+  const [newTemplate, setNewTemplate] = useState<{
+    name: string;
+    description: string;
+    category: "participation" | "achievement" | "completion" | "leadership";
+    customization: {
+      primaryColor: string;
+      secondaryColor: string;
+      allowColorChange: boolean;
+      allowLogoChange: boolean;
+      allowBackgroundChange: boolean;
+      requiredFields: string[];
+    };
+  }>({
     name: '',
     description: '',
-    category: 'participation' as const,
+    category: 'participation',
     customization: {
       primaryColor: '#0ea5e9',
       secondaryColor: '#64748b',
@@ -130,7 +142,7 @@ export default function OrganizationCertificatesPage() {
   const [bulkIssue, setBulkIssue] = useState({
     templateId: '',
     eventId: '',
-    recipients: [] as Array<{ name: string; email: string; customData?: any }>,
+    recipients: [] as Array<{ name: string; email: string; customData?: Record<string, unknown> }>,
     customMessage: ''
   });
 
@@ -281,7 +293,7 @@ export default function OrganizationCertificatesPage() {
   if (isLoading || isLoadingData) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -376,16 +388,48 @@ export default function OrganizationCertificatesPage() {
         </Card>
       </div>
 
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="issued">Issued Certificates</TabsTrigger>
-          <TabsTrigger value="templates">Certificate Templates</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
+      {/* Main Navigation */}
+      <div className="space-y-6">
+        {/* Pill-like Navigation */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={activeTab === 'issued' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('issued')}
+            className={`rounded-full px-6 py-2 ${
+              activeTab === 'issued' 
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Issued Certificates
+          </Button>
+          <Button
+            variant={activeTab === 'templates' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('templates')}
+            className={`rounded-full px-6 py-2 ${
+              activeTab === 'templates' 
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Certificate Templates
+          </Button>
+          <Button
+            variant={activeTab === 'analytics' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('analytics')}
+            className={`rounded-full px-6 py-2 ${
+              activeTab === 'analytics' 
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+            }`}
+          >
+            Analytics
+          </Button>
+        </div>
 
-        {/* Issued Certificates Tab */}
-        <TabsContent value="issued" className="space-y-6">
+        {/* Issued Certificates Tab Content */}
+        {activeTab === 'issued' && (
+          <div className="space-y-6">
           {/* Search and Filters */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
@@ -511,10 +555,12 @@ export default function OrganizationCertificatesPage() {
               </Card>
             )}
           </div>
-        </TabsContent>
+          </div>
+        )}
 
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="space-y-6">
+        {/* Templates Tab Content */}
+        {activeTab === 'templates' && (
+          <div className="space-y-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {templates.map((template) => (
               <Card key={template.id} className="hover:shadow-md transition-shadow">
@@ -598,10 +644,12 @@ export default function OrganizationCertificatesPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
+          </div>
+        )}
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
+        {/* Analytics Tab Content */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Certificate Issuance Over Time */}
             <Card>
@@ -704,8 +752,9 @@ export default function OrganizationCertificatesPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-      </Tabs>
+          </div>
+        )}
+      </div>
 
       {/* Create Template Modal */}
       <Dialog open={isCreateTemplateOpen} onOpenChange={setIsCreateTemplateOpen}>
@@ -739,7 +788,7 @@ export default function OrganizationCertificatesPage() {
               <Label htmlFor="templateCategory">Category</Label>
               <Select 
                 value={newTemplate.category} 
-                onValueChange={(value: any) => setNewTemplate(prev => ({ ...prev, category: value }))}
+                onValueChange={(value: "participation" | "achievement" | "completion" | "leadership") => setNewTemplate(prev => ({ ...prev, category: value }))}
               >
                 <SelectTrigger>
                   <SelectValue />

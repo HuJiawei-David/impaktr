@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { UserType } from '@prisma/client';
+import { UserType } from '@/types/enums';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
     // Check if user already exists
     let user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { profile: true }
     });
 
     if (!user) {
@@ -26,31 +25,22 @@ export async function POST(request: NextRequest) {
       user = await prisma.user.create({
         data: {
           email,
-          userType: UserType.INDIVIDUAL, // Default, will be updated during onboarding
-          profile: {
-            create: {
-              firstName: name?.split(' ')[0] || '',
-              lastName: name?.split(' ').slice(1).join(' ') || '',
-              displayName: name || '',
-              avatar: picture || null,
-            }
-          }
+          firstName: name?.split(' ')[0] || '',
+          lastName: name?.split(' ').slice(1).join(' ') || '',
+          displayName: name || '',
+          name: name || '',
+          image: picture || null,
+          password: '', // Will be set during onboarding
         },
-        include: { profile: true }
       });
     } else {
-      // Update existing user's last active time and profile if needed
+      // Update existing user's last active time and image if needed
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          lastActiveAt: new Date(),
-          profile: {
-            update: {
-              avatar: picture || user.profile?.avatar,
-            }
-          }
+          lastActivityDate: new Date(),
+          image: picture || user.image,
         },
-        include: { profile: true }
       });
     }
 

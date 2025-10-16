@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { OrganizationMember } from '@prisma/client';
 
 const addMemberSchema = z.object({
   email: z.string().email(),
@@ -21,8 +22,7 @@ export async function GET(request: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        ownedOrganizations: true,
-        memberships: {
+        organizationMemberships: {
           include: {
             organization: true
           }
@@ -40,7 +40,8 @@ export async function GET(request: NextRequest) {
     
     if (!organizationId) {
       // Use first owned organization or first membership
-      const organization = user.ownedOrganizations[0] || user.memberships[0]?.organization;
+      const ownedMembership = user.organizationMemberships.find(membership => membership.role === 'owner');
+      const organization = ownedMembership ? { id: ownedMembership.organizationId } : user.organizationMemberships[0]?.organization;
       if (!organization) {
         return NextResponse.json({ error: 'No organization found' }, { status: 404 });
       }
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const isOwner = user.ownedOrganizations.some(org => org.id === organizationId);
+      const isOwner = user.organizationMemberships.some((org: OrganizationMember) => org.organizationId === organizationId && org.role === 'owner');
     const isAdmin = membership?.role === 'admin';
 
     if (!isOwner && !isAdmin) {
@@ -70,7 +71,6 @@ export async function GET(request: NextRequest) {
       include: {
         user: {
           include: {
-            profile: true,
             participations: {
               where: { status: 'VERIFIED' },
               include: { event: true }
@@ -101,20 +101,19 @@ export async function GET(request: NextRequest) {
       joinedAt: member.joinedAt,
       user: {
         id: member.user.id,
-        name: member.user.profile?.displayName || 
-              `${member.user.profile?.firstName} ${member.user.profile?.lastName}`.trim(),
+        name: member.user.name || member.user.email,
         email: member.user.email,
-        avatar: member.user.profile?.avatar,
-        impaktrScore: member.user.impaktrScore,
-        currentRank: member.user.currentRank,
-        location: member.user.profile?.location,
-        occupation: member.user.profile?.occupation,
+        avatar: member.user.image,
+        impactScore: member.user.impactScore,
+        tier: member.user.tier,
+        location: member.user.location,
+        occupation: member.user.bio,
         stats: {
           totalHours: member.user.participations.reduce((sum, p) => 
-            sum + (p.hoursActual || p.hoursCommitted), 0),
+            sum + (p.hours || 0), 0),
           eventsParticipated: member.user.participations.length,
           badgesEarned: member.user.badges.filter(b => b.earnedAt).length,
-          lastActive: member.user.lastActiveAt
+          lastActive: member.user.updatedAt
         }
       }
     }));
@@ -147,8 +146,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        ownedOrganizations: true,
-        memberships: {
+        organizationMemberships: {
           include: { organization: true }
         }
       }
@@ -166,7 +164,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has permission to add members
-    const isOwner = user.ownedOrganizations.some(org => org.id === organizationId);
+      const isOwner = user.organizationMemberships.some((org: OrganizationMember) => org.organizationId === organizationId && org.role === 'owner');
     const membership = await prisma.organizationMember.findUnique({
       where: {
         organizationId_userId: {
@@ -184,7 +182,6 @@ export async function POST(request: NextRequest) {
     // Check if target user exists
     const targetUser = await prisma.user.findUnique({
       where: { email },
-      include: { profile: true }
     });
 
     if (!targetUser) {
@@ -216,7 +213,6 @@ export async function POST(request: NextRequest) {
       include: {
         user: {
           include: {
-            profile: true
           }
         },
         organization: {
@@ -239,12 +235,11 @@ export async function POST(request: NextRequest) {
         joinedAt: newMembership.joinedAt,
         user: {
           id: newMembership.user.id,
-          name: newMembership.user.profile?.displayName || 
-                `${newMembership.user.profile?.firstName} ${newMembership.user.profile?.lastName}`.trim(),
+          name: newMembership.user.name || newMembership.user.email,
           email: newMembership.user.email,
-          avatar: newMembership.user.profile?.avatar,
-          impaktrScore: newMembership.user.impaktrScore,
-          currentRank: newMembership.user.currentRank,
+          avatar: newMembership.user.image,
+          impactScore: newMembership.user.impactScore,
+          tier: newMembership.user.tier,
         }
       }
     }, { status: 201 });

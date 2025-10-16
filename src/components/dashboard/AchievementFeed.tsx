@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,11 +69,7 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
   const [isLoading, setIsLoading] = useState(true);
   const [showComments, setShowComments] = useState<{ [key: string]: boolean }>({});
 
-  useEffect(() => {
-    fetchAchievementFeed();
-  }, []);
-
-  const fetchAchievementFeed = async () => {
+  const fetchAchievementFeed = useCallback(async () => {
     try {
       // Mock data for demonstration
       const mockPosts: AchievementPost[] = [
@@ -171,7 +167,11 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [maxItems]);
+
+  useEffect(() => {
+    fetchAchievementFeed();
+  }, [fetchAchievementFeed]);
 
   const handleLike = (postId: string) => {
     setPosts(posts.map(post => {
@@ -249,7 +249,7 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
 
   if (isLoading) {
     return (
-      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+      <Card className="border border-gray-200 dark:border-gray-700 shadow-sm bg-white dark:bg-gray-800">
         <CardHeader>
           <CardTitle className="flex items-center text-base">
             <Trophy className="w-5 h-5 mr-2" />
@@ -275,29 +275,12 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
   }
 
   return (
-    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center justify-between text-base">
-          <span className="flex items-center">
-            <Trophy className="w-5 h-5 mr-2 text-yellow-500" />
-            {compact ? 'Recent Achievements' : 'Achievement Feed'}
-          </span>
-          {compact && (
-            <Button variant="ghost" size="sm">
-              View All
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="p-0">
-        <div className="space-y-0">
-          {posts.map((post) => {
-            const sdg = post.achievement.sdgNumber ? getSDGById(post.achievement.sdgNumber) : null;
-            
-            return (
-              <div key={post.id} className="p-4 border-b border-gray-100 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+    <div className="space-y-3">
+      {posts.map((post) => {
+        const sdg = post.achievement.sdgNumber ? getSDGById(post.achievement.sdgNumber) : null;
+        
+        return (
+          <div key={post.id} className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors shadow-sm">
                 {/* Post Header */}
                 <div className="flex items-start space-x-3 mb-3">
                   <Avatar className="w-10 h-10">
@@ -450,20 +433,18 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                   </div>
                 )}
               </div>
-            );
-          })}
+        );
+      })}
+      
+      {/* Load More */}
+      {!compact && posts.length >= maxItems && (
+        <div className="text-center pt-4">
+          <Button variant="ghost" size="sm">
+            Load More Achievements
+          </Button>
         </div>
-
-        {/* Load More */}
-        {!compact && posts.length >= maxItems && (
-          <div className="p-4 text-center border-t border-gray-100 dark:border-gray-700">
-            <Button variant="ghost" size="sm">
-              Load More Achievements
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }
 

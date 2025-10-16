@@ -6,6 +6,47 @@ import { prisma } from '@/lib/prisma';
 import { generateCertificatePDF } from '@/lib/certificate-generator';
 import { uploadToS3 } from '@/lib/aws';
 
+// Certificate data types
+interface BaseCertificateData {
+  recipientName: string;
+  recipientEmail: string;
+  issueDate: Date;
+}
+
+interface ParticipationCertificateData extends BaseCertificateData {
+  type: 'Event Participation';
+  eventName: string;
+  eventDate: Date;
+  hoursContributed: number;
+  organizationName: string;
+  sdg: string | null;
+}
+
+interface BadgeCertificateData extends BaseCertificateData {
+  type: 'Badge Achievement';
+  badgeName: string;
+  badgeDescription: string;
+  badgeIcon: string;
+  earnedDate: Date;
+}
+
+interface AchievementCertificateData extends BaseCertificateData {
+  type: 'Milestone Achievement';
+  achievementName: string;
+  achievementDescription: string;
+  achievementDate: Date;
+  achievementData: { points: number };
+}
+
+interface RankCertificateData extends BaseCertificateData {
+  type: 'Rank Achievement';
+  rankTitle: string;
+  impaktrScore: number;
+  achievementDate: Date;
+}
+
+type CertificateData = ParticipationCertificateData | BadgeCertificateData | AchievementCertificateData | RankCertificateData;
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -18,18 +59,17 @@ export async function POST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { profile: true }
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    let certificateData: any = {
-      recipientName: user.profile?.displayName || `${user.profile?.firstName} ${user.profile?.lastName}`.trim(),
+    let certificateData: CertificateData = {
+      recipientName: user.name || user.email,
       recipientEmail: user.email,
       issueDate: new Date(),
-    };
+    } as CertificateData;
 
     let title = '';
     let description = '';
@@ -44,7 +84,6 @@ export async function POST(request: NextRequest) {
           include: { 
             event: {
               include: {
-                creator: { include: { profile: true } },
                 organization: true
               }
             }
@@ -58,13 +97,12 @@ export async function POST(request: NextRequest) {
         certificateData = {
           ...certificateData,
           type: 'Event Participation',
-          eventTitle: participation.event.title,
+          eventName: participation.event.title,
           eventDate: participation.event.startDate,
-          hoursContributed: participation.hoursActual || participation.hoursCommitted,
-          organizer: participation.event.organization?.name || participation.event.creator.profile?.displayName,
-          sdgTags: participation.event.sdgTags,
-          verificationMethod: participation.event.verificationType
-        };
+          hoursContributed: participation.hours || 0,
+          organizationName: participation.event.organization?.name || 'Event Organizer',
+          sdg: participation.event.sdg
+        } as ParticipationCertificateData;
         break;
 
       case 'badge':
@@ -82,28 +120,28 @@ export async function POST(request: NextRequest) {
 
         if (!userBadge || !userBadge.earnedAt) throw new Error('Badge not earned');
 
-        title = `${userBadge.badge.name} Badge Certificate`;
-        description = `Certificate for earning the ${userBadge.badge.name} badge`;
+        title = `${userBadge.badge.name || 'Unknown'} Badge Certificate`;
+        description = `Certificate for earning the ${userBadge.badge.name || 'Unknown'} badge`;
         certificateData = {
           ...certificateData,
-          type: 'SDG Badge Achievement',
-          badgeName: userBadge.badge.name,
-          sdgNumber: userBadge.badge.sdgNumber,
-          tier: userBadge.badge.tier,
+          type: 'Badge Achievement',
+          badgeName: userBadge.badge.name || 'Unknown',
+          badgeDescription: userBadge.badge.description,
+          badgeIcon: userBadge.badge.icon,
           earnedDate: userBadge.earnedAt
-        };
+        } as BadgeCertificateData;
         break;
 
       case 'rank':
-        title = `${user.currentRank} Rank Achievement`;
-        description = `Certificate for achieving ${user.currentRank} rank`;
+        title = `${user.tier} Rank Achievement`;
+        description = `Certificate for achieving ${user.tier} rank`;
         certificateData = {
           ...certificateData,
           type: 'Rank Achievement',
-          rankTitle: user.currentRank,
-          impaktrScore: user.impaktrScore,
+          rankTitle: user.tier,
+          impaktrScore: user.impactScore,
           achievementDate: new Date()
-        };
+        } as RankCertificateData;
         break;
 
       case 'milestone':
@@ -115,16 +153,16 @@ export async function POST(request: NextRequest) {
 
         if (!achievement) throw new Error('Achievement not found');
 
-        title = `${achievement.name} Achievement`;
-        description = achievement.description;
+        title = `${achievement.title || 'Unknown'} Achievement`;
+        description = achievement.description || 'Achievement completed';
         certificateData = {
           ...certificateData,
           type: 'Milestone Achievement',
-          achievementName: achievement.name,
-          achievementDescription: achievement.description,
-          achievementDate: achievement.earnedAt,
-          achievementData: achievement.data
-        };
+          achievementName: achievement.title || 'Unknown',
+          achievementDescription: achievement.description || 'Achievement completed',
+          achievementDate: achievement.verifiedAt || achievement.createdAt,
+          achievementData: { points: achievement.points || 0 }
+        } as AchievementCertificateData;
         break;
 
       default:
@@ -148,12 +186,10 @@ export async function POST(request: NextRequest) {
         type,
         title,
         description,
-        badgeId,
-        achievementId,
+        // badgeId field doesn't exist in Certificate model
+        // achievementId field doesn't exist in Certificate model
         eventId,
-        participationId,
-        certificateUrl,
-        shareUrl,
+        // participationId, certificateUrl, shareUrl fields don't exist in Certificate model
         issuedAt: new Date()
       }
     });

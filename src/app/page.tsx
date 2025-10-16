@@ -450,61 +450,35 @@ export default function HomePage() {
     <div className="min-h-screen bg-white dark:bg-gray-950">
       <main>
         {/* Polished Tech Hero Section */}
-        <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-white dark:bg-gray-950 pt-20 pb-12">
-          {/* Dreamy animated background elements */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Large dreamy floating bubbles with glow */}
-            <div className="absolute top-20 left-20 w-16 h-16 bg-gradient-to-br from-blue-400/30 to-cyan-400/20 rounded-full shadow-2xl shadow-blue-400/20 animate-bounce blur-sm" style={{ animationDelay: '0s', animationDuration: '6s' }}></div>
-            <div className="absolute top-32 right-24 w-12 h-12 bg-gradient-to-br from-purple-400/35 to-pink-400/25 rounded-full shadow-2xl shadow-purple-400/25 animate-bounce blur-sm" style={{ animationDelay: '1s', animationDuration: '7s' }}></div>
-            <div className="absolute bottom-32 left-32 w-10 h-10 bg-gradient-to-br from-emerald-400/40 to-teal-400/30 rounded-full shadow-2xl shadow-emerald-400/20 animate-bounce blur-sm" style={{ animationDelay: '2s', animationDuration: '5.5s' }}></div>
-            <div className="absolute top-1/2 left-16 w-20 h-20 bg-gradient-to-br from-cyan-400/25 to-blue-400/20 rounded-full shadow-2xl shadow-cyan-400/15 animate-bounce blur-sm" style={{ animationDelay: '0.5s', animationDuration: '8s' }}></div>
-            <div className="absolute bottom-20 right-16 w-14 h-14 bg-gradient-to-br from-violet-400/30 to-purple-400/25 rounded-full shadow-2xl shadow-violet-400/20 animate-bounce blur-sm" style={{ animationDelay: '1.5s', animationDuration: '6.5s' }}></div>
-            <div className="absolute top-16 right-1/3 w-8 h-8 bg-gradient-to-br from-teal-400/35 to-emerald-400/30 rounded-full shadow-2xl shadow-teal-400/25 animate-bounce blur-sm" style={{ animationDelay: '2.5s', animationDuration: '7.5s' }}></div>
-            
-            {/* Extra large dreamy bubbles */}
-            <div className="absolute top-1/4 left-1/4 w-24 h-24 bg-gradient-to-br from-blue-300/15 to-indigo-300/10 rounded-full shadow-2xl shadow-blue-300/10 animate-pulse blur-md" style={{ animationDelay: '0s', animationDuration: '10s' }}></div>
-            <div className="absolute bottom-1/4 right-1/4 w-20 h-20 bg-gradient-to-br from-purple-300/18 to-pink-300/12 rounded-full shadow-2xl shadow-purple-300/12 animate-pulse blur-md" style={{ animationDelay: '3s', animationDuration: '12s' }}></div>
-            <div className="absolute top-3/4 left-3/4 w-18 h-18 bg-gradient-to-br from-emerald-300/16 to-cyan-300/11 rounded-full shadow-2xl shadow-emerald-300/11 animate-pulse blur-md" style={{ animationDelay: '1.5s', animationDuration: '9s' }}></div>
-            
-            {/* Massive dreamy orbs */}
-            <div className="absolute top-1/3 right-1/5 w-32 h-32 bg-gradient-to-br from-rose-300/12 to-pink-300/8 rounded-full shadow-2xl shadow-rose-300/8 animate-pulse blur-lg" style={{ animationDelay: '4s', animationDuration: '15s' }}></div>
-            <div className="absolute bottom-1/3 left-1/5 w-28 h-28 bg-gradient-to-br from-indigo-300/14 to-blue-300/9 rounded-full shadow-2xl shadow-indigo-300/9 animate-pulse blur-lg" style={{ animationDelay: '6s', animationDuration: '13s' }}></div>
-            
-            {/* Enhanced gradient orbs with dreamy effects */}
-            <div className="absolute -top-40 -right-32 w-96 h-96 bg-gradient-to-br from-emerald-500/25 to-teal-500/15 rounded-full blur-3xl animate-pulse opacity-60 shadow-2xl shadow-emerald-500/10" style={{ animationDuration: '16s' }}></div>
-            <div className="absolute top-40 -left-32 w-80 h-80 bg-gradient-to-br from-blue-500/25 to-cyan-500/15 rounded-full blur-3xl animate-pulse opacity-50 shadow-2xl shadow-blue-500/10" style={{ animationDelay: '2s', animationDuration: '18s' }}></div>
-            <div className="absolute -bottom-32 right-1/3 w-72 h-72 bg-gradient-to-br from-violet-500/25 to-purple-500/15 rounded-full blur-3xl animate-pulse opacity-70 shadow-2xl shadow-violet-500/10" style={{ animationDelay: '4s', animationDuration: '14s' }}></div>
-            
-            {/* Dreamy gradient layers */}
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/8 via-transparent to-purple-900/8 animate-pulse" style={{ animationDuration: '20s' }}></div>
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tl from-emerald-900/6 via-transparent to-cyan-900/6 animate-pulse" style={{ animationDelay: '10s', animationDuration: '25s' }}></div>
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-pink-900/4 via-transparent to-rose-900/4 animate-pulse" style={{ animationDelay: '15s', animationDuration: '22s' }}></div>
-            
-            {/* Subtle grid pattern overlay */}
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDU5LCAxMzAsIDI0NiwgMC4wMykiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-15"></div>
+        <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-br from-gray-900 via-slate-900 to-gray-950 pt-20 pb-12">
+          {/* Clean minimal gradient overlay */}
+          <div className="absolute inset-0">
+            {/* Subtle large gradient orbs for depth */}
+            <div className="absolute top-0 -right-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
           </div>
 
           <div className="relative container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 text-center max-w-6xl py-8 sm:py-0">
             {/* Trust indicator */}
             <div className="mb-6 sm:mb-8 flex justify-center px-4 sm:px-0">
-              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800/50 rounded-full shadow-lg">
-                <Star className="w-3 sm:w-4 h-3 sm:h-4 mr-2 text-yellow-500 dark:text-yellow-400" />
-                <span className="text-blue-700 dark:text-blue-300 text-xs sm:text-sm font-medium">Trusted by 50,000+ impact makers worldwide</span>
+              <div className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-full shadow-lg">
+                <Star className="w-3 sm:w-4 h-3 sm:h-4 mr-2 text-yellow-400" />
+                <span className="text-gray-100 text-xs sm:text-sm font-medium">Trusted by 50,000+ impact makers worldwide</span>
               </div>
             </div>
 
             {/* Main headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight mb-10 text-balance uppercase">
-              <span className="block text-gray-900 dark:text-white">Make Your</span>
-              <span className="block bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent relative">
+              <span className="block text-white">Make Your</span>
+              <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent relative">
                 Impact Count
-                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-24 sm:w-28 md:w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full opacity-60"></div>
+                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 w-24 sm:w-28 md:w-32 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full opacity-80"></div>
               </span>
             </h1>
 
             {/* Subheadline */}
-            <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 sm:mb-10 max-w-3xl mx-auto leading-relaxed font-light px-4 sm:px-0">
-              The world's first platform to measure, verify, and amplify your social impact. 
+            <p className="text-base sm:text-lg md:text-xl text-gray-300 mb-8 sm:mb-10 max-w-3xl mx-auto leading-relaxed font-light px-4 sm:px-0">
+              The world&apos;s first platform to measure, verify, and amplify your social impact. 
               Turn your good deeds into verified credentials that matter.
             </p>
 
@@ -540,7 +514,7 @@ export default function HomePage() {
         <SDGSimple />
 
         {/* Polished Stats Section with Plain White Background */}
-        <section className="relative py-20 bg-gray-50 dark:bg-gray-900">
+        <section className="relative py-20 bg-white dark:bg-black">
 
           <div className="relative container mx-auto px-8 lg:px-12">
             {/* Enhanced Header */}
@@ -643,27 +617,7 @@ export default function HomePage() {
         </section>
 
         {/* Explore Opportunities Section */}
-        <section className="relative py-20 overflow-hidden bg-white dark:bg-gray-900">
-          {/* Wave pattern background */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* SVG Wave patterns */}
-            <div className="absolute inset-0 opacity-20">
-              <svg className="w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="none">
-                <path d="M0,200 Q300,100 600,200 T1200,200 L1200,0 L0,0 Z" fill="rgba(16, 185, 129, 0.1)" />
-                <path d="M0,400 Q300,300 600,400 T1200,400 L1200,200 L0,200 Z" fill="rgba(5, 150, 105, 0.08)" />
-                <path d="M0,600 Q300,500 600,600 T1200,600 L1200,400 L0,400 Z" fill="rgba(6, 182, 212, 0.06)" />
-              </svg>
-            </div>
-            
-            {/* Organic leaf shapes */}
-            <div className="absolute top-20 left-1/4 w-16 h-8 bg-green-200/30 rounded-full transform rotate-12 animate-pulse" style={{ animationDelay: '0s', animationDuration: '6s' }}></div>
-            <div className="absolute top-40 right-1/3 w-12 h-6 bg-emerald-200/40 rounded-full transform -rotate-24 animate-pulse" style={{ animationDelay: '2s', animationDuration: '8s' }}></div>
-            <div className="absolute bottom-32 left-1/5 w-20 h-10 bg-teal-200/25 rounded-full transform rotate-45 animate-pulse" style={{ animationDelay: '4s', animationDuration: '7s' }}></div>
-            
-            {/* Floating circles with different sizes */}
-            <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-green-300/20 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }}></div>
-            <div className="absolute bottom-1/3 left-1/2 w-4 h-4 bg-emerald-300/30 rounded-full animate-bounce" style={{ animationDelay: '3s', animationDuration: '5s' }}></div>
-          </div>
+        <section className="relative py-20 overflow-hidden bg-gray-50 dark:bg-gray-950">
           
           <div className="relative container mx-auto px-8 lg:px-12 z-10">
             {/* Header */}
@@ -676,63 +630,55 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Rectangle Flip Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 justify-items-center">
+            {/* Clean Apple-Style 3x2 Grid with Flip Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {[
                 {
                   title: 'Volunteer Events',
                   icon: Calendar,
-                  lightBg: 'bg-gradient-to-br from-green-50 to-emerald-100',
-                  iconBg: 'from-green-400 to-emerald-500',
-                  borderColor: 'border-green-200',
-                  textColor: 'text-green-800',
-                  description: 'Join community service events and make a direct impact. From local cleanups to global initiatives, find volunteer opportunities that match your passion and schedule.',
-                  stats: '2,500+ active events'
+                  shortDesc: 'Join community service events and make a direct impact',
+                  fullDesc: 'Join community service events and make a direct impact. From local cleanups to global initiatives, find volunteer opportunities that match your passion and schedule. Build verified credentials while creating positive change.',
+                  stats: '2,500+ events'
                 },
                 {
-                  title: 'Research & Lab Assistant',
+                  title: 'Research & Lab',
                   icon: Microscope,
-                  lightBg: 'bg-gradient-to-br from-blue-50 to-cyan-100',
-                  iconBg: 'from-blue-400 to-cyan-500',
-                  borderColor: 'border-blue-200',
-                  textColor: 'text-blue-800',
-                  description: 'Contribute to groundbreaking research while gaining valuable experience. Work alongside researchers in labs, field studies, and academic projects.',
-                  stats: '800+ research positions'
+                  shortDesc: 'Contribute to groundbreaking research and innovation',
+                  fullDesc: 'Contribute to groundbreaking research while gaining valuable experience. Work alongside researchers in labs, field studies, and academic projects. Advance science while building your professional portfolio.',
+                  stats: '800+ positions'
                 },
                 {
-                  title: 'Scholarship Opportunities',
+                  title: 'Scholarships',
                   icon: GraduationCap,
-                  lightBg: 'bg-gradient-to-br from-purple-50 to-violet-100',
-                  iconBg: 'from-purple-400 to-violet-500',
-                  borderColor: 'border-purple-200',
-                  textColor: 'text-purple-800',
-                  description: 'Access funding for your education and professional development. Discover scholarships based on academic merit, community service, and impact potential.',
+                  shortDesc: 'Access funding for education and development',
+                  fullDesc: 'Access funding for your education and professional development. Discover scholarships based on academic merit, community service, and impact potential. Invest in your future through verified opportunities.',
                   stats: '1,200+ scholarships'
                 },
                 {
-                  title: 'Sponsorship Opportunities',
+                  title: 'Community Initiatives',
+                  icon: Users,
+                  shortDesc: 'Start or join grassroots community projects',
+                  fullDesc: 'Start or join grassroots community projects that create lasting change. Connect with like-minded individuals, access resources, and track your collective impact. Transform ideas into action.',
+                  stats: '900+ initiatives'
+                },
+                {
+                  title: 'Sponsorships',
                   icon: Building,
-                  lightBg: 'bg-gradient-to-br from-orange-50 to-red-100',
-                  iconBg: 'from-orange-400 to-red-500',
-                  borderColor: 'border-orange-200',
-                  textColor: 'text-orange-800',
-                  description: 'Connect with sponsors for your projects and initiatives. Whether you are starting a nonprofit or organizing an event, find the support you need.',
-                  stats: '600+ sponsors available'
+                  shortDesc: 'Connect with sponsors for your projects',
+                  fullDesc: 'Connect with sponsors for your projects and initiatives. Whether starting a nonprofit or organizing an event, find the support you need. Build partnerships that amplify your impact.',
+                  stats: '600+ sponsors'
                 },
                 {
                   title: 'Donation Campaigns',
                   icon: DollarSign,
-                  lightBg: 'bg-gradient-to-br from-pink-50 to-rose-100',
-                  iconBg: 'from-pink-400 to-rose-500',
-                  borderColor: 'border-pink-200',
-                  textColor: 'text-pink-800',
-                  description: 'Support meaningful causes through verified donation campaigns. Every contribution is tracked and verified to ensure maximum impact transparency.',
-                  stats: '400+ active campaigns'
+                  shortDesc: 'Support causes through verified campaigns',
+                  fullDesc: 'Support meaningful causes through verified donation campaigns. Every contribution is tracked and verified to ensure maximum impact transparency. Make your donations count.',
+                  stats: '400+ campaigns'
                 }
               ].map((opportunity, index) => (
                 <div key={index} className="group" style={{ perspective: '1000px' }}>
                   <div 
-                    className="relative w-64 h-96 transition-transform duration-700 cursor-pointer"
+                    className="relative h-80 transition-transform duration-700 cursor-pointer"
                     style={{ 
                       transformStyle: 'preserve-3d',
                       transform: 'rotateY(0deg)'
@@ -746,29 +692,46 @@ export default function HomePage() {
                       }
                     }}
                   >
-                    {/* Front of Card - Light Color Design */}
+                    {/* Front of Card */}
                     <div 
                       className="absolute inset-0" 
                       style={{ backfaceVisibility: 'hidden' }}
                     >
-                      <Card className={`w-full h-full ${opportunity.lightBg} shadow-2xl drop-shadow-xl border-2 ${opportunity.borderColor}`}>
-                        <CardContent className="p-6 h-full flex flex-col items-center justify-center text-center">
-                          <div className={`w-20 h-20 rounded-2xl bg-gradient-to-r ${opportunity.iconBg} flex items-center justify-center text-white mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                            <opportunity.icon className="w-10 h-10" />
+                      <Card className="h-full border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-300 hover:shadow-xl bg-white dark:bg-gray-900">
+                        <CardContent className="p-6 h-full flex flex-col">
+                          {/* Icon - Fixed size */}
+                          <div className="w-14 h-14 flex-shrink-0 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white mb-4">
+                            <opportunity.icon className="w-7 h-7" />
                           </div>
-                          <h3 className={`font-bold text-xl leading-tight ${opportunity.textColor} mb-4`}>
+                          
+                          {/* Title - Fixed height */}
+                          <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3 leading-tight">
                             {opportunity.title}
                           </h3>
-                          <div className={`px-4 py-2 bg-white/70 rounded-full border ${opportunity.borderColor}`}>
-                            <span className={`${opportunity.textColor} text-sm font-medium`}>
-                              Click to learn more
-                            </span>
+                          
+                          {/* Short Description - Fixed height for 2 lines */}
+                          <p className="text-gray-600 dark:text-gray-400 mb-10 leading-relaxed text-base">
+                            {opportunity.shortDesc}
+                          </p>
+                          
+                          {/* Stats & Click Hint */}
+                          <div className="space-y-2 border-t border-gray-200 dark:border-gray-800 pt-5 mt-auto">
+                            <div className="flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-400">
+                              <CheckCircle className="w-3.5 h-3.5 mr-1.5 text-green-500" />
+                              <span>{opportunity.stats}</span>
+                            </div>
+                            <div className="text-center">
+                              <span className="inline-flex items-center text-xs font-medium text-blue-600 dark:text-blue-400">
+                                Click to learn more
+                                <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                              </span>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
                     </div>
 
-                    {/* Back of Card - Light Color Design */}
+                    {/* Back of Card */}
                     <div 
                       className="absolute inset-0" 
                       style={{ 
@@ -776,17 +739,23 @@ export default function HomePage() {
                         transform: 'rotateY(180deg)'
                       }}
                     >
-                      <Card className={`w-full h-full ${opportunity.lightBg} shadow-2xl drop-shadow-xl border-2 ${opportunity.borderColor}`}>
-                        <CardContent className="p-6 h-full flex flex-col">
-                          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${opportunity.iconBg} flex items-center justify-center text-white mb-4 shadow-lg`}>
-                            <opportunity.icon className="w-8 h-8" />
-                          </div>
-                          <h3 className={`font-bold text-xl mb-4 ${opportunity.textColor}`}>
+                      <Card className="h-full border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                        <CardContent className="p-8 h-full flex flex-col">
+                          {/* Title */}
+                          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
                             {opportunity.title}
                           </h3>
-                          <p className={`${opportunity.textColor.replace('800', '700')} text-sm leading-relaxed`}>
-                            {opportunity.description}
+                          
+                          {/* Full Description */}
+                          <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed flex-grow">
+                            {opportunity.fullDesc}
                           </p>
+                          
+                          {/* Stats */}
+                          <div className="flex items-center text-sm text-gray-500 dark:text-gray-500 mt-4">
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                            <span>{opportunity.stats}</span>
+                          </div>
                         </CardContent>
                       </Card>
                     </div>
@@ -812,27 +781,7 @@ export default function HomePage() {
         </section>
 
         {/* How It Works - Redesigned with Dotted Pattern */}
-        <section className="relative py-20 overflow-hidden bg-white dark:bg-gray-900">
-          {/* Dotted pattern background */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Radial dot pattern */}
-            <div className="absolute inset-0 opacity-25" style={{
-              backgroundImage: `radial-gradient(circle at 20px 20px, rgba(236, 72, 153, 0.3) 2px, transparent 2px), 
-                               radial-gradient(circle at 60px 60px, rgba(251, 113, 133, 0.2) 1px, transparent 1px),
-                               radial-gradient(circle at 100px 40px, rgba(249, 115, 22, 0.15) 1.5px, transparent 1.5px)`,
-              backgroundSize: '80px 80px, 120px 120px, 160px 160px'
-            }}></div>
-            
-            {/* Scattered larger dots */}
-            <div className="absolute top-16 left-1/5 w-8 h-8 bg-rose-300/40 rounded-full animate-pulse" style={{ animationDelay: '0s', animationDuration: '4s' }}></div>
-            <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-pink-300/50 rounded-full animate-pulse" style={{ animationDelay: '1s', animationDuration: '5s' }}></div>
-            <div className="absolute bottom-1/4 left-1/3 w-10 h-10 bg-orange-300/30 rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '6s' }}></div>
-            <div className="absolute top-2/3 right-1/5 w-4 h-4 bg-rose-400/35 rounded-full animate-pulse" style={{ animationDelay: '3s', animationDuration: '4.5s' }}></div>
-            
-            {/* Connecting lines */}
-            <div className="absolute top-1/4 left-1/4 w-32 h-0.5 bg-gradient-to-r from-rose-200/30 to-pink-200/20 transform rotate-12 animate-pulse" style={{ animationDelay: '1s', animationDuration: '8s' }}></div>
-            <div className="absolute bottom-1/3 right-1/3 w-24 h-0.5 bg-gradient-to-r from-pink-200/25 to-orange-200/15 transform -rotate-12 animate-pulse" style={{ animationDelay: '3s', animationDuration: '7s' }}></div>
-          </div>
+        <section className="relative py-20 overflow-hidden bg-white dark:bg-black">
           <div className="relative container mx-auto px-8 lg:px-12 z-10">
             <div className="text-center mb-16">
               <h2 className="text-2xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
@@ -971,7 +920,7 @@ export default function HomePage() {
         </section>
 
         {/* Build for Everyone Section - Redesigned with Interactive Box */}
-        <section className="relative py-20 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+        <section className="relative py-20 bg-gray-50 dark:bg-gray-950">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             {/* Header */}
             <div className="text-center mb-16">
@@ -982,88 +931,39 @@ export default function HomePage() {
                 </span>
               </h2>
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
-                Our platform adapts to your unique needs, whether you're an individual volunteer, 
+                Our platform adapts to your unique needs, whether you&apos;re an individual volunteer, 
                 a corporate team, or a community organization making a difference.
               </p>
             </div>
 
             {/* Interactive Flashcard Box */}
             <BuildForEveryoneBox />
-
-            {/* Bottom CTA */}
-            <div className="text-center">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg border border-gray-100 dark:border-gray-700 max-w-4xl mx-auto">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                  Ready to Start Your Impact Journey?
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-                  Join thousands of individuals and organizations already making verified impact. 
-                  Choose your path and start building a better world today.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300">
-                    Get Started Free
-                  </Button>
-                  <Button variant="outline" className="border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-8 py-3 rounded-xl transition-all duration-300">
-                    Learn More
-                  </Button>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
 
         {/* CTA Section - Ready to Make Impact */}
-        <section className="relative py-16 overflow-hidden bg-white dark:bg-gray-900">
-          {/* Starburst pattern background */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Radiating lines from center */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div 
-                  key={i} 
-                  className="absolute w-0.5 h-32 bg-gradient-to-t from-transparent via-violet-200/20 to-transparent animate-pulse" 
-                  style={{ 
-                    transform: `rotate(${i * 30}deg)`, 
-                    transformOrigin: 'bottom center',
-                    animationDelay: `${i * 0.2}s`,
-                    animationDuration: '4s'
-                  }}
-                ></div>
-              ))}
-            </div>
-            
-            {/* Star shapes */}
-            <div className="absolute top-16 left-1/4 w-8 h-8 bg-violet-300/30" style={{ clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }}></div>
-            <div className="absolute top-1/3 right-1/5 w-6 h-6 bg-purple-300/40" style={{ clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }}></div>
-            <div className="absolute bottom-1/4 left-1/5 w-10 h-10 bg-indigo-300/25" style={{ clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)' }}></div>
-            
-            {/* Concentric circles */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-violet-200/20 rounded-full animate-pulse" style={{ animationDuration: '6s' }}></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-48 h-48 border border-purple-200/30 rounded-full animate-pulse" style={{ animationDelay: '2s', animationDuration: '5s' }}></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-indigo-200/40 rounded-full animate-pulse" style={{ animationDelay: '4s', animationDuration: '4s' }}></div>
-          </div>
+        <section className="relative py-20 overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600">
           <div className="relative container mx-auto px-8 lg:px-12 text-center z-10">
-            <h2 className="text-2xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Ready to Make Impact <span className="block">That Counts?</span>
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+              Ready to Make Impact <span className="block mt-2">That Counts?</span>
             </h2>
-            <p className="text-lg text-gray-700 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
               Join thousands of impact makers who are already building their verified social impact legacy
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Link href="/signup">
                 <Button 
                   size="lg" 
-                  className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-xl shadow-lg transform hover:scale-105 transition-all duration-300"
+                  className="!bg-white hover:!bg-gray-50 !text-gray-900 px-10 py-6 text-xl font-bold rounded-xl shadow-2xl hover:shadow-[0_20px_60px_rgba(255,255,255,0.4)] transform hover:scale-105 transition-all duration-300 !bg-none"
                 >
                   Start Free Today
-                  <ArrowRight className="ml-2 w-5 h-5" />
+                  <ArrowRight className="ml-2 w-6 h-6" />
                 </Button>
               </Link>
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="border-2 border-white text-white bg-transparent hover:bg-white/10 hover:text-white px-8 py-3 text-lg font-medium rounded-xl transition-all duration-300"
+                className="border-2 border-white text-white bg-white/10 hover:bg-white/20 backdrop-blur-sm px-10 py-6 text-xl font-bold rounded-xl transition-all duration-300"
               >
                 Learn More
               </Button>

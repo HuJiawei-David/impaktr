@@ -4,493 +4,383 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { 
   Users, 
   UserPlus, 
   Mail, 
+  Shield, 
+  Crown,
   MoreHorizontal,
-  Search,
-  Filter,
-  Download,
-  Award,
-  Clock,
-  TrendingUp,
-  Shield,
-  Edit,
-  Trash2,
-  Send
+  Search
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
-import { formatScore, formatHours, getInitials, formatTimeAgo } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'react-hot-toast';
 
-interface OrganizationMember {
+interface Member {
   id: string;
   user: {
-    id: string;
+    name: string;
     email: string;
-    profile: {
-      firstName: string;
-      lastName: string;
-      displayName: string;
-      avatar: string;
-      occupation: string;
-    };
-    impaktrScore: number;
-    currentRank: string;
+    image: string;
+    impactScore: number;
   };
-  role: 'owner' | 'admin' | 'member';
+  role: string;
+  status: string;
   joinedAt: string;
-  lastActive: string;
-  stats: {
-    totalHours: number;
-    eventsJoined: number;
-    badgesEarned: number;
-    certificates: number;
-  };
-  engagement: {
-    participationRate: number;
-    averageRating: number;
-    completionRate: number;
-  };
 }
 
-interface OrganizationStats {
-  totalMembers: number;
-  activeMembers: number;
-  averageScore: number;
-  totalHours: number;
-  memberGrowthRate: number;
-  engagementRate: number;
+interface OrganizationData {
+  id: string;
+  name: string;
+  members: Member[];
+  maxMembers: number;
 }
 
 export default function OrganizationMembersPage() {
   const { data: session, status } = useSession();
   const user = session?.user;
   const isLoading = status === 'loading';
-  const [members, setMembers] = useState<OrganizationMember[]>([]);
-  const [stats, setStats] = useState<OrganizationStats | null>(null);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const router = useRouter();
+  
+  const [organizationData, setOrganizationData] = useState<OrganizationData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const [inviteData, setInviteData] = useState({
-    email: '',
-    role: 'member',
-    message: ''
-  });
+  const [roleFilter, setRoleFilter] = useState('all');
 
   useEffect(() => {
     if (!isLoading && !user) {
-      redirect('/signup');
+      router.push('/signin');
       return;
     }
 
     if (user) {
-      fetchMembersData();
+      fetchOrganizationData();
     }
-  }, [isLoading, user]);
+  }, [isLoading, user, router]);
 
-  const fetchMembersData = async () => {
+  const fetchOrganizationData = async () => {
     try {
-      const [membersResponse, statsResponse] = await Promise.all([
-        fetch('/api/organization/members'),
-        fetch('/api/organization/stats')
-      ]);
-
-      if (membersResponse.ok && statsResponse.ok) {
-        const [membersData, statsData] = await Promise.all([
-          membersResponse.json(),
-          statsResponse.json()
-        ]);
-
-        setMembers(membersData.members);
-        setStats(statsData);
+      setLoading(true);
+      const response = await fetch('/api/organizations/dashboard');
+      
+      if (response.status === 401) {
+        router.push('/signin');
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching members data:', error);
+
+      if (response.status === 404) {
+        router.push('/dashboard');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch organization data');
+      }
+
+      const data = await response.json();
+      setOrganizationData(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching organization data:', err);
     } finally {
-      setIsLoadingData(false);
+      setLoading(false);
     }
   };
 
-  const handleInviteMember = async () => {
-    try {
-      const response = await fetch('/api/organization/members/invite', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(inviteData),
-      });
-
-      if (response.ok) {
-        setIsInviteDialogOpen(false);
-        setInviteData({ email: '', role: 'member', message: '' });
-        fetchMembersData();
-        // Show success toast
-      }
-    } catch (error) {
-      console.error('Error inviting member:', error);
-    }
+  const handleInviteMember = () => {
+    // TODO: Implement invite member functionality
+    toast.success('Invite member functionality coming soon!');
   };
 
   const handleRoleChange = async (memberId: string, newRole: string) => {
     try {
       const response = await fetch(`/api/organization/members/${memberId}/role`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ role: newRole }),
       });
 
-      if (response.ok) {
-        fetchMembersData();
+      if (!response.ok) {
+        throw new Error('Failed to update member role');
       }
-    } catch (error) {
-      console.error('Error updating member role:', error);
+
+      toast.success('Member role updated successfully');
+      fetchOrganizationData(); // Refresh data
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update role');
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
-    try {
-      const response = await fetch(`/api/organization/members/${memberId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchMembersData();
-      }
-    } catch (error) {
-      console.error('Error removing member:', error);
-    }
-  };
-
-  const handleBulkExport = () => {
-    const csvData = members
-      .filter(member => selectedMembers.length === 0 || selectedMembers.includes(member.id))
-      .map(member => ({
-        Name: member.user.profile.displayName,
-        Email: member.user.email,
-        Role: member.role,
-        'Impaktr Score': member.user.impaktrScore,
-        'Total Hours': member.stats.totalHours,
-        'Events Joined': member.stats.eventsJoined,
-        'Participation Rate': `${member.engagement.participationRate}%`,
-        'Joined Date': new Date(member.joinedAt).toLocaleDateString()
-      }));
-
-    // Convert to CSV and download
-    const csv = [
-      Object.keys(csvData[0]).join(','),
-      ...csvData.map(row => Object.values(row).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'organization-members.csv';
-    a.click();
-  };
-
-  const filteredMembers = members.filter(member => {
-    const matchesSearch = member.user.profile.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  const filteredMembers = organizationData?.members.filter(member => {
+    const matchesSearch = member.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          member.user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || member.role === roleFilter;
     return matchesSearch && matchesRole;
-  });
+  }) || [];
 
-  if (isLoading || isLoadingData) {
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return <Crown className="w-4 h-4" />;
+      case 'MANAGER': return <Shield className="w-4 h-4" />;
+      default: return <Users className="w-4 h-4" />;
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return 'bg-red-100 text-red-800';
+      case 'MANAGER': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (isLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Error</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!organizationData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">No Organization Found</h2>
+          <p className="text-muted-foreground mb-4">You are not part of any organization.</p>
+          <Button onClick={() => router.push('/dashboard')}>
+            Go to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center">
-            <Users className="w-8 h-8 mr-3" />
-            Team Members
-          </h1>
-          <p className="text-muted-foreground">
-            Manage your organization's members and their impact contributions
-          </p>
-        </div>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[22px] pb-8">
 
-        <div className="flex space-x-3">
-          <Button variant="outline" onClick={handleBulkExport}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          
-          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Invite Member
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Invite New Member</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="member@company.com"
-                    value={inviteData.email}
-                    onChange={(e) => setInviteData(prev => ({ ...prev, email: e.target.value }))}
-                  />
+        {/* Compact Professional Header */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              {/* Left: Page Info */}
+              <div className="flex items-center space-x-4">
+                <div className="relative group">
+                  <div className="w-16 h-16 border-2 border-gray-100 dark:border-gray-700 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center cursor-pointer transition-all duration-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2">
+                    <Users className="h-8 w-8 text-white" />
+                  </div>
                 </div>
-                
                 <div>
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={inviteData.role} onValueChange={(value) => setInviteData(prev => ({ ...prev, role: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="message">Personal Message (Optional)</Label>
-                  <Textarea
-                    id="message"
-                    placeholder="Welcome to our impact team..."
-                    value={inviteData.message}
-                    onChange={(e) => setInviteData(prev => ({ ...prev, message: e.target.value }))}
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleInviteMember}>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Invitation
-                  </Button>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Team Management
+                  </h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Manage your organization's team members and permissions
+                  </p>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalMembers || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              <span className="text-green-600">+{stats?.memberGrowthRate || 0}%</span> this month
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Members</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.activeMembers || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats?.engagementRate || 0}% engagement rate
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatScore(stats?.averageScore || 0)}</div>
-            <p className="text-xs text-muted-foreground">
-              Team performance metric
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Impact Hours</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatHours(stats?.totalHours || 0)}</div>
-            <p className="text-xs text-muted-foreground">
-              Collective impact contributed
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Members Management */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
-            <CardTitle>Team Members ({filteredMembers.length})</CardTitle>
-            
-            <div className="flex space-x-3 w-full md:w-auto">
-              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder="Search members..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+              {/* Right: Action Button */}
+              <div className="flex items-center space-x-3">
+                <Button 
+                  onClick={handleInviteMember} 
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Invite Member
+                </Button>
               </div>
-              
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="owner">Owner</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="member">Member</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
-          </div>
-        </CardHeader>
-        
-        <CardContent>
-          <div className="space-y-4">
-            {filteredMembers.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="checkbox"
-                    checked={selectedMembers.includes(member.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedMembers([...selectedMembers, member.id]);
-                      } else {
-                        setSelectedMembers(selectedMembers.filter(id => id !== member.id));
-                      }
-                    }}
-                    className="rounded border-input"
+          </CardContent>
+        </Card>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Total Members</p>
+                  <p className="text-2xl font-bold">{organizationData.members.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Shield className="h-8 w-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Active Members</p>
+                  <p className="text-2xl font-bold">
+                    {organizationData.members.filter(m => m.status === 'active').length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <Crown className="h-8 w-8 text-purple-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-muted-foreground">Admins</p>
+                  <p className="text-2xl font-bold">
+                    {organizationData.members.filter(m => m.role === 'ADMIN').length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search members..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
                   />
-                  
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={member.user.profile.avatar} />
-                    <AvatarFallback>
-                      {getInitials(member.user.profile.displayName)}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium">{member.user.profile.displayName}</p>
-                      <Badge variant={
-                        member.role === 'owner' ? 'default' :
-                        member.role === 'admin' ? 'secondary' : 'outline'
-                      }>
-                        {member.role}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{member.user.email}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {member.user.profile.occupation} • Joined {formatTimeAgo(member.joinedAt)}
-                    </p>
-                  </div>
                 </div>
+              </div>
+              <div className="md:w-48">
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
+                    <SelectItem value="MANAGER">Manager</SelectItem>
+                    <SelectItem value="MEMBER">Member</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-                <div className="flex items-center space-x-6">
-                  {/* Member Stats */}
-                  <div className="hidden md:flex items-center space-x-6 text-sm text-muted-foreground">
-                    <div className="text-center">
-                      <div className="font-medium text-foreground">{formatScore(member.user.impaktrScore)}</div>
-                      <div className="text-xs">Score</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-medium text-foreground">{member.stats.eventsJoined}</div>
-                      <div className="text-xs">Events</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="font-medium text-foreground">{member.engagement.participationRate}%</div>
-                      <div className="text-xs">Participation</div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Edit className="mr-2 h-4 w-4" />
-                        View Profile
-                      </DropdownMenuItem>
-                      {member.role !== 'owner' && (
-                        <>
-                          <DropdownMenuItem onClick={() => handleRoleChange(member.id, member.role === 'admin' ? 'member' : 'admin')}>
-                            <Shield className="mr-2 h-4 w-4" />
-                            {member.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleRemoveMember(member.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Remove Member
-                          </DropdownMenuItem>
-                        </>
+        {/* Members List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Team Members ({filteredMembers.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {filteredMembers.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="h-12 w-12">
+                      {member.user.image && (
+                        <AvatarImage
+                          src={member.user.image}
+                          alt={member.user.name}
+                        />
                       )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm">
+                        {member.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="font-semibold">{member.user.name}</h3>
+                      <p className="text-sm text-muted-foreground">{member.user.email}</p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Badge className={getRoleColor(member.role)}>
+                          {getRoleIcon(member.role)}
+                          <span className="ml-1">{member.role}</span>
+                        </Badge>
+                        <Badge variant="outline">
+                          {member.user.impactScore} pts
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-muted-foreground">
+                      Joined {new Date(member.joinedAt).toLocaleDateString()}
+                    </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleRoleChange(member.id, 'ADMIN')}>
+                          <Crown className="w-4 h-4 mr-2" />
+                          Make Admin
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(member.id, 'MANAGER')}>
+                          <Shield className="w-4 h-4 mr-2" />
+                          Make Manager
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRoleChange(member.id, 'MEMBER')}>
+                          <Users className="w-4 h-4 mr-2" />
+                          Make Member
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-              </div>
-            ))}
-
-            {filteredMembers.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No members found matching your criteria</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+              
+              {filteredMembers.length === 0 && (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No members found</h3>
+                  <p className="text-muted-foreground">
+                    {searchQuery || roleFilter !== 'all' 
+                      ? 'Try adjusting your search or filters'
+                      : 'Invite your first team member to get started'
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

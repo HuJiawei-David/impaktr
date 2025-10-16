@@ -4,13 +4,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { VerificationType, ParticipationStatus } from '@prisma/client';
+import { ParticipationStatus } from '@/types/enums';
 import { calculateImpaktrScore } from '@/lib/scoring';
 import { checkAndAwardBadges } from '@/lib/badges';
+import { Prisma, VerificationStatus, VerificationType } from '@prisma/client';
+
+// Type for event location with coordinates
+interface EventLocation {
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+}
 
 const createVerificationSchema = z.object({
   participationId: z.string(),
-  type: z.nativeEnum(VerificationType),
+  type: z.enum(['SELF', 'ORGANIZER', 'PEER', 'GPS']),
   gpsCoordinates: z.object({
     lat: z.number(),
     lng: z.number(),
@@ -55,7 +64,6 @@ export async function POST(request: NextRequest) {
       include: {
         event: true,
         user: true,
-        verifications: true,
       }
     });
 
@@ -68,9 +76,9 @@ export async function POST(request: NextRequest) {
 
     // Check if user has permission to verify
     const canVerify = 
-      validatedData.type === VerificationType.SELF && participation.userId === user.id ||
-      validatedData.type === VerificationType.ORGANIZER && participation.event.creatorId === user.id ||
-      validatedData.type === VerificationType.PEER && participation.userId !== user.id;
+      validatedData.type === 'SELF' && participation.userId === user.id ||
+      validatedData.type === 'ORGANIZER' && participation.event.organizerId === user.id ||
+      validatedData.type === 'PEER' && participation.userId !== user.id;
 
     if (!canVerify) {
       return NextResponse.json(
@@ -80,8 +88,8 @@ export async function POST(request: NextRequest) {
     }
 
     // For GPS verification, validate proximity to event location
-    if (validatedData.type === VerificationType.GPS && validatedData.gpsCoordinates) {
-      const eventLocation = participation.event.location as any;
+    if (validatedData.type === 'GPS' && validatedData.gpsCoordinates) {
+      const eventLocation = participation.event.location as EventLocation;
       if (eventLocation?.coordinates) {
         const distance = calculateDistance(
           validatedData.gpsCoordinates.lat,
@@ -102,32 +110,20 @@ export async function POST(request: NextRequest) {
 
     const verification = await prisma.verification.create({
       data: {
+        userId: participation.userId,
         participationId: validatedData.participationId,
-        eventId: participation.eventId,
-        verifierId: validatedData.type === VerificationType.SELF ? null : user.id,
-        verifiedId: participation.userId,
         type: validatedData.type,
-        status: validatedData.type === VerificationType.SELF ? 
-          ParticipationStatus.PENDING : ParticipationStatus.VERIFIED,
-        gpsCoordinates: validatedData.gpsCoordinates,
-        proofData: validatedData.proofData,
-        comments: validatedData.comments,
+        status: validatedData.type === 'SELF' ? 
+          'PENDING' : 'APPROVED',
+        evidence: validatedData.proofData,
+        reviewNote: validatedData.comments,
         rating: validatedData.rating,
       },
       include: {
         participation: {
           include: {
             event: true,
-            user: {
-              include: {
-                profile: true
-              }
-            }
-          }
-        },
-        verifier: {
-          include: {
-            profile: true
+            user: true
           }
         }
       }
@@ -135,15 +131,14 @@ export async function POST(request: NextRequest) {
 
     // If this is organizer or GPS verification, auto-approve the participation
     if (
-      validatedData.type === VerificationType.ORGANIZER ||
-      validatedData.type === VerificationType.GPS
+      validatedData.type === 'ORGANIZER' ||
+      validatedData.type === 'GPS'
     ) {
       await prisma.participation.update({
         where: { id: validatedData.participationId },
         data: {
           status: ParticipationStatus.VERIFIED,
           verifiedAt: new Date(),
-          qualityRating: validatedData.rating || 1.0,
         }
       });
 
@@ -151,7 +146,7 @@ export async function POST(request: NextRequest) {
       const newScore = await calculateImpaktrScore(participation.userId);
       await prisma.user.update({
         where: { id: participation.userId },
-        data: { impaktrScore: newScore }
+        data: { impactScore: newScore }
       });
 
       // Check and award badges
@@ -194,19 +189,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const where: any = {
+    const where: Prisma.VerificationWhereInput = {
       OR: [
-        { verifierId: user.id },
-        { verifiedId: user.id },
+        { userId: user.id },
+        { reviewerId: user.id },
       ]
     };
 
     if (status) {
-      where.status = status;
+      where.status = status as VerificationStatus;
     }
 
     if (type) {
-      where.type = type;
+      where.type = type as VerificationType;
     }
 
     const verifications = await prisma.verification.findMany({
@@ -215,21 +210,7 @@ export async function GET(request: NextRequest) {
         participation: {
           include: {
             event: true,
-            user: {
-              include: {
-                profile: true
-              }
-            }
-          }
-        },
-        verifier: {
-          include: {
-            profile: true
-          }
-        },
-        verified: {
-          include: {
-            profile: true
+            user: true
           }
         }
       },

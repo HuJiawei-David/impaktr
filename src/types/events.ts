@@ -1,0 +1,28 @@
+// Event-related types and enums
+export enum ParticipationStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  ATTENDED = 'ATTENDED',
+  CANCELLED = 'CANCELLED',
+  VERIFIED = 'VERIFIED',
+}
+
+export enum EventStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  UPCOMING = 'UPCOMING',
+  ONGOING = 'ONGOING',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum EventCategory {
+  VOLUNTEERING = 'VOLUNTEERING',
+  WORKSHOP = 'WORKSHOP',
+  FUNDRAISER = 'FUNDRAISER',
+  CLEANUP = 'CLEANUP',
+  AWARENESS = 'AWARENESS',
+  OTHER = 'OTHER',
+}
+
+

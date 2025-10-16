@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { UserType } from '@prisma/client';
 import { countries } from '@/constants/countries';
 import { industries } from '@/constants/industries';
-import { sdgs } from '@/constants/sdgs';
+import { SDGSelector } from '@/components/ui/sdg-selector';
 
 interface OrganizationRegistrationData {
   organizationName: string;
@@ -101,6 +101,8 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
   const [isLoading, setIsLoading] = useState(false);
   const [logo, setLogo] = useState<File | null>(null);
   const [verificationDocs, setVerificationDocs] = useState<File[]>([]);
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+  const [isDraggingDocs, setIsDraggingDocs] = useState(false);
   const [selectedSDGs, setSelectedSDGs] = useState<number[]>([]);
   
   const {
@@ -125,12 +127,9 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
     return organizationName && contactEmail;
   };
 
-  const handleSDGToggle = (sdgId: number) => {
-    const newSDGs = selectedSDGs.includes(sdgId)
-      ? selectedSDGs.filter(id => id !== sdgId)
-      : [...selectedSDGs, sdgId];
-    setSelectedSDGs(newSDGs);
-    setValue('sdgFocus', newSDGs);
+  const handleSDGChange = (sdgs: number[]) => {
+    setSelectedSDGs(sdgs);
+    setValue('sdgFocus', sdgs);
   };
 
   const handleVerificationDocsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,6 +141,81 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
 
   const removeVerificationDoc = (index: number) => {
     setVerificationDocs(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Drag and drop handlers for logo
+  const handleLogoDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingLogo(true);
+  };
+
+  const handleLogoDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingLogo(false);
+  };
+
+  const handleLogoDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleLogoDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingLogo(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith('image/')) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert('File size must be less than 5MB');
+          return;
+        }
+        setLogo(file);
+      } else {
+        alert('Please upload an image file');
+      }
+    }
+  };
+
+  // Drag and drop handlers for verification documents
+  const handleDocsDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingDocs(true);
+  };
+
+  const handleDocsDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingDocs(false);
+  };
+
+  const handleDocsDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDocsDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingDocs(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = files.filter(file => {
+      const validTypes = ['.pdf', '.jpg', '.jpeg', '.png'];
+      const extension = '.' + file.name.split('.').pop()?.toLowerCase();
+      return validTypes.includes(extension);
+    });
+
+    if (validFiles.length + verificationDocs.length <= 5) {
+      setVerificationDocs(prev => [...prev, ...validFiles]);
+    } else {
+      alert(`You can only upload up to 5 files. You have ${verificationDocs.length} files already.`);
+    }
   };
 
   // Watch form data and update parent component in real-time
@@ -461,52 +535,16 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
             <CardHeader>
               <CardTitle className="text-gray-900 dark:text-white">UN Sustainable Development Goals</CardTitle>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Select the SDGs you&apos;re most passionate about (optional, select up to 8)
+                Select all the SDGs your organization focuses on (optional)
               </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {sdgs.map((sdg) => (
-                  <label 
-                    key={sdg.id} 
-                    className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer ${
-                      selectedSDGs.includes(sdg.id)
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedSDGs.includes(sdg.id)}
-                      onChange={() => handleSDGToggle(sdg.id)}
-                      disabled={!selectedSDGs.includes(sdg.id) && selectedSDGs.length >= 8}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
-                    />
-                    <div className="flex items-center space-x-3 flex-1">
-                      <span className="text-2xl">{sdg.icon}</span>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            SDG {sdg.id}
-                          </span>
-                          <div 
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: sdg.color }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          {sdg.shortTitle}
-                        </span>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              {selectedSDGs.length >= 8 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                  Maximum of 8 SDGs selected. Deselect one to choose another.
-                </p>
-              )}
+              <SDGSelector
+                selectedSDGs={selectedSDGs}
+                onSelectionChange={handleSDGChange}
+                maxSelection={17}
+                showSelectAll={true}
+              />
             </CardContent>
           </Card>
 
@@ -517,99 +555,110 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                 <Upload className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Organization Logo
               </CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                Upload your organization&apos;s logo (optional)
+              </p>
             </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-8 items-center">
-                {/* Left: Large Preview */}
-                <div className="flex justify-center">
-                  <div className="relative group">
-                    <div className="w-48 h-48 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center border-4 border-blue-200 dark:border-blue-700 shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-blue-300 dark:hover:shadow-blue-900 hover:scale-105 hover:border-blue-400 dark:hover:border-blue-500">
-                      {logo ? (
-                        <img
-                          src={URL.createObjectURL(logo)}
-                          alt="Logo preview"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center text-gray-400 dark:text-gray-500">
-                          <Building2 className="w-16 h-16 mb-3" />
-                          <span className="text-base font-medium">Upload Logo</span>
-                        </div>
-                      )}
-                    </div>
-                    {logo && (
-                      <button
-                        type="button"
-                        onClick={() => setLogo(null)}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2.5 shadow-xl transition-all duration-200 hover:scale-110 ring-4 ring-white dark:ring-gray-800"
-                        title="Remove logo"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right: Upload Area */}
-                <div className="space-y-4">
-                  <label 
-                    htmlFor="logo-upload" 
-                    className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg group"
-                  >
-                    <div className="flex flex-col items-center justify-center p-6 text-center">
-                      <div className="w-16 h-16 mb-4 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800/60 transition-colors">
-                        <Upload className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <p className="mb-2 text-base font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        Click to upload
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        or drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 px-4">
-                        JPG, PNG or SVG (max. 5MB)<br/>Recommended: 200x200px
-                      </p>
-                    </div>
-                    <Input
-                      id="logo-upload"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 5 * 1024 * 1024) {
-                            alert('File size must be less than 5MB');
-                            return;
-                          }
-                          setLogo(file);
-                        }
-                      }}
-                      className="hidden"
+            <CardContent className="space-y-4">
+              {/* Logo Preview - Centered */}
+              <div className="flex flex-col items-center">
+                <label 
+                  htmlFor="logo-upload-main"
+                  className={`w-40 h-40 rounded-lg bg-gray-50 dark:bg-gray-900 border-2 flex items-center justify-center overflow-hidden transition-colors cursor-pointer ${
+                    isDraggingLogo 
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                  onDragEnter={handleLogoDragEnter}
+                  onDragOver={handleLogoDragOver}
+                  onDragLeave={handleLogoDragLeave}
+                  onDrop={handleLogoDrop}
+                >
+                  {logo ? (
+                    <img
+                      src={URL.createObjectURL(logo)}
+                      alt="Logo preview"
+                      className="w-full h-full object-contain p-4"
                     />
-                  </label>
-                  
-                  {logo && (
-                    <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl p-4 shadow-sm">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
-                          <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                            {logo.name}
-                          </p>
-                          <p className="text-xs text-green-600 dark:text-green-400 font-semibold">
-                            {(logo.size / 1024 / 1024).toFixed(2)} MB • Ready to upload
-                          </p>
-                        </div>
-                      </div>
+                  ) : (
+                    <div className="flex flex-col items-center text-gray-400 dark:text-gray-600 text-center px-2">
+                      <Building2 className="w-12 h-12 mb-2" />
+                      <span className="text-xs">
+                        {isDraggingLogo ? 'Drop here' : 'Drag or click'}
+                      </span>
                     </div>
                   )}
+                </label>
+                <Input
+                  id="logo-upload-main"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('File size must be less than 5MB');
+                        return;
+                      }
+                      setLogo(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </div>
+
+              {/* File Info - Centered */}
+              {logo && (
+                <div className="max-w-md mx-auto p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-center">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate mb-1">
+                    {logo.name}
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    {(logo.size / 1024).toFixed(1)} KB
+                  </p>
                 </div>
+              )}
+              
+              {/* Action Buttons - Centered */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex gap-2">
+                  <label 
+                    htmlFor="logo-upload" 
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    {logo ? 'Change' : 'Choose File'}
+                  </label>
+                  {logo && (
+                    <button
+                      type="button"
+                      onClick={() => setLogo(null)}
+                      className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                
+                <Input
+                  id="logo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('File size must be less than 5MB');
+                        return;
+                      }
+                      setLogo(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  PNG, JPG or SVG (max. 5MB)
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -622,43 +671,79 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                   <FileText className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                   Verification Documents
                 </CardTitle>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Upload registration certificates, licenses, or other official documents (optional, up to 5 files)
+                </p>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Upload verification documents (optional)</Label>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Upload registration certificates, licenses, or other official documents (up to 5 files)
-                    </p>
-                    
-                    <Input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      multiple
-                      onChange={handleVerificationDocsChange}
-                      disabled={verificationDocs.length >= 5}
-                    />
-                  </div>
-
-                  {verificationDocs.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Uploaded Documents:</Label>
-                      {verificationDocs.map((doc, index) => (
-                        <div key={index} className="flex items-center justify-between p-2 border rounded">
-                          <span className="text-sm truncate">{doc.name}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeVerificationDoc(index)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+              <CardContent className="space-y-4">
+                {/* Drag and Drop Zone */}
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                    isDraggingDocs
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/30'
+                  }`}
+                  onDragEnter={handleDocsDragEnter}
+                  onDragOver={handleDocsDragOver}
+                  onDragLeave={handleDocsDragLeave}
+                  onDrop={handleDocsDrop}
+                >
+                  <FileText className={`w-10 h-10 mx-auto mb-3 ${
+                    isDraggingDocs ? 'text-blue-500' : 'text-gray-400'
+                  }`} />
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    {isDraggingDocs ? 'Drop files here' : 'Drag and drop files here'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    or
+                  </p>
+                  {verificationDocs.length < 5 && (
+                    <label 
+                      htmlFor="verification-docs-upload" 
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Choose Files
+                    </label>
                   )}
+                  <Input
+                    id="verification-docs-upload"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    multiple
+                    onChange={handleVerificationDocsChange}
+                    className="hidden"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                    PDF, JPG, or PNG files • {verificationDocs.length} of 5 uploaded
+                  </p>
                 </div>
+
+                {/* Uploaded Documents List */}
+                {verificationDocs.length > 0 && (
+                  <div className="space-y-2">
+                    {verificationDocs.map((doc, index) => (
+                      <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                        <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {doc.name}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {(doc.size / 1024).toFixed(1)} KB
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeVerificationDoc(index)}
+                          className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

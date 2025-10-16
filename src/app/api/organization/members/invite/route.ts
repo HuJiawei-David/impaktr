@@ -28,8 +28,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        profile: true,
-        ownedOrganizations: true,
+        organizationMemberships: true,
       }
     });
 
@@ -54,7 +53,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
       }
 
-      const isOwner = organization.ownerId === user.id;
+      const isOwner = organization.members.some(member => member.userId === user.id && member.role === 'owner');
       const membership = organization.members[0];
       const isAdmin = membership?.role === 'admin';
 
@@ -63,7 +62,8 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Use user's owned organization
-      organization = user.ownedOrganizations[0];
+      const ownedMembership = user.organizationMemberships.find(membership => membership.role === 'owner');
+      organization = ownedMembership ? { id: ownedMembership.organizationId } : null;
       if (!organization) {
         return NextResponse.json(
           { error: 'You must be an organization owner to invite members' },
@@ -127,21 +127,16 @@ export async function POST(request: NextRequest) {
         token: invitationToken,
         invitedBy: user.id,
         expiresAt,
-        message: message || null,
         status: 'PENDING'
       },
       include: {
         organization: true,
-        inviter: {
-          include: { profile: true }
-        }
+        inviter: true
       }
     });
 
     // Prepare email content
-    const inviterName = user.profile?.displayName || 
-                       `${user.profile?.firstName} ${user.profile?.lastName}`.trim() || 
-                       user.email || 'Unknown User';
+    const inviterName = user.name || user.email || 'Unknown User';
 
     const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/organization/accept-invite?token=${invitationToken}`;
 
@@ -149,11 +144,10 @@ export async function POST(request: NextRequest) {
     try {
       await sendOrganizationInvitation({
         to: email,
-        organizationName: organization.name,
+        organizationName: organization?.name || 'Unknown Organization',
         inviterName,
         role,
         invitationUrl,
-        message: message || undefined
       });
     } catch (emailError) {
       console.error('Failed to send invitation email:', emailError);
@@ -227,7 +221,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
 
-    const isOwner = organization.ownerId === user.id;
+    const isOwner = organization.members.some(member => member.userId === user.id && member.role === 'owner');
     const membership = organization.members[0];
     const isAdmin = membership?.role === 'admin';
 
@@ -245,9 +239,7 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        inviter: {
-          include: { profile: true }
-        }
+        inviter: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -257,14 +249,12 @@ export async function GET(request: NextRequest) {
       email: invitation.email,
       role: invitation.role,
       status: invitation.status,
-      message: invitation.message,
+      message: 'You have been invited to join an organization',
       expiresAt: invitation.expiresAt,
       createdAt: invitation.createdAt,
       invitedBy: {
         id: invitation.inviter.id,
-        name: invitation.inviter.profile?.displayName || 
-              `${invitation.inviter.profile?.firstName} ${invitation.inviter.profile?.lastName}`.trim() ||
-              invitation.inviter.email,
+        name: invitation.inviter.name || invitation.inviter.email,
         email: invitation.inviter.email
       }
     }));

@@ -2,10 +2,11 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import Image from 'next/image';
 import { 
   User, 
   MapPin, 
@@ -23,6 +24,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,7 +34,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { countries } from '@/constants/countries';
 import { languages } from '@/constants/languages';
@@ -91,18 +92,7 @@ export default function ProfileEditPage() {
     reset
   } = useForm<ProfileData>();
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin');
-      return;
-    }
-
-    if (session?.user) {
-      fetchProfile();
-    }
-  }, [session, status]);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       const response = await fetch('/api/users/profile');
       if (response.ok) {
@@ -147,7 +137,18 @@ export default function ProfileEditPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [reset]);
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+      return;
+    }
+
+    if (session?.user) {
+      fetchProfile();
+    }
+  }, [session, status, fetchProfile, router]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,7 +251,7 @@ export default function ProfileEditPage() {
   if (status === 'loading' || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -261,7 +262,7 @@ export default function ProfileEditPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 pt-3 pb-8 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
@@ -319,15 +320,19 @@ export default function ProfileEditPage() {
                 <Label>Profile Banner</Label>
                 <div className="relative h-32 bg-gradient-to-r from-primary-100 to-primary-200 rounded-lg overflow-hidden mt-2">
                   {bannerFile ? (
-                    <img
+                    <Image
                       src={URL.createObjectURL(bannerFile)}
                       alt="Banner preview"
+                      width={400}
+                      height={128}
                       className="w-full h-full object-cover"
                     />
                   ) : profile?.banner ? (
-                    <img
+                    <Image
                       src={profile.banner}
                       alt="Current banner"
+                      width={400}
+                      height={128}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -398,17 +403,59 @@ export default function ProfileEditPage() {
             </CardContent>
           </Card>
 
-          {/* Profile Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="contact">Contact & Location</TabsTrigger>
-              <TabsTrigger value="interests">Interests & SDGs</TabsTrigger>
-              <TabsTrigger value="privacy">Privacy & Settings</TabsTrigger>
-            </TabsList>
+          {/* Profile Navigation */}
+          <div className="space-y-6">
+            {/* Pill-like Navigation */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={activeTab === 'basic' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('basic')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'basic' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Basic Info
+              </Button>
+              <Button
+                variant={activeTab === 'contact' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('contact')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'contact' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Contact & Location
+              </Button>
+              <Button
+                variant={activeTab === 'interests' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('interests')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'interests' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Interests & SDGs
+              </Button>
+              <Button
+                variant={activeTab === 'privacy' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('privacy')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'privacy' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Privacy & Settings
+              </Button>
+            </div>
 
-            {/* Basic Information Tab */}
-            <TabsContent value="basic" className="space-y-6">
+            {/* Basic Information Tab Content */}
+            {activeTab === 'basic' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -504,10 +551,12 @@ export default function ProfileEditPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
-            {/* Contact & Location Tab */}
-            <TabsContent value="contact" className="space-y-6">
+            {/* Contact & Location Tab Content */}
+            {activeTab === 'contact' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -624,10 +673,12 @@ export default function ProfileEditPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
-            {/* Interests & SDGs Tab */}
-            <TabsContent value="interests" className="space-y-6">
+            {/* Interests & SDGs Tab Content */}
+            {activeTab === 'interests' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>SDG Focus Areas</CardTitle>
@@ -643,10 +694,12 @@ export default function ProfileEditPage() {
                   />
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
-            {/* Privacy & Settings Tab */}
-            <TabsContent value="privacy" className="space-y-6">
+            {/* Privacy & Settings Tab Content */}
+            {activeTab === 'privacy' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -726,7 +779,7 @@ export default function ProfileEditPage() {
                     <div className="space-y-0.5">
                       <Label>Event Reminders</Label>
                       <p className="text-sm text-muted-foreground">
-                        Reminders for upcoming events you've joined
+                        Reminders for upcoming events you&apos;ve joined
                       </p>
                     </div>
                     <Switch
@@ -762,8 +815,9 @@ export default function ProfileEditPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+              </div>
+            )}
+          </div>
 
           {/* Sticky Save Bar */}
           {isDirty && (

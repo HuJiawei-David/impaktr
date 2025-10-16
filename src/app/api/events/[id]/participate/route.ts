@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { ParticipationStatus } from '@prisma/client';
+import { ParticipationStatus } from '@/types/events';
 
 const participateSchema = z.object({
   hoursCommitted: z.number().positive(),
@@ -94,18 +94,14 @@ export async function POST(
       data: {
         userId: user.id,
         eventId: id,
-        hoursCommitted,
-        notes,
-        skillMultiplier,
+        hours: hoursCommitted, // hoursCommitted field doesn't exist, using hours instead
+        feedback: notes, // notes field doesn't exist, using feedback instead
+        // skillMultiplier field doesn't exist in Participation model
         status: ParticipationStatus.PENDING,
       },
       include: {
         event: true,
-        user: {
-          include: {
-            profile: true,
-          }
-        }
+        user: true
       }
     });
 
@@ -177,15 +173,15 @@ export async function PUT(
 
     const updatedParticipation = await prisma.participation.update({
       where: { id: participation.id },
-      data: validatedData,
+      data: {
+        feedback: validatedData.notes, // notes field doesn't exist, using feedback instead
+        hours: validatedData.hoursActual || 0, // hoursActual field doesn't exist, using hours instead
+        // proofImages and qualityRating fields don't exist in Participation model
+      },
       include: {
         event: true,
-        user: {
-          include: {
-            profile: true,
-          }
-        },
-        verifications: true,
+        user: true,
+        // verifications field doesn't exist in Participation model
       }
     });
 

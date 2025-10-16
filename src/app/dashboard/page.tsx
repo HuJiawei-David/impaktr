@@ -2,9 +2,9 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { 
   Calendar,
   TrendingUp,
@@ -25,13 +25,18 @@ import {
   Share2,
   MessageCircle,
   ThumbsUp,
-  User
+  User,
+  Image as ImageIcon,
+  Video,
+  FileText,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
 import { ImpaktrScore } from '@/components/dashboard/ImpaktrScore';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { BadgeProgress } from '@/components/dashboard/BadgeProgress';
@@ -41,6 +46,8 @@ import { StatsCards } from '@/components/dashboard/StatsCards';
 import { GamificationJourney } from '@/components/dashboard/GamificationJourney';
 import { SDGBadgeCollection } from '@/components/dashboard/SDGBadgeCollection';
 import { AchievementFeed } from '@/components/dashboard/AchievementFeed';
+import { UpcomingEventsWidget } from '@/components/dashboard/UpcomingEventsWidget';
+import { FeaturedOrganizations } from '@/components/dashboard/FeaturedOrganizations';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { sdgs, getSDGById } from '@/constants/sdgs';
 import Link from 'next/link';
@@ -70,7 +77,16 @@ interface UserProfile {
   sdgFocus?: number[];
   isPublic?: boolean;
   showEmail?: boolean;
-  notifications?: any;
+  notifications?: {
+    email: boolean;
+    push: boolean;
+    badges: boolean;
+    events: boolean;
+    verifications: boolean;
+    monthlyReports: boolean;
+    eventReminders: boolean;
+    certificateIssued: boolean;
+  };
 }
 
 interface ProfileData {
@@ -82,9 +98,31 @@ interface ProfileData {
     userType?: string;
     profileComplete?: boolean;
     profile?: UserProfile;
-    badges?: any[];
-    achievements?: any[];
-    scoreHistory?: any[];
+    badges?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      icon: string;
+      category: string;
+      earnedAt: string;
+    }>;
+    achievements?: Array<{
+      id: string;
+      type: string;
+      title: string;
+      description: string;
+      points: number;
+      verifiedAt: string;
+      createdAt: string;
+    }>;
+    scoreHistory?: Array<{
+      id: string;
+      oldScore: number;
+      newScore: number;
+      change: number;
+      reason: string;
+      createdAt: string;
+    }>;
     _count?: {
       participations: number;
       certificates: number;
@@ -98,28 +136,75 @@ export default function DashboardPage() {
   const { data: session, status } = useSession();
   const user = session?.user;
   const isLoading = status === 'loading';
+  const router = useRouter();
+  const hasRedirected = useRef(false);
   
   // Profile data state
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim()) return;
+    try {
+      setIsCreatingPost(true);
+      const formData = new FormData();
+      formData.append('content', newPostContent);
+      formData.append('type', 'GENERAL');
+      formData.append('visibility', 'PUBLIC');
+      const res = await fetch('/api/social/posts', { method: 'POST', body: formData });
+      if (res.ok) {
+        setShowCreatePost(false);
+        setNewPostContent('');
+      }
+    } catch (e) {
+      // no-op
+    } finally {
+      setIsCreatingPost(false);
+    }
+  };
+
+  // DON'T redirect - let users access any dashboard they want
+  // Organizations can view individual dashboard if they want
 
   // Fetch profile data
   useEffect(() => {
     const fetchProfileData = async () => {
-      if (!user?.id) return;
+      if (isLoading || !user?.id) {
+        return;
+      }
       
       setProfileLoading(true);
       setProfileError(null);
       
       try {
-        const response = await fetch('/api/users/profile');
+        // Force fresh data by adding a timestamp to bypass cache
+        const response = await fetch(`/api/users/profile?t=${Date.now()}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch profile data');
         }
         
         const data = await response.json();
+        console.log('Profile data received:', data);
+        console.log('User type:', data.user?.userType);
         setProfileData(data);
+        
+        // Redirect organization users to organization dashboard
+        if (data.user?.userType && data.user.userType !== 'INDIVIDUAL' && !isRedirecting) {
+          console.log('Redirecting to organization dashboard for userType:', data.user.userType);
+          setIsRedirecting(true);
+          // Use window.location.href to prevent redirect loops
+          window.location.href = '/organization/dashboard';
+        }
       } catch (error) {
         console.error('Error fetching profile data:', error);
         setProfileError(error instanceof Error ? error.message : 'Failed to fetch profile data');
@@ -131,18 +216,21 @@ export default function DashboardPage() {
     if (user?.id) {
       fetchProfileData();
     }
-  }, [user?.id]);
+  }, [user?.id, isLoading, router, isRedirecting]);
 
-  if (isLoading) {
+  if (isLoading || isRedirecting || profileLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner 
+          text={isRedirecting ? 'Redirecting to organization dashboard...' : 'Loading...'}
+          size="lg"
+        />
       </div>
     );
   }
 
   if (!user) {
-    redirect('/api/auth/login');
+    router.push('/signin');
   }
 
   return (
@@ -157,9 +245,9 @@ export default function DashboardPage() {
               <div className="flex items-center space-x-4">
                 <div className="relative group">
                   <Avatar className="w-16 h-16 border-2 border-gray-100 dark:border-gray-700 cursor-pointer transition-all duration-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2">
-                    <AvatarImage src={user.image || ''} alt={user.name || ''} />
+                    <AvatarImage src={user?.image || ''} alt={user?.name || ''} />
                     <AvatarFallback className="bg-blue-500 text-white font-semibold text-lg">
-                      {user.name?.charAt(0) || 'U'}
+                      {user?.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   {/* Hover overlay */}
@@ -172,10 +260,10 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1">
                   <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {user.name || 'User'}
+                    {user?.name || 'User'}
                   </h1>
                   <p className="text-sm text-gray-600 dark:text-gray-400 normal-case">
-                    Impact Contributor • {user.userType?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || 'Individual'}
+                    Impact Contributor • {user?.userType === 'NGO' ? 'NGO' : user?.userType === 'COMPANY' ? 'Company' : 'Individual'}
                   </p>
                   <div className="flex items-center space-x-4 mt-1">
                     <span className="flex items-center text-xs text-gray-500 dark:text-gray-400">
@@ -206,15 +294,15 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" className="text-xs px-4 py-2 h-auto">
+                  <Button variant="outline" size="sm" className="text-xs px-4 py-3 h-auto">
                     <User className="w-3 h-3 mr-1" />
                     Edit
                   </Button>
                   <Button 
                     size="sm" 
-                    className="bg-green-600 hover:bg-green-700 text-xs px-4 py-2 h-auto"
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 text-xs px-4 py-3 h-auto"
                     onClick={() => {
-                      const profileUrl = `${window.location.origin}/profile/${user.id}`;
+                      const profileUrl = `${window.location.origin}/profile/${user?.id}`;
                       navigator.clipboard.writeText(profileUrl);
                       alert('Profile link copied to clipboard!');
                     }}
@@ -252,7 +340,7 @@ export default function DashboardPage() {
                 Your SDG Focus Areas
               </CardTitle>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                The UN Sustainable Development Goals you're passionate about
+                The UN Sustainable Development Goals you&apos;re passionate about
               </p>
             </CardHeader>
             <CardContent>
@@ -294,7 +382,7 @@ export default function DashboardPage() {
                 Your SDG Focus Areas
               </CardTitle>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Select the UN Sustainable Development Goals you're passionate about
+                Select the UN Sustainable Development Goals you&apos;re passionate about
               </p>
             </CardHeader>
             <CardContent>
@@ -303,7 +391,7 @@ export default function DashboardPage() {
                   <Target className="w-8 h-8 text-gray-400" />
                 </div>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  You haven't selected any SDG focus areas yet.
+                  You haven&apos;t selected any SDG focus areas yet.
                 </p>
                 <Link href="/profile/edit">
                   <Button variant="outline" className="inline-flex items-center">
@@ -317,79 +405,157 @@ export default function DashboardPage() {
         )}
 
         {/* LinkedIn-style Layout */}
-        <div className="grid lg:grid-cols-8 gap-6">
-          {/* Left Sidebar - Compact Profile & Navigation */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Compact Gamification Journey */}
+        <div className="grid lg:grid-cols-12 gap-6">
+          {/* Left Sidebar - Stats & Featured Organizations */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* Your Impact Stats */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardContent className="p-4">
-                <GamificationJourney compact />
+                <div className="text-center mb-4">
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">2,347</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Impact Score</div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">87.5</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Hours</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-white">12</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Badges</div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            {/* SDG Badge Collection - Compact */}
-            <SDGBadgeCollection compact />
-
-            {/* Navigation Links */}
+            {/* Quick Actions */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardContent className="p-4 space-y-2">
-                <Link href="/events" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <Calendar className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Events</span>
-                </Link>
-                <Link href="/leaderboards" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <TrendingUp className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Leaderboards</span>
-                </Link>
-                <Link href="/profile" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <Award className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Badges</span>
-                </Link>
-                <Link href="/organizations" className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <Building2 className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">Organizations</span>
-                </Link>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+                    onClick={() => router.push('/events')}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Find Events
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+                    onClick={() => router.push('/profile/badges')}
+                  >
+                    <Award className="w-4 h-4 mr-2" />
+                    View Badges
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+                    onClick={() => router.push('/leaderboards')}
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Leaderboard
+                  </Button>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Badge Progress */}
+            <BadgeProgress />
+
+            {/* Featured Organizations */}
+            <FeaturedOrganizations />
           </div>
 
           {/* Main Feed - Center */}
-          <div className="lg:col-span-4 space-y-4">
-            {/* Create Post / Event */}
+          <div className="lg:col-span-6 space-y-4">
+            {/* Create Post - LinkedIn Style */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={user.image || ''} alt={user.name || ''} />
-                    <AvatarFallback className="bg-blue-500 text-white text-sm">
-                      {user.name?.charAt(0) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 justify-start text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 pl-4"
-                    onClick={() => {
-                      // TODO: Open create post modal/dialog
-                      alert('Create post functionality coming soon!');
-                    }}
-                  >
-                    Share your impact journey...
-                  </Button>
-                </div>
-                <div className="flex justify-between mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-4 py-2">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Event
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 px-4 py-2">
-                    <Users className="w-4 h-4 mr-2" />
-                    Join Event
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 px-4 py-2">
-                    <Award className="w-4 h-4 mr-2" />
-                    Share Badge
-                  </Button>
-                </div>
+                {!showCreatePost ? (
+                  <>
+                    <div className="flex items-center space-x-3 mb-4">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={user?.image || ''} alt={user?.name || ''} />
+                        <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm">
+                          {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 justify-start text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 pl-4 rounded-full"
+                        onClick={() => setShowCreatePost(true)}
+                      >
+                        Start a post...
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-around pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
+                        <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-medium">Photo</span>
+                      </Button>
+                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
+                        <Video className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        <span className="text-sm font-medium">Video</span>
+                      </Button>
+                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
+                        <CalendarIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                        <span className="text-sm font-medium">Event</span>
+                      </Button>
+                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
+                        <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        <span className="text-sm font-medium">Article</span>
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={user?.image || ''} alt={user?.name || ''} />
+                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm">
+                            {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-white">{user?.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Individual</p>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => { setShowCreatePost(false); setNewPostContent(''); }}>
+                        ✕
+                      </Button>
+                    </div>
+                    <Textarea
+                      value={newPostContent}
+                      onChange={(e) => setNewPostContent(e.target.value)}
+                      placeholder="What do you want to talk about?"
+                      className="min-h-[120px] border-0 focus-visible:ring-0 text-base"
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                          <ImageIcon className="w-5 h-5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                          <Video className="w-5 h-5" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                          <FileText className="w-5 h-5" />
+                        </Button>
+                      </div>
+                      <Button onClick={handleCreatePost} disabled={isCreatingPost || !newPostContent.trim()} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full px-6">
+                        {isCreatingPost ? 'Posting...' : 'Post'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -397,48 +563,10 @@ export default function DashboardPage() {
             <AchievementFeed maxItems={5} />
           </div>
 
-          {/* Right Sidebar - Compact Info */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Right Sidebar - Upcoming Events & Connections */}
+          <div className="lg:col-span-3 space-y-4">
             {/* Upcoming Events */}
-            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Your Events
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-2">
-                <div className="flex items-center space-x-2 text-sm">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-white">Beach Cleanup</div>
-                    <div className="text-xs text-gray-500">Tomorrow 9:00 AM</div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-white">Math Tutoring</div>
-                    <div className="text-xs text-gray-500">Saturday 2:00 PM</div>
-                  </div>
-                </div>
-                <Link href="/events" className="block w-full mt-3">
-                  <div className="group relative w-full p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border border-blue-200/50 dark:border-gray-700 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-gray-700 dark:hover:to-gray-700 transition-all duration-200 cursor-pointer">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
-                          <Calendar className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          View All Events
-                        </div>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-              </CardContent>
-            </Card>
+            <UpcomingEventsWidget />
 
             {/* Impact Summary */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">

@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSDGName, getSDGColor, formatDate } from '@/lib/utils';
 
@@ -66,6 +65,7 @@ export function BadgeCollection({ badges }: BadgeCollectionProps) {
   const [filterTier, setFilterTier] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('sdg');
+  const [viewMode, setViewMode] = useState<'grid' | 'sdg'>('grid');
 
   // Group badges by SDG
   const badgesBySDG = badges.reduce((acc, badge) => {
@@ -325,71 +325,94 @@ export function BadgeCollection({ badges }: BadgeCollectionProps) {
         </div>
       </div>
 
-      {/* Badge Collection */}
-      <Tabs defaultValue="grid" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="grid">Grid View</TabsTrigger>
-          <TabsTrigger value="sdg">By SDG</TabsTrigger>
-        </TabsList>
+      {/* View Mode Pills */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={viewMode === 'grid' ? 'default' : 'outline'}
+          onClick={() => setViewMode('grid')}
+          className={`rounded-full px-6 py-2 ${
+            viewMode === 'grid' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Grid View
+        </Button>
+        <Button
+          variant={viewMode === 'sdg' ? 'default' : 'outline'}
+          onClick={() => setViewMode('sdg')}
+          className={`rounded-full px-6 py-2 ${
+            viewMode === 'sdg' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          By SDG
+        </Button>
+      </div>
 
-        <TabsContent value="grid" className="space-y-4">
-          {filteredBadges.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Award className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No badges found</h3>
-                <p className="text-muted-foreground">
-                  No badges match your current filters. Try adjusting your selection.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredBadges.map((badge) => (
-                <BadgeCard key={badge.id} badge={badge} />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="sdg" className="space-y-6">
-          {Object.entries(badgesBySDG)
-            .sort(([a], [b]) => parseInt(a) - parseInt(b))
-            .map(([sdgNumber, sdgBadges]) => (
-              <Card key={sdgNumber}>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-3">
-                    <div
-                      className="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white font-bold text-sm"
-                      style={{ backgroundColor: getSDGColor(parseInt(sdgNumber)) }}
-                    >
-                      <div className="text-xs">SDG</div>
-                      <div>{sdgNumber}</div>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">{getSDGName(parseInt(sdgNumber))}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {sdgBadges.filter(b => b.earnedAt).length} of {sdgBadges.length} badges earned
-                      </p>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {sdgBadges
-                      .sort((a, b) => {
-                        const tierOrder = { SUPPORTER: 1, BUILDER: 2, CHAMPION: 3, GUARDIAN: 4 };
-                        return tierOrder[a.tier] - tierOrder[b.tier];
-                      })
-                      .map((badge) => (
-                        <BadgeCard key={badge.id} badge={badge} />
-                      ))}
-                  </div>
+      {/* Badge Collection Content */}
+      <div className="space-y-4">
+        {viewMode === 'grid' ? (
+          <>
+            {filteredBadges.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Award className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-lg font-semibold mb-2">No badges found</h3>
+                  <p className="text-muted-foreground">
+                    No badges match your current filters. Try adjusting your selection.
+                  </p>
                 </CardContent>
               </Card>
-            ))}
-        </TabsContent>
-      </Tabs>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredBadges.map((badge) => (
+                  <BadgeCard key={badge.id} badge={badge} />
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(badgesBySDG)
+              .sort(([a], [b]) => parseInt(a) - parseInt(b))
+              .map(([sdgNumber, sdgBadges]) => (
+                <Card key={sdgNumber}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-3">
+                      <div
+                        className="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white font-bold text-sm"
+                        style={{ backgroundColor: getSDGColor(parseInt(sdgNumber)) }}
+                      >
+                        <div className="text-xs">SDG</div>
+                        <div>{sdgNumber}</div>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold">{getSDGName(parseInt(sdgNumber))}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {sdgBadges.filter(b => b.earnedAt).length} of {sdgBadges.length} badges earned
+                        </p>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {sdgBadges
+                        .sort((a, b) => {
+                          const tierOrder = { SUPPORTER: 1, BUILDER: 2, CHAMPION: 3, GUARDIAN: 4 };
+                          return tierOrder[a.tier] - tierOrder[b.tier];
+                        })
+                        .map((badge) => (
+                          <BadgeCard key={badge.id} badge={badge} />
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

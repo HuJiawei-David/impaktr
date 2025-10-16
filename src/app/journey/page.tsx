@@ -186,7 +186,7 @@ export default function JourneyPage() {
                 </p>
               </div>
               <p className="text-blue-50 text-sm leading-relaxed">
-                Your profile type customizes the opportunities, dashboards, and recognition you'll get on your journey to make a difference.
+                Your profile type customizes the opportunities, dashboards, and recognition you&apos;ll get on your journey to make a difference.
               </p>
             </CardContent>
           </Card>

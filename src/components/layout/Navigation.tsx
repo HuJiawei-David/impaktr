@@ -18,13 +18,21 @@ import {
   Calendar,
   BarChart3,
   Trophy,
+  Award,
   Users,
   Plus,
-  Globe
+  Globe,
+  Building2,
+  Leaf,
+  CreditCard,
+  Shield,
+  MessageCircle,
+  Briefcase,
+  Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,13 +47,28 @@ import { NotificationDropdown } from '@/components/notifications/NotificationDro
 
 const navigationItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/opportunities', label: 'Opportunities', icon: Globe },
+  { href: '/events', label: 'Events', icon: Calendar },
+  { href: '/opportunities', label: 'Opportunities', icon: Briefcase },
+  { href: '/recommendations', label: 'For You', icon: Target },
+  { href: '/messages', label: 'Messages', icon: MessageCircle },
   { href: '/leaderboards', label: 'Leaderboards', icon: Trophy },
   { href: '/community', label: 'Community', icon: Users },
 ];
 
+// Organization-specific navigation items
+const organizationNavItems = [
+  { href: '/organization/dashboard', label: 'Overview', icon: Home },
+  { href: '/organization/opportunities', label: 'Opportunities', icon: Briefcase },
+  { href: '/organization/members', label: 'Team', icon: Users },
+  { href: '/organization/events', label: 'Events', icon: Calendar },
+  { href: '/organization/leaderboard', label: 'Leaderboards', icon: Trophy },
+  { href: '/organization/esg', label: 'ESG', icon: Leaf },
+  { href: '/organization/achievements', label: 'Achievements', icon: Award },
+  { href: '/organization/analytics', label: 'Analytics', icon: BarChart3 },
+];
+
 export function Navigation() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const user = session?.user;
   const isLoading = status === 'loading';
   const [isOpen, setIsOpen] = useState(false);
@@ -56,6 +79,13 @@ export function Navigation() {
   const [unreadCount, setUnreadCount] = useState(3); // Mock unread count
   const pathname = usePathname();
   const router = useRouter();
+
+  // Determine if user is an organization
+  const isOrgContext = pathname.startsWith('/organization');
+  const isOrganization = isOrgContext || (user?.userType && user.userType !== 'INDIVIDUAL');
+  
+  // Use appropriate navigation items
+  const navItems = isOrganization ? organizationNavItems : navigationItems;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -90,6 +120,31 @@ export function Navigation() {
 
   const isHomePage = pathname === '/';
 
+  // Show a loading navbar while session is loading to prevent flash
+  if (isLoading) {
+    return (
+      <nav className={cn(
+        "fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ease-in-out",
+        scrolled || !isHomePage 
+          ? "bg-white/95 dark:bg-gray-900 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700 shadow-xl" 
+          : "bg-transparent backdrop-blur-md"
+      )}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link href="/" className="flex items-center">
+              <span className="font-bold text-2xl md:text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                impaktr
+              </span>
+            </Link>
+            {/* Empty space to maintain layout */}
+            <div className="h-10"></div>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <>
     <nav className={cn(
@@ -111,7 +166,7 @@ export function Navigation() {
           {user ? (
             <div className="hidden md:flex items-center justify-center flex-1 max-w-3xl mx-8">
               <div className="flex items-center space-x-1">
-                {navigationItems.map((item) => {
+                {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
 
@@ -122,8 +177,8 @@ export function Navigation() {
                       className={cn(
                         "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
                         isActive
-                          ? "text-blue-600 bg-blue-50 dark:bg-gray-700 dark:text-blue-400"
-                          : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          ? "text-purple-600 bg-purple-50 dark:bg-gray-700 dark:text-purple-400"
+                          : "text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700"
                       )}
                     >
                       <Icon className={cn(
@@ -135,31 +190,32 @@ export function Navigation() {
                   );
                 })}
 
-                {/* Analytics with Notification */}
-                <div className="flex items-center ml-2 pl-2 border-l border-gray-200 dark:border-gray-600">
-                  <Link
-                    href="/analytics"
-                    className={cn(
-                      "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
-                      pathname.startsWith('/analytics')
-                        ? "text-blue-600 bg-blue-50 dark:bg-gray-700 dark:text-blue-400"
-                        : "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    )}
-                  >
-                    <BarChart3 className={cn(
-                      "w-5 h-5 mb-1 transition-all duration-200",
-                      pathname.startsWith('/analytics') ? "scale-110" : "group-hover:scale-110"
-                    )} />
-                    <span className="truncate">Analytics</span>
-                  </Link>
+                {/* Analytics with Notification - Only for individual users */}
+                {!isOrganization && (
+                  <div className="flex items-center ml-2 pl-2 border-l border-gray-200 dark:border-gray-600">
+                    <Link
+                      href="/analytics"
+                      className={cn(
+                        "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
+                        pathname.startsWith('/analytics')
+                          ? "text-purple-600 bg-purple-50 dark:bg-gray-700 dark:text-purple-400"
+                          : "text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      )}
+                    >
+                      <BarChart3 className={cn(
+                        "w-5 h-5 mb-1 transition-all duration-200",
+                        pathname.startsWith('/analytics') ? "scale-110" : "group-hover:scale-110"
+                      )} />
+                      <span className="truncate">Analytics</span>
+                    </Link>
 
-                  {/* Notification beside Analytics */}
+                    {/* Notification beside Analytics */}
                   <div className="relative ml-2">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className={cn(
                           "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
-                          "text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          "text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700"
                         )}>
                           <div className="relative">
                             <Bell className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
@@ -218,6 +274,7 @@ export function Navigation() {
                     </DropdownMenu>
                   </div>
                 </div>
+                )}
               </div>
             </div>
           ) : (
@@ -299,79 +356,109 @@ export function Navigation() {
                 {/* Profile Dropdown */}
                 <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-blue-200 dark:hover:ring-blue-800 transition-all duration-200">
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-purple-200 dark:hover:ring-purple-800 transition-all duration-200">
                       <Avatar className="h-9 w-9">
-                        <img
-                          src={user.image || '/default-avatar.png'}
-                          alt={user.name || 'User'}
-                          className="rounded-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=3b82f6&color=ffffff&size=128`;
-                          }}
-                        />
+                        <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm" delayMs={0}>
+                          {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-gray-900"></div>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-72 bg-white border border-gray-200 shadow-lg rounded-xl overflow-hidden" align="end" forceMount>
+                  <DropdownMenuContent className="w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-xl overflow-hidden" align="end" forceMount>
                     {/* Profile Header */}
-                    <div className="px-4 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
+                    <div className="px-4 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12 ring-2 ring-blue-100">
-                          <img
-                            src={user.image || '/default-avatar.png'}
-                            alt={user.name || 'User'}
-                            className="rounded-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=3b82f6&color=ffffff&size=128`;
-                            }}
-                          />
+                        <Avatar className="h-12 w-12 ring-2 ring-purple-100 dark:ring-purple-800">
+                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg" delayMs={0}>
+                            {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                          </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col space-y-1 min-w-0 flex-1">
-                          <p className="font-semibold text-base text-gray-900 truncate">
+                          <p className="font-semibold text-base text-gray-900 dark:text-white truncate">
                             {user.name}
                           </p>
-                          <p className="text-sm text-gray-600 truncate">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
                             {user.email}
                           </p>
-                          <span className="inline-flex items-center text-xs px-3 py-1 rounded-md bg-blue-100 text-blue-700 font-medium whitespace-nowrap">
-                            {user.userType?.toLowerCase() || 'Individual'}
-                          </span>
+                          <div>
+                            <Badge className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 border-0">
+                              {user.userType === 'NGO' ? 'NGO' : user.userType === 'COMPANY' ? 'Company' : 'Individual'}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                     </div>
 
                     {/* Menu Items */}
                     <div className="py-2">
-                      <Link href="/profile">
+                      {/* Individual Profile - Only for non-organization users */}
+                      {!isOrganization && (
+                        <Link href="/profile">
+                          <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                            <User className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900 dark:text-white">My Profile</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">View and edit profile</span>
+                            </div>
+                          </DropdownMenuItem>
+                        </Link>
+                      )}
+
+                      <Link href={isOrganization ? "/organization/dashboard" : "/dashboard"}>
                         <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
-                          <User className="mr-3 h-5 w-5 text-gray-500" />
+                          <BarChart3 className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
                           <div className="flex flex-col">
-                            <span className="font-medium text-gray-900">My Profile</span>
-                            <span className="text-xs text-gray-500">View and edit profile</span>
+                            <span className="font-medium text-gray-900 dark:text-white">Dashboard</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">View your impact</span>
                           </div>
                         </DropdownMenuItem>
                       </Link>
 
-                      <Link href="/dashboard">
-                        <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
-                          <BarChart3 className="mr-3 h-5 w-5 text-gray-500" />
-                          <div className="flex flex-col">
-                            <span className="font-medium text-gray-900">Dashboard</span>
-                            <span className="text-xs text-gray-500">View your impact</span>
-                          </div>
-                        </DropdownMenuItem>
-                      </Link>
+                      {/* Organization Settings */}
+                      {isOrganization ? (
+                        <>
+                          <Link href="/organization/profile">
+                            <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                              <Building2 className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-white">Profile</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Organization profile</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </Link>
 
-                      <Link href="/settings">
-                        <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
-                          <Settings className="mr-3 h-5 w-5 text-gray-500" />
-                          <div className="flex flex-col">
-                            <span className="font-medium text-gray-900">Settings</span>
-                            <span className="text-xs text-gray-500">Account preferences</span>
-                          </div>
-                        </DropdownMenuItem>
-                      </Link>
+                          <Link href="/organization/settings/billing">
+                            <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                              <CreditCard className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-white">Billing & Subscription</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Manage subscription</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </Link>
+
+                          <Link href="/organization/settings/members">
+                            <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                              <Shield className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-white">Members & Permissions</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Manage team access</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </Link>
+                        </>
+                      ) : (
+                        <Link href="/settings">
+                          <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                            <Settings className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900 dark:text-white">Settings</span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">Account preferences</span>
+                            </div>
+                          </DropdownMenuItem>
+                        </Link>
+                      )}
 
                       <div className="mx-2 my-2 border-t border-gray-100 dark:border-gray-700"></div>
 
@@ -381,12 +468,12 @@ export function Navigation() {
                           setDropdownOpen(false);
                           signOut({ callbackUrl: '/' });
                         }}
-                        className="mx-2 px-3 py-3 rounded-lg text-red-600 hover:text-red-700 focus:text-red-700 w-full text-left flex items-center transition-all duration-200 hover:scale-105 focus:scale-105"
+                        className="mx-2 px-3 py-3 rounded-lg text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 focus:text-red-700 dark:focus:text-red-300 w-full text-left flex items-center transition-all duration-200 hover:scale-105 focus:scale-105"
                       >
                         <LogOut className="mr-3 h-5 w-5" />
                         <div className="flex flex-col">
                           <span className="font-medium">Sign Out</span>
-                          <span className="text-xs text-red-500">Sign out of your account</span>
+                          <span className="text-xs text-red-500 dark:text-red-400">Sign out of your account</span>
                         </div>
                       </button>
                     </div>
@@ -401,10 +488,10 @@ export function Navigation() {
                 {/* Theme Toggle */}
                 <ThemeToggle />
 
-              <Link href="/signin">
+                <Link href="/signin">
                 <Button 
                   variant="outline"
-                  className="border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-semibold px-6 py-2.5 rounded-lg transition-all duration-200 hover:shadow-md"
+                  className="border-2 border-gray-300 dark:border-gray-600 hover:border-purple-500 dark:hover:border-purple-400 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-semibold px-6 py-2.5 rounded-lg transition-all duration-200 hover:shadow-md"
                 >
                   Sign In
                 </Button>
@@ -452,7 +539,7 @@ export function Navigation() {
             {user ? (
               <>
                 {/* Authenticated User Menu */}
-                {navigationItems.map((item) => {
+                {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
 
@@ -474,25 +561,27 @@ export function Navigation() {
                   );
                 })}
 
-                {/* Analytics */}
-                <Link
-                  href="/analytics"
-                  className={cn(
-                    "flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
-                    pathname.startsWith('/analytics')
-                      ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
-                      : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  )}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  <span>Analytics</span>
-                </Link>
+                {/* Analytics - Only for individual users */}
+                {!isOrganization && (
+                  <Link
+                    href="/analytics"
+                    className={cn(
+                      "flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
+                      pathname.startsWith('/analytics')
+                        ? "text-purple-600 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-400"
+                        : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    )}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                    <span>Analytics</span>
+                  </Link>
+                )}
                 
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
                   <Link href="/events/create">
                     <Button 
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-3" 
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg py-3" 
                       onClick={() => setIsOpen(false)}
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -503,25 +592,22 @@ export function Navigation() {
 
                 {/* Mobile User Profile Section */}
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
-                  <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg mb-3">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-purple-50 to-purple-50 dark:from-purple-950/20 dark:to-purple-950/20 rounded-lg mb-3">
                     <Avatar className="h-10 w-10">
-                      <img 
-                        src={user.image || '/default-avatar.png'} 
-                        alt={user.name || 'User'} 
-                        className="rounded-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=3b82f6&color=ffffff&size=128`;
-                        }}
-                      />
+                      <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm" delayMs={0}>
+                        {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col space-y-1 leading-none">
                       <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">{user.name}</p>
                       <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                         {user.email}
                       </p>
-                      <Badge variant="secondary" className="w-fit text-xs">
-                        {user.userType?.toLowerCase() || 'Individual'}
-                      </Badge>
+                      <div>
+                        <Badge variant="secondary" className="text-xs">
+                          {user.userType === 'NGO' ? 'NGO' : user.userType === 'COMPANY' ? 'Company' : 'Individual'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
 
@@ -597,7 +683,7 @@ export function Navigation() {
                   <Link href="/signin" className="w-full">
                     <Button 
                       variant="outline" 
-                      className="w-full border-2 border-gray-300 hover:border-blue-500 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 py-3 rounded-lg font-medium"
+                      className="w-full border-2 border-gray-300 hover:border-purple-500 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 py-3 rounded-lg font-medium"
                       onClick={() => setIsOpen(false)}
                     >
                       Sign In
@@ -605,7 +691,7 @@ export function Navigation() {
                   </Link>
                   <Link href="/signup">
                     <Button 
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-lg font-medium shadow-lg"
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 rounded-lg font-medium shadow-lg"
                       onClick={() => setIsOpen(false)}
                     >
                       Get Started
@@ -660,7 +746,7 @@ export function Navigation() {
     {user && (
       <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-2 py-1">
         <div className="flex items-center justify-around">
-          {[...navigationItems, { href: '/analytics', label: 'Analytics', icon: BarChart3 }].map((item) => {
+          {[...navItems, ...(!isOrganization ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }] : [])].map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
 
@@ -671,7 +757,7 @@ export function Navigation() {
                 className={cn(
                   "relative flex flex-col items-center justify-center px-2 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[60px]",
                   isActive
-                    ? "text-blue-600 dark:text-blue-400"
+                    ? "text-purple-600 dark:text-purple-400"
                     : "text-gray-600 dark:text-gray-400"
                 )}
               >
@@ -681,7 +767,7 @@ export function Navigation() {
                 )} />
                 <span className="truncate text-[10px]">{item.label}</span>
                 {isActive && (
-                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full"></div>
+                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-purple-600 rounded-full"></div>
                 )}
               </Link>
             );

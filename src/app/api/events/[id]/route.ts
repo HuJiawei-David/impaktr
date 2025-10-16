@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { EventStatus } from '@prisma/client';
+import { EventStatus } from '@/types/enums';
 
 const updateEventSchema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -36,20 +36,11 @@ export async function GET(
     const event = await prisma.event.findUnique({
       where: { id },
       include: {
-        creator: {
-          include: {
-            profile: true,
-          },
-        },
         organization: true,
         participations: {
           include: {
-            user: {
-              include: {
-                profile: true,
-              },
-            },
-            verifications: true,
+            user: true,
+            // verifications field doesn't exist in Participation model
           },
         },
         _count: {
@@ -116,7 +107,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const isCreator = event.creatorId === user.id;
+    const isCreator = event.organizerId === user.id;
     const hasOrgPermission = event.organization?.members.some(
       (member: { role: string }) => member.role === 'admin' || member.role === 'owner'
     );
@@ -130,13 +121,17 @@ export async function PUT(
 
     const updatedEvent = await prisma.event.update({
       where: { id: id },
-      data: validatedData,
+      data: {
+        title: validatedData.title,
+        description: validatedData.description,
+        startDate: validatedData.startDate,
+        endDate: validatedData.endDate || validatedData.startDate,
+        location: validatedData.location?.city || 'Virtual Event',
+        maxParticipants: validatedData.maxParticipants,
+        status: validatedData.status,
+        // Other fields don't exist in Event model
+      },
       include: {
-        creator: {
-          include: {
-            profile: true,
-          },
-        },
         organization: true,
         _count: {
           select: {
@@ -202,7 +197,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const isCreator = event.creatorId === user.id;
+    const isCreator = event.organizerId === user.id;
     const hasOrgPermission = event.organization?.members.some(
       (member: { role: string }) => member.role === 'admin' || member.role === 'owner'
     );

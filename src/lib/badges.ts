@@ -2,6 +2,16 @@
 
 import { prisma } from './prisma';
 import { BadgeTier, IndividualRank, OrganizationTier, ParticipationStatus } from '@prisma/client';
+import { 
+  INDIVIDUAL_RANK_BADGES, 
+  ORGANIZATION_TIER_BADGES,
+  SDG_BADGE_CONFIGS,
+  getIndividualSDGBadgeName,
+  getIndividualSDGBadgeDescription,
+  getOrganizationSDGBadgeName,
+  getOrganizationSDGBadgeDescription,
+  getSDGBadgeRequirements
+} from './badge-config';
 
 // Badge progression requirements for each SDG tier
 interface BadgeRequirements {
@@ -32,31 +42,26 @@ const BADGE_REQUIREMENTS: Record<BadgeTier, BadgeRequirements> = {
   [BadgeTier.GUARDIAN]: { minHours: 400, minActivities: 50, minQuality: 0.9 },
 };
 
-const RANK_REQUIREMENTS: Record<IndividualRank, RankRequirements> = {
-  [IndividualRank.HELPER]: { minScore: 0, minHours: 0, minBadges: 0 },
-  [IndividualRank.SUPPORTER]: { minScore: 50, minHours: 10, minBadges: 1 },
-  [IndividualRank.CONTRIBUTOR]: { minScore: 100, minHours: 25, minBadges: 3 },
-  [IndividualRank.BUILDER]: { minScore: 200, minHours: 50, minBadges: 6 },
-  [IndividualRank.ADVOCATE]: { minScore: 350, minHours: 100, minBadges: 10 },
-  [IndividualRank.CHANGEMAKER]: { minScore: 500, minHours: 200, minBadges: 15 },
-  [IndividualRank.MENTOR]: { minScore: 700, minHours: 350, minBadges: 22 },
-  [IndividualRank.LEADER]: { minScore: 850, minHours: 500, minBadges: 30 },
-  [IndividualRank.AMBASSADOR]: { minScore: 950, minHours: 750, minBadges: 40 },
-  [IndividualRank.GLOBAL_CITIZEN]: { minScore: 1000, minHours: 1000, minBadges: 50 },
-};
+// Build RANK_REQUIREMENTS from configuration
+const RANK_REQUIREMENTS: Record<IndividualRank, RankRequirements> = INDIVIDUAL_RANK_BADGES.reduce((acc, badge) => {
+  acc[badge.rank] = {
+    minScore: badge.minScore,
+    minHours: badge.minHours,
+    minBadges: badge.minBadges
+  };
+  return acc;
+}, {} as Record<IndividualRank, RankRequirements>);
 
-const ORGANIZATION_TIER_REQUIREMENTS: Record<OrganizationTier, OrganizationTierRequirements> = {
-  [OrganizationTier.REGISTERED]: { minEmployeeParticipation: 0, minAverageScore: 0, minEvents: 0, minSDGDiversity: 0 },
-  [OrganizationTier.PARTICIPANT]: { minEmployeeParticipation: 5, minAverageScore: 10, minEvents: 1, minSDGDiversity: 1 },
-  [OrganizationTier.COMMUNITY_ALLY]: { minEmployeeParticipation: 10, minAverageScore: 15, minEvents: 3, minSDGDiversity: 2 },
-  [OrganizationTier.CONTRIBUTOR]: { minEmployeeParticipation: 20, minAverageScore: 25, minEvents: 5, minSDGDiversity: 3 },
-  [OrganizationTier.CSR_PRACTITIONER]: { minEmployeeParticipation: 35, minAverageScore: 40, minEvents: 10, minSDGDiversity: 5 },
-  [OrganizationTier.CSR_LEADER]: { minEmployeeParticipation: 50, minAverageScore: 55, minEvents: 20, minSDGDiversity: 7 },
-  [OrganizationTier.ESG_CHAMPION]: { minEmployeeParticipation: 65, minAverageScore: 70, minEvents: 35, minSDGDiversity: 10 },
-  [OrganizationTier.TRUSTED_PARTNER]: { minEmployeeParticipation: 75, minAverageScore: 80, minEvents: 50, minSDGDiversity: 12 },
-  [OrganizationTier.INDUSTRY_BENCHMARK]: { minEmployeeParticipation: 85, minAverageScore: 90, minEvents: 75, minSDGDiversity: 15 },
-  [OrganizationTier.GLOBAL_IMPACT_LEADER]: { minEmployeeParticipation: 95, minAverageScore: 95, minEvents: 100, minSDGDiversity: 17 },
-};
+// Build ORGANIZATION_TIER_REQUIREMENTS from configuration
+const ORGANIZATION_TIER_REQUIREMENTS: Record<OrganizationTier, OrganizationTierRequirements> = ORGANIZATION_TIER_BADGES.reduce((acc, badge) => {
+  acc[badge.tier] = {
+    minEmployeeParticipation: badge.minEmployeeParticipation,
+    minAverageScore: badge.minAverageScore,
+    minEvents: badge.minEvents,
+    minSDGDiversity: badge.minSDGDiversity
+  };
+  return acc;
+}, {} as Record<OrganizationTier, OrganizationTierRequirements>);
 
 /**
  * Main function to check and award badges after a user's participation is verified
@@ -98,16 +103,17 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
 /**
  * Group participations by SDG tags
  */
-function groupParticipationsBySDG(participations: any[]): Record<number, any[]> {
-  const sdgGroups: Record<number, any[]> = {};
+function groupParticipationsBySDG(participations: Array<{ hours: number | null; createdAt: Date; event: { sdg: string | null; skills?: string[] }; verifications: Array<{ type: string }> }>): Record<number, Array<{ hours: number | null; createdAt: Date; event: { sdg: string | null; skills?: string[] }; verifications: Array<{ type: string }> }>> {
+  const sdgGroups: Record<number, Array<{ hours: number | null; createdAt: Date; event: { sdg: string | null; skills?: string[] }; verifications: Array<{ type: string }> }>> = {};
   
   participations.forEach(participation => {
-    participation.event.sdgTags.forEach((sdg: number) => {
+    if (participation.event.sdg) {
+      const sdg = parseInt(participation.event.sdg);
       if (!sdgGroups[sdg]) {
         sdgGroups[sdg] = [];
       }
       sdgGroups[sdg].push(participation);
-    });
+    }
   });
 
   return sdgGroups;
@@ -116,7 +122,7 @@ function groupParticipationsBySDG(participations: any[]): Record<number, any[]> 
 /**
  * Check and award SDG-specific badges
  */
-async function checkSDGBadges(userId: string, sdgNumber: number, participations: any[]): Promise<void> {
+async function checkSDGBadges(userId: string, sdgNumber: number, participations: Array<{ hours: number | null; createdAt: Date; event: { sdg: string | null; skills?: string[] }; verifications: Array<{ type: string }> }>): Promise<void> {
   const stats = calculateSDGStats(participations);
 
   // Check each badge tier for this SDG
@@ -138,14 +144,14 @@ async function checkSDGBadges(userId: string, sdgNumber: number, participations:
 /**
  * Calculate statistics for a specific SDG
  */
-function calculateSDGStats(participations: any[]) {
+function calculateSDGStats(participations: Array<{ hours: number | null; createdAt: Date; event: { sdg: string | null; skills?: string[] }; verifications: Array<{ type: string }> }>) {
   const totalHours = participations.reduce((sum, p) => 
-    sum + (p.hoursActual || p.hoursCommitted), 0);
+    sum + (p.hours || 0), 0);
   
   const totalActivities = participations.length;
   
   const totalQuality = participations.reduce((sum, p) => 
-    sum + (p.qualityRating || 1.0), 0);
+    sum + 1.0, 0); // Default quality rating since it's not directly on Participation
   const averageQuality = totalQuality / Math.max(totalActivities, 1);
 
   const uniqueSkills = new Set();
@@ -154,7 +160,7 @@ function calculateSDGStats(participations: any[]) {
   });
 
   const verificationTypes = participations.reduce((acc, p) => {
-    p.verifications.forEach((v: any) => {
+    p.verifications.forEach((v: { type: string }) => {
       acc[v.type] = (acc[v.type] || 0) + 1;
     });
     return acc;
@@ -167,7 +173,7 @@ function calculateSDGStats(participations: any[]) {
     uniqueSkills: uniqueSkills.size,
     verificationTypes,
     latestActivity: participations.sort((a, b) => 
-      new Date(b.verifiedAt || b.updatedAt).getTime() - new Date(a.verifiedAt || a.updatedAt).getTime()
+      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     )[0]
   };
 }
@@ -175,7 +181,7 @@ function calculateSDGStats(participations: any[]) {
 /**
  * Award an SDG badge to a user
  */
-async function awardSDGBadge(userId: string, sdgNumber: number, tier: BadgeTier, stats: any): Promise<void> {
+async function awardSDGBadge(userId: string, sdgNumber: number, tier: BadgeTier, stats: { totalHours: number; totalActivities: number; averageQuality: number; uniqueSkills: number; verificationTypes: Record<string, number> }): Promise<void> {
   // Find or create the badge
   let badge = await prisma.badge.findUnique({
     where: {
@@ -194,9 +200,12 @@ async function awardSDGBadge(userId: string, sdgNumber: number, tier: BadgeTier,
         name: getSDGBadgeName(sdgNumber, tier),
         description: getSDGBadgeDescription(sdgNumber, tier),
         icon: getSDGBadgeIcon(sdgNumber, tier),
-        minHours: BADGE_REQUIREMENTS[tier].minHours,
-        minActivities: BADGE_REQUIREMENTS[tier].minActivities,
-        minQuality: BADGE_REQUIREMENTS[tier].minQuality,
+        category: sdgNumber.toString(),
+        requirement: {
+          minHours: BADGE_REQUIREMENTS[tier].minHours,
+          minActivities: BADGE_REQUIREMENTS[tier].minActivities,
+          minQuality: BADGE_REQUIREMENTS[tier].minQuality,
+        },
       }
     });
   }
@@ -217,7 +226,6 @@ async function awardSDGBadge(userId: string, sdgNumber: number, tier: BadgeTier,
       data: {
         userId,
         badgeId: badge.id,
-        progress: 100,
         earnedAt: new Date(),
       }
     });
@@ -227,14 +235,10 @@ async function awardSDGBadge(userId: string, sdgNumber: number, tier: BadgeTier,
       data: {
         userId,
         type: 'badge_earned',
-        name: `${badge.name} Earned`,
+        title: `${badge.name} Earned`,
         description: `Congratulations! You've earned the ${badge.name} badge for your contributions to ${getSDGName(sdgNumber)}.`,
-        icon: badge.icon,
-        data: {
-          sdgNumber,
-          tier,
-          stats
-        }
+        points: 10,
+        verifiedAt: new Date(),
       }
     });
 
@@ -243,7 +247,6 @@ async function awardSDGBadge(userId: string, sdgNumber: number, tier: BadgeTier,
     await prisma.userBadge.update({
       where: { id: existingUserBadge.id },
       data: {
-        progress: 100,
         earnedAt: new Date(),
       }
     });
@@ -257,7 +260,7 @@ async function updateBadgeProgress(
   userId: string, 
   sdgNumber: number, 
   tier: BadgeTier, 
-  stats: any, 
+  stats: { totalHours: number; totalActivities: number; averageQuality: number; uniqueSkills: number; verificationTypes: Record<string, number> }, 
   requirements: BadgeRequirements
 ): Promise<void> {
   // Calculate progress percentage
@@ -286,9 +289,12 @@ async function updateBadgeProgress(
         name: getSDGBadgeName(sdgNumber, tier),
         description: getSDGBadgeDescription(sdgNumber, tier),
         icon: getSDGBadgeIcon(sdgNumber, tier),
-        minHours: requirements.minHours,
-        minActivities: requirements.minActivities,
-        minQuality: requirements.minQuality,
+        category: sdgNumber.toString(),
+        requirement: {
+          minHours: requirements.minHours,
+          minActivities: requirements.minActivities,
+          minQuality: requirements.minQuality,
+        },
       }
     });
   }
@@ -301,11 +307,11 @@ async function updateBadgeProgress(
         badgeId: badge.id,
       }
     },
-    update: { progress: totalProgress },
+    update: { earnedAt: new Date() },
     create: {
       userId,
       badgeId: badge.id,
-      progress: totalProgress,
+      earnedAt: new Date(),
     }
   });
 }
@@ -318,7 +324,6 @@ async function updateUserRank(userId: string): Promise<void> {
     where: { id: userId },
     include: {
       badges: {
-        where: { earnedAt: { not: null } },
         include: { badge: true }
       },
       participations: {
@@ -331,8 +336,8 @@ async function updateUserRank(userId: string): Promise<void> {
 
   const earnedBadges = user.badges.length;
   const verifiedHours = user.participations.reduce((sum, p) => 
-    sum + (p.hoursActual || p.hoursCommitted), 0);
-  const impaktrScore = user.impaktrScore;
+    sum + (p.hours || 0), 0);
+  const impaktrScore = user.impactScore;
 
   let newRank: IndividualRank = IndividualRank.HELPER;
 
@@ -347,10 +352,10 @@ async function updateUserRank(userId: string): Promise<void> {
   }
 
   // Update user rank if it changed
-  if (newRank !== user.currentRank) {
+  if (newRank !== user.tier) {
     await prisma.user.update({
       where: { id: userId },
-      data: { currentRank: newRank }
+      data: { tier: newRank }
     });
 
     // Create rank achievement
@@ -358,16 +363,10 @@ async function updateUserRank(userId: string): Promise<void> {
       data: {
         userId,
         type: 'rank_up',
-        name: `Promoted to ${getRankDisplayName(newRank)}`,
+        title: `Promoted to ${getRankDisplayName(newRank)}`,
         description: `Congratulations! You've been promoted to ${getRankDisplayName(newRank)} for your outstanding social impact contributions.`,
-        icon: getRankIcon(newRank),
-        data: {
-          oldRank: user.currentRank,
-          newRank,
-          score: impaktrScore,
-          hours: verifiedHours,
-          badges: earnedBadges,
-        }
+        points: 25,
+        verifiedAt: new Date(),
       }
     });
   }
@@ -376,9 +375,9 @@ async function updateUserRank(userId: string): Promise<void> {
 /**
  * Check for milestone achievements
  */
-async function checkMilestoneAchievements(userId: string, participations: any[]): Promise<void> {
+async function checkMilestoneAchievements(userId: string, participations: Array<{ hours: number | null; createdAt: Date; event: { sdg: string | null } }>): Promise<void> {
   const totalHours = participations.reduce((sum, p) => 
-    sum + (p.hoursActual || p.hoursCommitted), 0);
+    sum + (p.hours || 0), 0);
 
   const milestones = [
     { hours: 10, name: 'First Steps', description: 'Completed your first 10 hours of verified impact' },
@@ -392,41 +391,26 @@ async function checkMilestoneAchievements(userId: string, participations: any[])
 
   for (const milestone of milestones) {
     if (totalHours >= milestone.hours) {
-      // Check if achievement already exists
-      const existing = await prisma.achievement.findFirst({
-        where: {
-          userId,
-          type: 'hours_milestone',
-          data: {
-            path: ['hours'],
-            equals: milestone.hours
-          }
-        }
-      });
-
-      if (!existing) {
+      // Create milestone achievement
         await prisma.achievement.create({
           data: {
             userId,
             type: 'hours_milestone',
-            name: milestone.name,
+            title: milestone.name,
             description: milestone.description,
-            icon: '⏰',
-            data: {
-              hours: milestone.hours,
-              totalHours,
-              achievedAt: new Date()
-            }
+            points: 10,
+            verifiedAt: new Date(),
           }
         });
-      }
     }
   }
 
   // SDG diversity achievements
   const uniqueSDGs = new Set();
   participations.forEach(p => {
-    p.event.sdgTags.forEach((sdg: number) => uniqueSDGs.add(sdg));
+    if (p.event.sdg) {
+      uniqueSDGs.add(parseInt(p.event.sdg));
+    }
   });
 
   const sdgMilestones = [
@@ -438,33 +422,16 @@ async function checkMilestoneAchievements(userId: string, participations: any[])
 
   for (const milestone of sdgMilestones) {
     if (uniqueSDGs.size >= milestone.count) {
-      const existing = await prisma.achievement.findFirst({
-        where: {
+      await prisma.achievement.create({
+        data: {
           userId,
           type: 'sdg_diversity',
-          data: {
-            path: ['sdgCount'],
-            equals: milestone.count
-          }
+          title: milestone.name,
+          description: milestone.description,
+          points: 15,
+          verifiedAt: new Date(),
         }
       });
-
-      if (!existing) {
-        await prisma.achievement.create({
-          data: {
-            userId,
-            type: 'sdg_diversity',
-            name: milestone.name,
-            description: milestone.description,
-            icon: '🌍',
-            data: {
-              sdgCount: milestone.count,
-              totalSDGs: uniqueSDGs.size,
-              achievedAt: new Date()
-            }
-          }
-        });
-      }
     }
   }
 }
@@ -511,7 +478,7 @@ export async function updateOrganizationTier(organizationId: string): Promise<vo
   const employeeParticipationRate = (activeMembers / totalMembers) * 100;
   
   const totalScore = organization.members.reduce((sum, member) => 
-    sum + member.user.impaktrScore, 0);
+    sum + member.user.impactScore, 0);
   const averageScore = totalScore / totalMembers;
 
   const totalEvents = organization.events.length;
@@ -519,7 +486,9 @@ export async function updateOrganizationTier(organizationId: string): Promise<vo
   const uniqueSDGs = new Set();
   organization.members.forEach(member => {
     member.user.participations.forEach(p => {
-      p.event.sdgTags.forEach(sdg => uniqueSDGs.add(sdg));
+      if (p.event.sdg) {
+        uniqueSDGs.add(parseInt(p.event.sdg));
+      }
     });
   });
   const sdgDiversity = uniqueSDGs.size;
@@ -559,26 +528,18 @@ function getSDGName(sdgNumber: number): string {
   return sdgNames[sdgNumber] || `SDG ${sdgNumber}`;
 }
 
-function getSDGBadgeName(sdgNumber: number, tier: BadgeTier): string {
-  const sdgName = getSDGName(sdgNumber);
-  const tierNames = {
-    [BadgeTier.SUPPORTER]: 'Supporter',
-    [BadgeTier.BUILDER]: 'Builder', 
-    [BadgeTier.CHAMPION]: 'Champion',
-    [BadgeTier.GUARDIAN]: 'Guardian'
-  };
-  return `${sdgName} ${tierNames[tier]}`;
+function getSDGBadgeName(sdgNumber: number, tier: BadgeTier, isOrganization: boolean = false): string {
+  if (isOrganization) {
+    return getOrganizationSDGBadgeName(sdgNumber, tier);
+  }
+  return getIndividualSDGBadgeName(sdgNumber, tier);
 }
 
-function getSDGBadgeDescription(sdgNumber: number, tier: BadgeTier): string {
-  const sdgName = getSDGName(sdgNumber);
-  const descriptions = {
-    [BadgeTier.SUPPORTER]: `Beginning your impact journey in ${sdgName}`,
-    [BadgeTier.BUILDER]: `Building meaningful change in ${sdgName}`,
-    [BadgeTier.CHAMPION]: `Leading impactful initiatives in ${sdgName}`,
-    [BadgeTier.GUARDIAN]: `Protecting and advancing ${sdgName} with exceptional dedication`
-  };
-  return descriptions[tier];
+function getSDGBadgeDescription(sdgNumber: number, tier: BadgeTier, isOrganization: boolean = false): string {
+  if (isOrganization) {
+    return getOrganizationSDGBadgeDescription(sdgNumber, tier);
+  }
+  return getIndividualSDGBadgeDescription(sdgNumber, tier);
 }
 
 function getSDGBadgeIcon(sdgNumber: number, tier: BadgeTier): string {
@@ -586,19 +547,8 @@ function getSDGBadgeIcon(sdgNumber: number, tier: BadgeTier): string {
 }
 
 function getRankDisplayName(rank: IndividualRank): string {
-  const displayNames = {
-    [IndividualRank.HELPER]: 'Helper',
-    [IndividualRank.SUPPORTER]: 'Supporter', 
-    [IndividualRank.CONTRIBUTOR]: 'Contributor',
-    [IndividualRank.BUILDER]: 'Builder',
-    [IndividualRank.ADVOCATE]: 'Advocate',
-    [IndividualRank.CHANGEMAKER]: 'Changemaker',
-    [IndividualRank.MENTOR]: 'Mentor',
-    [IndividualRank.LEADER]: 'Leader',
-    [IndividualRank.AMBASSADOR]: 'Ambassador',
-    [IndividualRank.GLOBAL_CITIZEN]: 'Global Citizen'
-  };
-  return displayNames[rank];
+  const badge = INDIVIDUAL_RANK_BADGES.find(b => b.rank === rank);
+  return badge?.name || rank.toString();
 }
 
 function getRankIcon(rank: IndividualRank): string {

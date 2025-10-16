@@ -27,8 +27,18 @@ export function formatDateTime(date: Date | string): string {
   });
 }
 
-export function formatTimeAgo(date: Date | string): string {
+export function formatTimeAgo(date: Date | string | null | undefined): string {
+  if (!date) {
+    return 'Unknown';
+  }
+  
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
+  // Check if the date is valid
+  if (isNaN(dateObj.getTime())) {
+    return 'Invalid date';
+  }
+  
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
 

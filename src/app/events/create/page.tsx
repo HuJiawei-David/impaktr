@@ -22,6 +22,7 @@ import {
   Globe,
   Building2
 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,7 @@ interface EventFormData {
   organizationId?: string;
   requiresApproval: boolean;
   certificateTemplate?: string;
+  isPublic: boolean;
   customFields: Array<{
     name: string;
     type: 'text' | 'number' | 'select' | 'boolean';
@@ -88,7 +90,12 @@ export default function CreateEventPage() {
   const [selectedSDGs, setSelectedSDGs] = useState<number[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [eventImages, setEventImages] = useState<File[]>([]);
-  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<Array<{
+    id: string;
+    name: string;
+    logo?: string;
+    type?: string;
+  }>>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [customFields, setCustomFields] = useState<EventFormData['customFields']>([]);
 
@@ -107,7 +114,8 @@ export default function CreateEventPage() {
       requiresApproval: false,
       sdgTags: [],
       skills: [],
-      customFields: []
+      customFields: [],
+      isPublic: true
     }
   });
 
@@ -117,10 +125,16 @@ export default function CreateEventPage() {
       return;
     }
 
+    // Redirect organizations to their event creation page
+    if (user?.userType && user.userType !== 'INDIVIDUAL') {
+      router.push('/organization/events/create');
+      return;
+    }
+
     if (user) {
       fetchUserOrganizations();
     }
-  }, [isLoading, user]);
+  }, [isLoading, user, router]);
 
   const fetchUserOrganizations = async () => {
     try {
@@ -458,12 +472,30 @@ export default function CreateEventPage() {
                   />
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={watch('requiresApproval')}
-                    onCheckedChange={(checked) => setValue('requiresApproval', checked)}
-                  />
-                  <Label>Require approval before joining</Label>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={watch('requiresApproval')}
+                      onCheckedChange={(checked) => setValue('requiresApproval', checked)}
+                    />
+                    <Label>Require approval before joining</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={watch('isPublic')}
+                      onCheckedChange={(checked) => setValue('isPublic', checked)}
+                    />
+                    <Label>Public event (visible to all users)</Label>
+                  </div>
+                  {!watch('isPublic') && (
+                    <div className="p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        <Building2 className="w-4 h-4 inline mr-1" />
+                        Private events are only visible to your organization members.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -607,7 +639,7 @@ export default function CreateEventPage() {
                         <Label>Field Type</Label>
                         <Select 
                           value={field.type} 
-                          onValueChange={(value: any) => updateCustomField(index, { type: value })}
+                          onValueChange={(value: "text" | "number" | "select" | "boolean") => updateCustomField(index, { type: value })}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -719,7 +751,7 @@ export default function CreateEventPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }

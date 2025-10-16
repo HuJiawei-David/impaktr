@@ -5,6 +5,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { OrganizationMember, Organization } from '@prisma/client';
+
+// Type for organization membership with organization data
+type MembershipWithOrganization = OrganizationMember & {
+  organization: Organization;
+};
 
 const toggleSchema = z.object({
   isActive: z.boolean(),
@@ -54,7 +60,7 @@ export async function POST(
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        memberships: {
+        organizationMemberships: {
           include: {
             organization: true
           }
@@ -67,7 +73,7 @@ export async function POST(
     }
 
     // Check if user has organization admin permissions
-    const adminMembership = user.memberships.find(m => 
+    const adminMembership = user.organizationMemberships.find((m: MembershipWithOrganization) => 
       m.role === 'admin' || m.role === 'owner'
     );
 
@@ -216,7 +222,7 @@ export async function GET(
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        memberships: {
+        organizationMemberships: {
           include: {
             organization: true
           }
@@ -228,7 +234,7 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const adminMembership = user.memberships.find(m => 
+    const adminMembership = user.organizationMemberships.find((m: MembershipWithOrganization) => 
       m.role === 'admin' || m.role === 'owner'
     );
 
@@ -299,7 +305,7 @@ export async function PUT(
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        memberships: {
+        organizationMemberships: {
           include: {
             organization: true
           }
@@ -311,7 +317,7 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const adminMembership = user.memberships.find(m => 
+    const adminMembership = user.organizationMemberships.find((m: MembershipWithOrganization) => 
       m.role === 'admin' || m.role === 'owner'
     );
 

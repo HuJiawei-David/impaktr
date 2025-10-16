@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { User, Heart, GraduationCap, Building2, Cross } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { UserType } from '@prisma/client';
+import { UserType } from '@/types/user';
 
 interface ProfileTypeOption {
   id: UserType;

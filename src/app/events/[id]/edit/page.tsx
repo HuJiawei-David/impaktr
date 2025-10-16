@@ -2,10 +2,11 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
+import Image from 'next/image';
 import { 
   Calendar, 
   MapPin, 
@@ -21,6 +22,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,10 +31,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { toast } from 'react-hot-toast';
-import { EventStatus, VerificationType } from '@prisma/client';
+import { EventStatus, VerificationType, Participation } from '@prisma/client';
+
+// Type for participation with user data
+type ParticipationWithUser = Participation & {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+};
 
 interface EventFormData {
   title: string;
@@ -69,7 +79,7 @@ interface Event extends EventFormData {
     id: string;
     name: string;
   };
-  participations: any[];
+  participations: ParticipationWithUser[];
 }
 
 export default function EventEditPage() {
@@ -89,6 +99,7 @@ export default function EventEditPage() {
   const [uploadedDocuments, setUploadedDocuments] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
 
   const {
     register,
@@ -101,35 +112,7 @@ export default function EventEditPage() {
 
   const watchedValues = watch();
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/signup');
-      return;
-    }
-
-    if (eventId) {
-      fetchEvent();
-    }
-  }, [authLoading, user, eventId]);
-
-  useEffect(() => {
-    setHasUnsavedChanges(isDirty);
-  }, [isDirty]);
-
-  // Warn user about unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
-
-  const fetchEvent = async () => {
+  const fetchEvent = useCallback(async () => {
     try {
       const response = await fetch(`/api/events/${eventId}`);
       if (!response.ok) {
@@ -173,7 +156,35 @@ export default function EventEditPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [eventId, user?.id, router, reset]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/signup');
+      return;
+    }
+
+    if (eventId) {
+      fetchEvent();
+    }
+  }, [authLoading, user, eventId, fetchEvent, router]);
+
+  useEffect(() => {
+    setHasUnsavedChanges(isDirty);
+  }, [isDirty]);
+
+  // Warn user about unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const isUserOrgAdmin = (organizationId?: string) => {
     // This would check if user is admin of the organization
@@ -326,7 +337,7 @@ export default function EventEditPage() {
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -338,7 +349,7 @@ export default function EventEditPage() {
           <AlertTriangle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Event not found</h2>
           <p className="text-muted-foreground mb-4">
-            The event you're trying to edit doesn't exist or you don't have permission to edit it.
+            The event you&apos;re trying to edit doesn&apos;t exist or you don&apos;t have permission to edit it.
           </p>
           <Button onClick={() => router.push('/events')}>
             Back to Events
@@ -408,16 +419,58 @@ export default function EventEditPage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-          <Tabs defaultValue="basic" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="media">Media</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
+          <div className="space-y-6">
+            {/* Pill-like Navigation */}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={activeTab === 'basic' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('basic')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'basic' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Basic Info
+              </Button>
+              <Button
+                variant={activeTab === 'details' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('details')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'details' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Details
+              </Button>
+              <Button
+                variant={activeTab === 'media' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('media')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'media' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Media
+              </Button>
+              <Button
+                variant={activeTab === 'settings' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('settings')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'settings' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Settings
+              </Button>
+            </div>
 
-            {/* Basic Information Tab */}
-            <TabsContent value="basic" className="space-y-6">
+            {/* Basic Information Tab Content */}
+            {activeTab === 'basic' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Event Information</CardTitle>
@@ -513,10 +566,12 @@ export default function EventEditPage() {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
-            {/* Details Tab */}
-            <TabsContent value="details" className="space-y-6">
+            {/* Details Tab Content */}
+            {activeTab === 'details' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -624,10 +679,12 @@ export default function EventEditPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
-            {/* Media Tab */}
-            <TabsContent value="media" className="space-y-6">
+            {/* Media Tab Content */}
+            {activeTab === 'media' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -656,9 +713,11 @@ export default function EventEditPage() {
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {previewImages.map((image, index) => (
                         <div key={index} className="relative group">
-                          <img
+                          <Image
                             src={image}
                             alt={`Event image ${index + 1}`}
+                            width={200}
+                            height={128}
                             className="w-full h-32 object-cover rounded-lg border"
                           />
                           <Button
@@ -676,10 +735,12 @@ export default function EventEditPage() {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
+              </div>
+            )}
 
-            {/* Settings Tab */}
-            <TabsContent value="settings" className="space-y-6">
+            {/* Settings Tab Content */}
+            {activeTab === 'settings' && (
+              <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Event Status & Visibility</CardTitle>
@@ -760,8 +821,9 @@ export default function EventEditPage() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+              </div>
+            )}
+          </div>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-6 border-t border-border">

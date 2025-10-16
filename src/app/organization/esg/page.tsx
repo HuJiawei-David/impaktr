@@ -1,0 +1,748 @@
+// home/ubuntu/impaktrweb/src/app/organization/esg/page.tsx
+
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { 
+  Leaf,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Droplets,
+  Zap,
+  Recycle,
+  Heart,
+  Scale,
+  Shield,
+  Upload,
+  Download,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  BarChart3,
+  PieChart,
+  FileText,
+  Plus,
+  Eye
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+
+interface ESGData {
+  organizationId: string;
+  organizationName: string;
+  currentScore: number;
+  scores: {
+    environmental: number;
+    social: number;
+    governance: number;
+    trend: 'up' | 'down' | 'stable';
+  };
+  metrics: {
+    environmental: Array<{
+      name: string;
+      value: number;
+      unit: string;
+      target: number;
+      progress: number;
+      trend: 'up' | 'down' | 'stable';
+    }>;
+    social: Array<{
+      name: string;
+      value: number;
+      unit: string;
+      target: number;
+      progress: number;
+      trend: 'up' | 'down' | 'stable';
+    }>;
+    governance: Array<{
+      name: string;
+      value: number;
+      unit: string;
+      target: number;
+      progress: number;
+      trend: 'up' | 'down' | 'stable';
+    }>;
+  };
+  recentReports: Array<{
+    id: string;
+    type: string;
+    period: string;
+    status: 'submitted' | 'pending' | 'verified';
+    submittedAt: string;
+  }>;
+  dataCollectionStatus: {
+    environmental: number;
+    social: number;
+    governance: number;
+  };
+}
+
+export default function OrganizationESGPage() {
+  const { data: session, status } = useSession();
+  const user = session?.user;
+  const isLoading = status === 'loading';
+  const router = useRouter();
+  
+  const [esgData, setESGData] = useState<ESGData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedPeriod, setSelectedPeriod] = useState('2024-Q4');
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/signin');
+      return;
+    }
+
+    if (user) {
+      fetchESGData();
+    }
+  }, [isLoading, user, router]);
+
+  const fetchESGData = async () => {
+    try {
+      setLoading(true);
+      // TODO: Replace with actual API call
+      // Mocking data for now
+      setTimeout(() => {
+        setESGData({
+          organizationId: '1',
+          organizationName: 'Acme Corporation',
+          currentScore: 78.5,
+          scores: {
+            environmental: 82,
+            social: 76,
+            governance: 78,
+            trend: 'up'
+          },
+          metrics: {
+            environmental: [
+              { name: 'Carbon Emissions', value: 1250, unit: 'tons CO₂', target: 1000, progress: 80, trend: 'down' },
+              { name: 'Renewable Energy', value: 65, unit: '%', target: 80, progress: 81, trend: 'up' },
+              { name: 'Water Usage', value: 45000, unit: 'L', target: 40000, progress: 88, trend: 'down' },
+              { name: 'Waste Recycled', value: 72, unit: '%', target: 85, progress: 85, trend: 'up' }
+            ],
+            social: [
+              { name: 'Employee Satisfaction', value: 4.2, unit: '/5', target: 4.5, progress: 93, trend: 'up' },
+              { name: 'Diversity Ratio', value: 45, unit: '%', target: 50, progress: 90, trend: 'up' },
+              { name: 'Volunteer Hours', value: 2400, unit: 'hrs', target: 3000, progress: 80, trend: 'up' },
+              { name: 'Community Investment', value: 125000, unit: '$', target: 150000, progress: 83, trend: 'up' }
+            ],
+            governance: [
+              { name: 'Board Diversity', value: 40, unit: '%', target: 50, progress: 80, trend: 'up' },
+              { name: 'Ethics Training', value: 95, unit: '%', target: 100, progress: 95, trend: 'stable' },
+              { name: 'Audit Compliance', value: 100, unit: '%', target: 100, progress: 100, trend: 'stable' },
+              { name: 'Data Security', value: 92, unit: '%', target: 95, progress: 97, trend: 'up' }
+            ]
+          },
+          recentReports: [
+            { id: '1', type: 'Quarterly Report', period: '2024-Q4', status: 'submitted', submittedAt: '2024-10-15' },
+            { id: '2', type: 'Annual Report', period: '2024', status: 'verified', submittedAt: '2024-09-30' },
+            { id: '3', type: 'Quarterly Report', period: '2024-Q3', status: 'verified', submittedAt: '2024-07-15' }
+          ],
+          dataCollectionStatus: {
+            environmental: 85,
+            social: 78,
+            governance: 92
+          }
+        });
+        setLoading(false);
+      }, 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching ESG data:', err);
+      setLoading(false);
+    }
+  };
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Error</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!esgData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">No Data Found</h2>
+          <p className="text-muted-foreground mb-4">Unable to load ESG data.</p>
+          <Button onClick={() => router.push('/organization/dashboard')}>
+            Go to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600';
+    if (score >= 60) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getScoreBgColor = (score: number) => {
+    if (score >= 80) return 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800';
+    if (score >= 60) return 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800';
+    return 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800';
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[22px] pb-8">
+
+        {/* Professional Header */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 mb-6">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="relative group">
+                  <div className="w-16 h-16 border-2 border-gray-100 dark:border-gray-700 rounded-full bg-gradient-to-r from-green-600 to-emerald-600 flex items-center justify-center">
+                    <Leaf className="h-8 w-8 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    ESG Performance Dashboard
+                  </h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Environmental, Social & Governance Metrics and Reporting
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-6">
+                <div className="text-center">
+                  <div className={`text-3xl font-bold ${getScoreColor(esgData.currentScore)}`}>
+                    {esgData.currentScore}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Overall ESG Score</div>
+                  <Badge variant={esgData.scores.trend === 'up' ? 'default' : 'secondary'} className="mt-1">
+                    {esgData.scores.trend === 'up' ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+                    {esgData.scores.trend === 'up' ? 'Improving' : 'Stable'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ESG Score Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <Card className={getScoreBgColor(esgData.scores.environmental)}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
+                    <Leaf className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Environmental</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Climate & Resources</p>
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{esgData.scores.environmental}</div>
+              </div>
+              <Progress value={esgData.scores.environmental} className="h-2" />
+              <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                {esgData.dataCollectionStatus.environmental}% data collected
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`${getScoreBgColor(esgData.scores.social)} dark:bg-indigo-900/20 dark:border-indigo-800`}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-600 to-purple-700 flex items-center justify-center">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Social</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">People & Community</p>
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{esgData.scores.social}</div>
+              </div>
+              <Progress value={esgData.scores.social} className="h-2" />
+              <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                {esgData.dataCollectionStatus.social}% data collected
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`${getScoreBgColor(esgData.scores.governance)} dark:bg-purple-900/20 dark:border-purple-800`}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center">
+                    <Scale className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Governance</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Ethics & Compliance</p>
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">{esgData.scores.governance}</div>
+              </div>
+              <Progress value={esgData.scores.governance} className="h-2" />
+              <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                {esgData.dataCollectionStatus.governance}% data collected
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Navigation */}
+        <div className="space-y-6">
+          {/* Pill-like Navigation */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={activeTab === 'overview' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('overview')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'overview' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Overview
+            </Button>
+            <Button
+              variant={activeTab === 'metrics' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('metrics')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'metrics' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <PieChart className="w-4 h-4 mr-2" />
+              Metrics
+            </Button>
+            <Button
+              variant={activeTab === 'data-collection' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('data-collection')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'data-collection' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Data Entry
+            </Button>
+            <Button
+              variant={activeTab === 'reports' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('reports')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'reports' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Reports
+            </Button>
+            <Button
+              variant={activeTab === 'analytics' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('analytics')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'analytics' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Analytics
+            </Button>
+          </div>
+
+          {/* Overview Tab Content */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Environmental Metrics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Leaf className="w-5 h-5 mr-2 text-green-600" />
+                    Environmental Metrics
+                  </CardTitle>
+                  <CardDescription>Track your environmental impact</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {esgData.metrics.environmental.map((metric, idx) => (
+                    <div key={idx} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{metric.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-semibold">{metric.value} {metric.unit}</span>
+                          {metric.trend === 'up' ? (
+                            <TrendingUp className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-red-600" />
+                          )}
+                        </div>
+                      </div>
+                      <Progress value={metric.progress} className="h-2" />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Target: {metric.target} {metric.unit}</span>
+                        <span>{metric.progress}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Social Metrics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-blue-600" />
+                    Social Metrics
+                  </CardTitle>
+                  <CardDescription>Measure social impact and engagement</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {esgData.metrics.social.map((metric, idx) => (
+                    <div key={idx} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{metric.name}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-semibold">{metric.value} {metric.unit}</span>
+                          {metric.trend === 'up' ? (
+                            <TrendingUp className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-red-600" />
+                          )}
+                        </div>
+                      </div>
+                      <Progress value={metric.progress} className="h-2" />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Target: {metric.target} {metric.unit}</span>
+                        <span>{metric.progress}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Governance Metrics */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Scale className="w-5 h-5 mr-2 text-purple-600" />
+                    Governance Metrics
+                  </CardTitle>
+                  <CardDescription>Ensure compliance and ethical practices</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {esgData.metrics.governance.map((metric, idx) => (
+                      <div key={idx} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{metric.name}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-semibold">{metric.value} {metric.unit}</span>
+                            {metric.trend === 'up' ? (
+                              <TrendingUp className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <TrendingDown className="w-4 h-4 text-red-600" />
+                            )}
+                          </div>
+                        </div>
+                        <Progress value={metric.progress} className="h-2" />
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Target: {metric.target} {metric.unit}</span>
+                          <span>{metric.progress}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            </div>
+          )}
+
+          {/* Metrics Tab Content */}
+          {activeTab === 'metrics' && (
+            <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Detailed Metrics Analysis</CardTitle>
+                    <CardDescription>View and compare all ESG metrics</CardDescription>
+                  </div>
+                  <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2024-Q4">Q4 2024</SelectItem>
+                      <SelectItem value="2024-Q3">Q3 2024</SelectItem>
+                      <SelectItem value="2024-Q2">Q2 2024</SelectItem>
+                      <SelectItem value="2024-Q1">Q1 2024</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 text-muted-foreground">
+                  <PieChart className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>Detailed metrics comparison coming soon</p>
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+          )}
+
+          {/* Data Collection Tab Content */}
+          {activeTab === 'data-collection' && (
+            <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Data Collection & Entry</CardTitle>
+                    <CardDescription>Submit new ESG data and metrics</CardDescription>
+                  </div>
+                  <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Data Entry
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center">
+                      <Droplets className="w-8 h-8 mb-2 text-blue-500" />
+                      <span>Environmental Data</span>
+                    </Button>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center">
+                      <Heart className="w-8 h-8 mb-2 text-red-500" />
+                      <span>Social Data</span>
+                    </Button>
+                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center">
+                      <Shield className="w-8 h-8 mb-2 text-purple-500" />
+                      <span>Governance Data</span>
+                    </Button>
+                  </div>
+
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-4">Data Collection Status</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Environmental Data</span>
+                        <div className="flex items-center space-x-2">
+                          <Progress value={esgData.dataCollectionStatus.environmental} className="w-32 h-2" />
+                          <span className="text-sm font-medium">{esgData.dataCollectionStatus.environmental}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Social Data</span>
+                        <div className="flex items-center space-x-2">
+                          <Progress value={esgData.dataCollectionStatus.social} className="w-32 h-2" />
+                          <span className="text-sm font-medium">{esgData.dataCollectionStatus.social}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Governance Data</span>
+                        <div className="flex items-center space-x-2">
+                          <Progress value={esgData.dataCollectionStatus.governance} className="w-32 h-2" />
+                          <span className="text-sm font-medium">{esgData.dataCollectionStatus.governance}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+          )}
+
+          {/* Reports Tab Content */}
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+            {/* Generate New Report */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <FileText className="h-6 w-6 text-blue-600" />
+                  <span>Generate ESG Report</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Report Type
+                    </label>
+                    <Select value="quarterly">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly ESG Report</SelectItem>
+                        <SelectItem value="quarterly">Quarterly ESG Report</SelectItem>
+                        <SelectItem value="annual">Annual ESG Report</SelectItem>
+                        <SelectItem value="compliance">Compliance Report</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Period
+                    </label>
+                    <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2024-Q4">Q4 2024</SelectItem>
+                        <SelectItem value="2024-Q3">Q3 2024</SelectItem>
+                        <SelectItem value="2024-Q2">Q2 2024</SelectItem>
+                        <SelectItem value="2024-Q1">Q1 2024</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                    Report will include:
+                  </h4>
+                  <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+                    <li>• Executive Summary & ESG Score Breakdown</li>
+                    <li>• Environmental Impact Metrics (Carbon, Energy, Water, Waste)</li>
+                    <li>• Social Impact Metrics (Employee, Diversity, Community)</li>
+                    <li>• Governance Metrics (Board, Ethics, Compliance, Security)</li>
+                    <li>• Progress Against Targets & Benchmarks</li>
+                    <li>• Trend Analysis & Year-over-Year Comparison</li>
+                    <li>• Industry Benchmarking & Best Practices</li>
+                  </ul>
+                </div>
+
+                <div className="flex space-x-3">
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Generate PDF Report
+                  </Button>
+                  <Button variant="outline" className="flex-1">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview Report
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Previous Reports */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Previous ESG Reports</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {esgData.recentReports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 rounded-lg bg-blue-100 dark:bg-blue-900">
+                          <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-white">
+                            {report.type} - {report.period}
+                          </p>
+                          <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                            <span className="flex items-center space-x-1">
+                              <Calendar className="h-4 w-4" />
+                              <span>{new Date(report.submittedAt).toLocaleDateString()}</span>
+                            </span>
+                            <Badge variant={
+                              report.status === 'verified' ? 'default' : 
+                              report.status === 'submitted' ? 'secondary' : 'outline'
+                            }>
+                              {report.status === 'verified' && <CheckCircle className="w-3 h-3 mr-1" />}
+                              {report.status === 'pending' && <Clock className="w-3 h-3 mr-1" />}
+                              {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+          )}
+
+          {/* Analytics Tab Content */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>ESG Analytics & Insights</CardTitle>
+                <CardDescription>Advanced analytics and trend analysis</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 text-muted-foreground">
+                  <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p>Advanced analytics and visualizations coming soon</p>
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

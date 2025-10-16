@@ -4,6 +4,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { User, UserBadge, Participation, Achievement, Badge, Event } from '@prisma/client';
+
+// Extended types for user relations
+type UserBadgeWithBadge = UserBadge & {
+  badge: Badge;
+};
+
+type ParticipationWithEvent = Participation & {
+  event: Event;
+};
+
+type UserWithRelations = User & {
+  badges?: UserBadgeWithBadge[];
+  participations?: ParticipationWithEvent[];
+  achievements?: Achievement[];
+};
 
 const createNotificationSchema = z.object({
   userId: z.string(),
@@ -171,7 +187,6 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
     where: { id: userId },
     include: {
       badges: {
-        where: { earnedAt: { not: null } },
         include: { badge: true },
         orderBy: { earnedAt: 'desc' },
         take: 5
@@ -183,7 +198,7 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
         take: 5
       },
       achievements: {
-        orderBy: { earnedAt: 'desc' },
+        orderBy: { createdAt: 'desc' }, // earnedAt field doesn't exist, using createdAt instead
         take: 5
       }
     }
@@ -192,7 +207,7 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
   if (!user) return [];
 
   // Generate badge notifications
-  user.badges.forEach((userBadge, index) => {
+  (user as UserWithRelations).badges?.forEach((userBadge: UserBadgeWithBadge, index: number) => {
     if (userBadge.earnedAt && notifications.length < limit) {
       notifications.push({
         id: `badge_${userBadge.id}`,
@@ -204,46 +219,46 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
         actionUrl: '/profile?tab=badges',
         data: {
           badgeId: userBadge.badgeId,
-          sdgNumber: userBadge.badge.sdgNumber,
-          tier: userBadge.badge.tier
+          category: userBadge.badge.category,
+          rarity: userBadge.badge.rarity
         }
       });
     }
   });
 
   // Generate verification notifications
-  user.participations.forEach((participation, index) => {
+  (user as UserWithRelations).participations?.forEach((participation: ParticipationWithEvent, index: number) => {
     if (participation.verifiedAt && notifications.length < limit) {
       notifications.push({
         id: `participation_${participation.id}`,
         type: 'verification_needed',
         title: 'Hours Verified!',
-        message: `Your ${participation.hoursActual || participation.hoursCommitted} hours for "${participation.event.title}" have been verified`,
+        message: `Your ${participation.hours || 0} hours for "${participation.event.title}" have been verified`,
         read: index > 2,
         createdAt: participation.verifiedAt.toISOString(),
         actionUrl: `/events/${participation.eventId}`,
         data: {
           eventId: participation.eventId,
-          hours: participation.hoursActual || participation.hoursCommitted
+          hours: participation.hours || 0
         }
       });
     }
   });
 
   // Generate achievement notifications
-  user.achievements.forEach((achievement, index) => {
+  (user as UserWithRelations).achievements?.forEach((achievement: Achievement, index: number) => {
     if (notifications.length < limit) {
       notifications.push({
         id: `achievement_${achievement.id}`,
         type: 'achievement',
         title: 'Achievement Unlocked!',
-        message: achievement.name,
+        message: achievement.title || 'Achievement unlocked',
         read: index > 1,
-        createdAt: achievement.earnedAt.toISOString(),
+        createdAt: achievement.verifiedAt?.toISOString() || achievement.createdAt.toISOString(),
         actionUrl: '/profile?tab=achievements',
         data: {
           achievementType: achievement.type,
-          achievementData: achievement.data
+          points: achievement.points || 0
         }
       });
     }

@@ -241,7 +241,7 @@ export default function PricingPage() {
             Choose Your Impact Plan
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-            Whether you're an individual volunteer, NGO, or corporation, we have the perfect plan to amplify your social impact
+            Whether you&apos;re an individual volunteer, NGO, or corporation, we have the perfect plan to amplify your social impact
           </p>
 
           {/* Billing Toggle */}
@@ -473,7 +473,7 @@ export default function PricingPage() {
               <Crown className="w-16 h-16 mx-auto mb-6 text-primary" />
               <h3 className="text-2xl font-bold mb-4">Need Something Custom?</h3>
               <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-                Large organization or have specific requirements? Let's discuss a custom solution that fits your impact goals perfectly.
+                Large organization or have specific requirements? Let&apos;s discuss a custom solution that fits your impact goals perfectly.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button size="lg" variant="gradient">

@@ -66,7 +66,7 @@ export default function DashboardDemo() {
             Welcome back, Sarah! 👋
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Here's your impact summary and recent activities
+            Here&apos;s your impact summary and recent activities
           </p>
         </div>
 
@@ -177,7 +177,7 @@ export default function DashboardDemo() {
                 <div className="flex items-start space-x-3">
                   <div className="h-2 w-2 bg-purple-500 rounded-full mt-2"></div>
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-white">Earned "Environmental Champion" Badge</p>
+                    <p className="font-medium text-gray-900 dark:text-white">Earned &quot;Environmental Champion&quot; Badge</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">3 days ago</p>
                     <Badge variant="secondary" className="mt-1">Achievement Unlocked</Badge>
                   </div>

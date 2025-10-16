@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getSDGColor, getSDGName } from '@/lib/utils';
 
 interface BadgeProgressItem {
@@ -332,15 +331,44 @@ export function BadgeProgress() {
           </div>
         </div>
 
-        {/* Badge Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="progress">In Progress</TabsTrigger>
-            <TabsTrigger value="earned">Recently Earned</TabsTrigger>
-            <TabsTrigger value="available">Available</TabsTrigger>
-          </TabsList>
+        {/* Badge Filter Pills */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('progress')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === 'progress'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            In Progress
+          </button>
+          <button
+            onClick={() => setActiveTab('earned')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === 'earned'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            Recently Earned
+          </button>
+          <button
+            onClick={() => setActiveTab('available')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === 'available'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            Available
+          </button>
+        </div>
 
-          <TabsContent value="progress" className="space-y-3 mt-4">
+        {/* Badge Content */}
+        <div className="space-y-3">
+          {activeTab === 'progress' && (
+            <>
             {badgeData.inProgress.length > 0 ? (
               <>
                 {badgeData.inProgress.slice(0, 3).map((badge) => renderBadgeCard(badge, true))}
@@ -361,9 +389,11 @@ export function BadgeProgress() {
                 <p className="text-xs">Join events to start earning badges</p>
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
-          <TabsContent value="earned" className="space-y-3 mt-4">
+          {activeTab === 'earned' && (
+            <>
             {badgeData.recentlyEarned.length > 0 ? (
               <>
                 {badgeData.recentlyEarned.map((badge) => renderBadgeCard(badge, false))}
@@ -375,9 +405,11 @@ export function BadgeProgress() {
                 <p className="text-xs">Complete verified activities to earn your first badge</p>
               </div>
             )}
-          </TabsContent>
+            </>
+          )}
 
-          <TabsContent value="available" className="space-y-3 mt-4">
+          {activeTab === 'available' && (
+            <>
             {badgeData.available.length > 0 ? (
               <>
                 {badgeData.available.slice(0, 3).map((badge) => renderBadgeCard(badge, false))}
@@ -398,20 +430,21 @@ export function BadgeProgress() {
                 <p className="text-xs">You've made progress on all available badges</p>
               </div>
             )}
-          </TabsContent>
-        </Tabs>
+            </>
+          )}
+        </div>
 
         {/* Call to Action */}
         <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border border-primary/20">
-          <div className="flex items-center justify-between">
+          <div className="space-y-3">
             <div>
               <h4 className="font-semibold text-sm">Keep Building Impact!</h4>
               <p className="text-xs text-muted-foreground">
                 Join more events to unlock new badges and progress your existing ones
               </p>
             </div>
-            <Link href="/events">
-              <Button size="sm">
+            <Link href="/events" className="block">
+              <Button size="sm" className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3">
                 Find Events
               </Button>
             </Link>

@@ -8,6 +8,19 @@ import { z } from 'zod';
 import { generateCertificatePDF } from '@/lib/certificate-generator';
 import { uploadToS3 } from '@/lib/aws';
 import { sendEmail } from '@/lib/email';
+import { OrganizationMember, Organization, User, Participation, Event } from '@prisma/client';
+
+// Type for organization membership with organization data
+type MembershipWithOrganization = OrganizationMember & {
+  organization: Organization;
+};
+
+// Type for recipient data with user, participation, and event
+interface RecipientData {
+  user: User;
+  participation?: Participation;
+  event?: Event;
+}
 
 const bulkIssueSchema = z.object({
   templateId: z.string().optional(),
@@ -43,8 +56,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
-        profile: true,
-        memberships: {
+        organizationMemberships: {
           include: {
             organization: true
           }
@@ -57,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has organization admin permissions
-    const adminMembership = user.memberships.find(m => 
+    const adminMembership = user.organizationMemberships.find((m: MembershipWithOrganization) => 
       m.role === 'admin' || m.role === 'owner'
     );
 
@@ -70,7 +82,7 @@ export async function POST(request: NextRequest) {
     const organization = adminMembership.organization;
 
     // Get recipients based on provided IDs
-    let recipients: any[] = [];
+    let recipients: RecipientData[] = [];
 
     if (validatedData.participationIds && validatedData.participationIds.length > 0) {
       // Get users from participation IDs
@@ -80,9 +92,7 @@ export async function POST(request: NextRequest) {
           status: 'VERIFIED'
         },
         include: {
-          user: {
-            include: { profile: true }
-          },
+          user: true,
           event: true
         }
       });
@@ -96,7 +106,7 @@ export async function POST(request: NextRequest) {
       // Get users directly
       const users = await prisma.user.findMany({
         where: { id: { in: validatedData.userIds } },
-        include: { profile: true }
+        include: { }
       });
 
       recipients = users.map(user => ({ user }));
@@ -108,9 +118,7 @@ export async function POST(request: NextRequest) {
           status: 'VERIFIED'
         },
         include: {
-          user: {
-            include: { profile: true }
-          },
+          user: true,
           event: true
         }
       });
@@ -138,12 +146,10 @@ export async function POST(request: NextRequest) {
         
         // Prepare certificate data
         const certificateData = {
-          recipientName: recipientUser.profile?.displayName || 
-                         `${recipientUser.profile?.firstName} ${recipientUser.profile?.lastName}`.trim() ||
-                         recipientUser.email,
+          recipientName: recipientUser.name || recipientUser.email,
           recipientEmail: recipientUser.email,
           organizationName: organization.name,
-          organizationLogo: user.profile?.logo,
+          organizationLogo: organization.logo,
           issueDate: new Date(),
           certificateId: `CERT-${organization.id.slice(-6)}-${Date.now()}-${recipientUser.id.slice(-4)}`,
           type: validatedData.certificateType,
@@ -154,10 +160,10 @@ export async function POST(request: NextRequest) {
           ...(event && {
             eventTitle: event.title,
             eventDate: event.startDate,
-            sdgTags: event.sdgTags
+            sdgTags: event.sdg ? [parseInt(event.sdg)] : undefined
           }),
           ...(participation && {
-            hoursCompleted: participation.hoursActual || participation.hoursCommitted,
+            hoursCompleted: participation.hours || 0,
             completionDate: participation.verifiedAt || participation.updatedAt
           })
         };
@@ -180,12 +186,9 @@ export async function POST(request: NextRequest) {
             title: validatedData.title,
             description: validatedData.description,
             eventId: event?.id,
-            participationId: participation?.id,
             certificateUrl,
-            shareUrl,
             templateId: validatedData.templateId,
             issuedAt: new Date(),
-            expiresAt: validatedData.expiryDate,
             // Add organization reference (assuming you have this field)
             // organizationId: organization.id,
             // Add certificate metadata

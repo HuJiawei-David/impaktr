@@ -14,6 +14,7 @@ interface SDGSelectorProps {
   maxSelection?: number;
   showDescription?: boolean;
   compact?: boolean;
+  showSelectAll?: boolean;
 }
 
 const sdgDescriptions = {
@@ -41,7 +42,8 @@ export function SDGSelector({
   onSelectionChange, 
   maxSelection = 17,
   showDescription = true,
-  compact = false
+  compact = false,
+  showSelectAll = false
 }: SDGSelectorProps) {
   
   const handleSDGClick = (sdgNumber: number) => {
@@ -118,54 +120,89 @@ export function SDGSelector({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {showSelectAll && (
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border border-blue-200 dark:border-gray-700">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{selectedSDGs.length}</span>
+            <span className="text-gray-600 dark:text-gray-300"> of 17 SDGs selected</span>
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onSelectionChange(Array.from({ length: 17 }, (_, i) => i + 1))}
+              className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              Select All
+            </button>
+            <button
+              type="button"
+              onClick={() => onSelectionChange([])}
+              className="px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+            >
+              Clear All
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-2">
         {Array.from({ length: 17 }, (_, i) => i + 1).map((sdgNumber) => {
           const isSelected = selectedSDGs.includes(sdgNumber);
           const isDisabled = !isSelected && selectedSDGs.length >= maxSelection;
           
           return (
-            <Card
+            <button
               key={sdgNumber}
-              className={cn(
-                "cursor-pointer transition-all duration-200 hover:shadow-lg",
-                isSelected && "ring-2 ring-primary shadow-lg scale-105",
-                isDisabled && "opacity-50 cursor-not-allowed"
-              )}
+              type="button"
               onClick={() => !isDisabled && handleSDGClick(sdgNumber)}
+              className={cn(
+                "relative w-full text-left rounded-lg border transition-all duration-150",
+                isSelected 
+                  ? "border-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500" 
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/80",
+                isDisabled && "opacity-40 cursor-not-allowed"
+              )}
             >
-              <CardContent className="p-4">
-                <div className="flex items-start space-x-3">
-                  {/* SDG Icon */}
-                  <div
-                    className="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white flex-shrink-0"
-                    style={{ backgroundColor: getSDGColor(sdgNumber) }}
-                  >
-                    <div className="text-xs font-bold">SDG</div>
-                    <div className="text-lg font-bold leading-none">{sdgNumber}</div>
-                  </div>
+              <div className="flex items-start gap-4 p-4">
+                {/* SDG Icon Badge */}
+                <div 
+                  className="flex-shrink-0 w-10 h-10 rounded flex items-center justify-center text-white font-bold text-lg"
+                  style={{ backgroundColor: getSDGColor(sdgNumber) }}
+                >
+                  {sdgNumber}
+                </div>
 
-                  {/* SDG Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-semibold text-sm leading-tight">
-                        {getSDGName(sdgNumber)}
-                      </h4>
-                      {isSelected && (
-                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                          <div className="w-2 h-2 bg-white rounded-full" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    {showDescription && (
-                      <p className="text-xs text-muted-foreground leading-tight">
-                        {sdgDescriptions[sdgNumber as keyof typeof sdgDescriptions]}
-                      </p>
+                {/* Content */}
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
+                      SDG {sdgNumber}: {getSDGName(sdgNumber)}
+                    </h4>
+                  </div>
+                  
+                  {showDescription && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                      {sdgDescriptions[sdgNumber as keyof typeof sdgDescriptions]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Selection Indicator */}
+                <div className="flex-shrink-0 pt-1">
+                  <div className={cn(
+                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                    isSelected
+                      ? "bg-blue-600 border-blue-600"
+                      : "border-gray-300 dark:border-gray-600"
+                  )}>
+                    {isSelected && (
+                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
                     )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </button>
           );
         })}
       </div>

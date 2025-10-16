@@ -57,7 +57,7 @@ function RegisterContent() {
     } else if (storedType && Object.values(UserType).includes(storedType as UserType)) {
       setSelectedProfileType(storedType as UserType);
     }
-  }, [authLoading, user]);
+  }, [authLoading, user, searchParams]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -106,7 +106,7 @@ function RegisterContent() {
       case UserType.CORPORATE:
       case UserType.SCHOOL:
       case UserType.HEALTHCARE:
-        return <OrganizationRegistrationForm profileType={selectedProfileType} />;
+        return <OrganizationRegistrationForm profileType={selectedProfileType as UserType} />;
       
       default:
         return <ProfileTypeSelector />;

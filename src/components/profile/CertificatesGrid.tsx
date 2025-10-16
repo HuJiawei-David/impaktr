@@ -18,7 +18,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Dialog, 
   DialogContent, 
@@ -72,10 +71,14 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
       const response = await fetch(`/api/users/${userId}/certificates`);
       if (response.ok) {
         const data = await response.json();
-        setCertificates(data.certificates);
+        setCertificates(data.certificates || []);
+      } else {
+        // API doesn't exist yet, set empty array
+        setCertificates([]);
       }
     } catch (error) {
       console.error('Error fetching certificates:', error);
+      setCertificates([]);
     } finally {
       setIsLoading(false);
     }
@@ -202,27 +205,66 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
         </Badge>
       </div>
 
-      {/* Certificate Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="all">
-            All ({certificates.length})
-          </TabsTrigger>
-          <TabsTrigger value="badges">
-            Badges ({certificates.filter(c => c.type === 'badge').length})
-          </TabsTrigger>
-          <TabsTrigger value="events">
-            Events ({certificates.filter(c => c.type === 'event').length})
-          </TabsTrigger>
-          <TabsTrigger value="achievements">
-            Milestones ({certificates.filter(c => c.type === 'achievement').length})
-          </TabsTrigger>
-          <TabsTrigger value="ranks">
-            Ranks ({certificates.filter(c => c.type === 'rank').length})
-          </TabsTrigger>
-        </TabsList>
+      {/* Certificate Pills Navigation */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={activeTab === 'all' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('all')}
+          className={`rounded-full px-6 py-2 ${
+            activeTab === 'all' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          All ({certificates.length})
+        </Button>
+        <Button
+          variant={activeTab === 'badges' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('badges')}
+          className={`rounded-full px-6 py-2 ${
+            activeTab === 'badges' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Badges ({certificates.filter(c => c.type === 'badge').length})
+        </Button>
+        <Button
+          variant={activeTab === 'events' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('events')}
+          className={`rounded-full px-6 py-2 ${
+            activeTab === 'events' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Events ({certificates.filter(c => c.type === 'event').length})
+        </Button>
+        <Button
+          variant={activeTab === 'achievements' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('achievements')}
+          className={`rounded-full px-6 py-2 ${
+            activeTab === 'achievements' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Milestones ({certificates.filter(c => c.type === 'achievement').length})
+        </Button>
+        <Button
+          variant={activeTab === 'ranks' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('ranks')}
+          className={`rounded-full px-6 py-2 ${
+            activeTab === 'ranks' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          Ranks ({certificates.filter(c => c.type === 'rank').length})
+        </Button>
+      </div>
 
-        <TabsContent value={activeTab} className="space-y-6">
+      <div className="space-y-6">
           {filteredCertificates.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
@@ -343,6 +385,7 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleShare(certificate)}
+                                  className="py-3"
                                 >
                                   <Share2 className="w-4 h-4 mr-2" />
                                   Share
@@ -350,6 +393,7 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
                                 <Button
                                   size="sm"
                                   onClick={() => handleDownload(certificate)}
+                                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
                                 >
                                   <Download className="w-4 h-4 mr-2" />
                                   Download
@@ -364,6 +408,7 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
                         variant="outline"
                         size="sm"
                         onClick={() => handleLinkedInShare(certificate)}
+                        className="py-3"
                       >
                         <Linkedin className="w-4 h-4" />
                       </Button>
@@ -371,6 +416,7 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
                       <Button
                         size="sm"
                         onClick={() => handleDownload(certificate)}
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
                       >
                         <Download className="w-4 h-4" />
                       </Button>
@@ -390,8 +436,7 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
               ))}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+      </div>
 
       {/* Generate New Certificate */}
       <Card>
@@ -403,7 +448,10 @@ export function CertificatesGrid({ userId }: CertificatesGridProps) {
                 Create certificates for your recent achievements and activities
               </p>
             </div>
-            <Button onClick={() => window.location.href = '/certificates/generate'}>
+            <Button 
+              onClick={() => window.location.href = '/certificates/generate'}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+            >
               <Award className="w-4 h-4 mr-2" />
               Generate Certificate
             </Button>

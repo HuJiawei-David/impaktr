@@ -21,10 +21,10 @@ import {
   Clock
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { AdminStatsCards } from '@/components/admin/AdminStatsCards';
 import { UserManagement } from '@/components/admin/UserManagement';
 import { OrganizationManagement } from '@/components/admin/OrganizationManagement';
@@ -45,7 +45,17 @@ interface AdminStats {
   systemHealth: number;
   userGrowthRate: number;
   orgGrowthRate: number;
-  recentActivity: any[];
+  recentActivity: Array<{
+    id: string;
+    type: string;
+    description: string;
+    timestamp: string;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+    };
+  }>;
 }
 
 export default function AdminDashboard() {
@@ -73,9 +83,10 @@ export default function AdminDashboard() {
     }
   }, [isLoading, user]);
 
-  const isUserAdmin = (user: any) => {
+  const isUserAdmin = (user: { email?: string | null; [key: string]: unknown }) => {
     // Check if user has admin role
-    return user['https://impaktr.com/roles']?.includes('admin') || 
+    const roles = user['https://impaktr.com/roles'] as string[] | undefined;
+    return roles?.includes('admin') || 
            user.email === 'admin@impaktr.com' ||
            user.email?.endsWith('@impaktr.com');
   };
@@ -97,7 +108,7 @@ export default function AdminDashboard() {
   if (isLoading || isLoadingStats) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -135,20 +146,92 @@ export default function AdminDashboard() {
         {/* Quick Stats */}
         <AdminStatsCards stats={stats} />
 
-        {/* Main Dashboard Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-7">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="organizations">Organizations</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="verifications">Verifications</TabsTrigger>
-            <TabsTrigger value="revenue">Revenue</TabsTrigger>
-            <TabsTrigger value="system">System</TabsTrigger>
-          </TabsList>
+        {/* Main Dashboard Navigation */}
+        <div className="space-y-8">
+          {/* Pill-like Navigation */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={activeTab === 'overview' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('overview')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'overview' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Overview
+            </Button>
+            <Button
+              variant={activeTab === 'users' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('users')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'users' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Users
+            </Button>
+            <Button
+              variant={activeTab === 'organizations' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('organizations')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'organizations' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Organizations
+            </Button>
+            <Button
+              variant={activeTab === 'events' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('events')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'events' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Events
+            </Button>
+            <Button
+              variant={activeTab === 'verifications' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('verifications')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'verifications' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Verifications
+            </Button>
+            <Button
+              variant={activeTab === 'revenue' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('revenue')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'revenue' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Revenue
+            </Button>
+            <Button
+              variant={activeTab === 'system' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('system')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'system' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              System
+            </Button>
+          </div>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview">
+          {/* Overview Tab Content */}
+          {activeTab === 'overview' && (
+            <div>
             <div className="space-y-8">
               {/* Key Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -241,30 +324,40 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+            </div>
+          )}
 
-          {/* Users Tab */}
-          <TabsContent value="users">
+          {/* Users Tab Content */}
+          {activeTab === 'users' && (
+            <div>
             <UserManagement />
-          </TabsContent>
+            </div>
+          )}
 
-          {/* Organizations Tab */}
-          <TabsContent value="organizations">
+          {/* Organizations Tab Content */}
+          {activeTab === 'organizations' && (
+            <div>
             <OrganizationManagement />
-          </TabsContent>
+            </div>
+          )}
 
-          {/* Events Tab */}
-          <TabsContent value="events">
+          {/* Events Tab Content */}
+          {activeTab === 'events' && (
+            <div>
             <EventModeration />
-          </TabsContent>
+            </div>
+          )}
 
-          {/* Verifications Tab */}
-          <TabsContent value="verifications">
+          {/* Verifications Tab Content */}
+          {activeTab === 'verifications' && (
+            <div>
             <VerificationQueue />
-          </TabsContent>
+            </div>
+          )}
 
-          {/* Revenue Tab */}
-          <TabsContent value="revenue">
+          {/* Revenue Tab Content */}
+          {activeTab === 'revenue' && (
+            <div>
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card>
@@ -324,13 +417,16 @@ export default function AdminDashboard() {
 
               <RevenueAnalytics />
             </div>
-          </TabsContent>
+            </div>
+          )}
 
-          {/* System Tab */}
-          <TabsContent value="system">
+          {/* System Tab Content */}
+          {activeTab === 'system' && (
+            <div>
             <SystemHealth />
-          </TabsContent>
-        </Tabs>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

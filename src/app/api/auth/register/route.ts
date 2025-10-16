@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         name,
         email,
         password: hashedPassword,
-        userType,
+        userType: userType || 'INDIVIDUAL',
       },
     });
     console.log('[Register] User created successfully:', user.id);

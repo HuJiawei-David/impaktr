@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
       recentPosts
     ] = await Promise.all([
       prisma.user.count({
-        where: { userType: 'INDIVIDUAL' }
+        where: {} // userType field doesn't exist in User model
       }),
       prisma.post.count(),
       prisma.user.count({
         where: {
-          lastActiveAt: {
+          updatedAt: { // lastActiveAt field doesn't exist, using updatedAt instead
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
           }
         }

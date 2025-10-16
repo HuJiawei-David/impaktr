@@ -417,7 +417,7 @@ export function CertificatePreview({
       {/* LinkedIn Shared Indicator */}
       {certificate.linkedInShared && (
         <div className="absolute -top-2 -left-2 z-10">
-          <Badge className="bg-blue-600 hover:bg-blue-700 text-xs shadow-sm">
+          <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-xs shadow-sm">
             <Linkedin className="w-3 h-3 mr-1" />
             Shared
           </Badge>

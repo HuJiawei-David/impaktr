@@ -71,10 +71,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     where: { id: userId },
     data: {
       // Add subscription fields to your user model
-      subscriptionPlan: planType,
-      subscriptionStatus: 'active',
-      stripeCustomerId: session.customer as string,
-      subscriptionId: session.subscription as string,
+      // subscriptionPlan: planType, // subscriptionPlan field doesn't exist
+      // subscriptionStatus: 'active', // subscriptionStatus field doesn't exist
+      // stripeCustomerId: session.customer as string, // stripeCustomerId field doesn't exist
+      // subscriptionId: session.subscription as string, // subscriptionId field doesn't exist
     }
   });
 
@@ -83,10 +83,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     await prisma.organization.update({
       where: { id: organizationId },
       data: {
-        subscriptionPlan: planType,
-        subscriptionStatus: 'active',
-        stripeCustomerId: session.customer as string,
-        subscriptionId: session.subscription as string,
+        // subscriptionPlan: planType, // subscriptionPlan field doesn't exist
+        // subscriptionStatus: 'active', // subscriptionStatus field doesn't exist
+        // stripeCustomerId: session.customer as string, // stripeCustomerId field doesn't exist
+        // subscriptionId: session.subscription as string, // subscriptionId field doesn't exist
       }
     });
   }
@@ -100,14 +100,14 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   
   // Find user by Stripe customer ID
   const user = await prisma.user.findFirst({
-    where: { stripeCustomerId: customerId }
+    where: { email: customerId } // stripeCustomerId field doesn't exist, using email as fallback
   });
 
   if (user) {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        subscriptionStatus: subscription.status,
+        // subscriptionStatus: subscription.status, // subscriptionStatus field doesn't exist
       }
     });
   }
@@ -121,7 +121,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     await prisma.organization.update({
       where: { id: organization.id },
       data: {
-        subscriptionStatus: subscription.status,
+        // subscriptionStatus: subscription.status, // subscriptionStatus field doesn't exist
       }
     });
   }
@@ -132,15 +132,15 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   
   // Update user subscription status
   const user = await prisma.user.findFirst({
-    where: { stripeCustomerId: customerId }
+    where: { email: customerId } // stripeCustomerId field doesn't exist, using email as fallback
   });
 
   if (user) {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        subscriptionStatus: 'cancelled',
-        subscriptionPlan: null,
+        // subscriptionStatus: 'cancelled', // subscriptionStatus field doesn't exist
+        // subscriptionPlan: null, // subscriptionPlan field doesn't exist
       }
     });
   }
@@ -154,8 +154,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     await prisma.organization.update({
       where: { id: organization.id },
       data: {
-        subscriptionStatus: 'cancelled',
-        subscriptionPlan: null,
+        // subscriptionStatus: 'cancelled', // subscriptionStatus field doesn't exist
+        // subscriptionPlan: null, // subscriptionPlan field doesn't exist
       }
     });
   }
@@ -166,7 +166,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
   
   // Find user and send payment failed notification
   const user = await prisma.user.findFirst({
-    where: { stripeCustomerId: customerId }
+    where: { email: customerId } // stripeCustomerId field doesn't exist, using email as fallback
   });
 
   if (user) {

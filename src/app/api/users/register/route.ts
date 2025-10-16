@@ -2,10 +2,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { uploadToS3 } from '@/lib/aws';
 import { z } from 'zod';
-import { UserType } from '@prisma/client';
+import { UserType } from '@/types/enums';
+import { prisma } from '@/lib/prisma';
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
@@ -41,7 +41,7 @@ const registrationSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('Registration API called');
+    console.log('User registration API called');
     const session = await getSession();
     console.log('Session:', session);
     if (!session?.user) {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     
     // Extract and validate form data
-    const formDataObj: any = {};
+    const formDataObj: Record<string, FormDataEntryValue> = {};
     for (const [key, value] of formData.entries()) {
       if (key !== 'profilePicture') {
         formDataObj[key] = value;
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { id: session.user.id },
-      include: { profile: true },
+      // include: { profile: true }, // profile relation doesn't exist
     });
 
     if (!existingUser) {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle profile picture upload
-    let avatarUrl = existingUser.profile?.avatar || null;
+    let avatarUrl = existingUser.image || null;
     const profilePicture = formData.get('profilePicture') as File;
     
     if (profilePicture && profilePicture.size > 0) {
@@ -89,76 +89,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update user profile
+    // Update user profile with all the collected data
     const updatedUser = await prisma.user.update({
       where: { id: existingUser.id },
       data: {
-        userType: UserType.INDIVIDUAL,
-        profile: {
-          upsert: {
-            create: {
-              firstName: validatedData.firstName,
-              lastName: validatedData.lastName,
-              displayName: `${validatedData.firstName} ${validatedData.lastName}`,
-              bio: validatedData.bio,
-              avatar: avatarUrl,
-              website: validatedData.website || null,
-              location: {
-                city: validatedData.city,
-                state: validatedData.state,
-                country: validatedData.country,
-              },
-              languages: validatedData.languages,
-              dateOfBirth: validatedData.dateOfBirth,
-              gender: validatedData.gender,
-              nationality: validatedData.nationality,
-              occupation: validatedData.occupation,
-              organization: validatedData.organization,
-              isPublic: validatedData.isPublic,
-              showEmail: validatedData.showEmail,
-              sdgFocus: validatedData.sdgFocus,
-              notifications: {
-                email: true,
-                push: true,
-                badges: true,
-                events: true,
-                verifications: true,
-              },
-            },
-            update: {
-              firstName: validatedData.firstName,
-              lastName: validatedData.lastName,
-              displayName: `${validatedData.firstName} ${validatedData.lastName}`,
-              bio: validatedData.bio,
-              avatar: avatarUrl,
-              website: validatedData.website || null,
-              location: {
-                city: validatedData.city,
-                state: validatedData.state,
-                country: validatedData.country,
-              },
-              languages: validatedData.languages,
-              dateOfBirth: validatedData.dateOfBirth,
-              gender: validatedData.gender,
-              nationality: validatedData.nationality,
-              occupation: validatedData.occupation,
-              organization: validatedData.organization,
-              isPublic: validatedData.isPublic,
-              showEmail: validatedData.showEmail,
-              sdgFocus: validatedData.sdgFocus,
-              updatedAt: new Date(),
-            }
-          }
-        }
+        // Basic info
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        name: `${validatedData.firstName} ${validatedData.lastName}`,
+        displayName: `${validatedData.firstName} ${validatedData.lastName}`,
+        bio: validatedData.bio,
+        image: avatarUrl,
+        
+        // Personal details
+        dateOfBirth: validatedData.dateOfBirth,
+        gender: validatedData.gender,
+        nationality: validatedData.nationality,
+        
+        // Location
+        city: validatedData.city,
+        state: validatedData.state,
+        country: validatedData.country,
+        location: `${validatedData.city}, ${validatedData.state}, ${validatedData.country}`,
+        
+        // Professional
+        occupation: validatedData.occupation,
+        organization: validatedData.organization,
+        
+        // Additional fields
+        languages: validatedData.languages,
+        website: validatedData.website || null,
+        sdgFocus: validatedData.sdgFocus,
+        
+        // Privacy settings
+        showEmail: validatedData.showEmail,
+        isPublic: validatedData.isPublic,
+        
+        // User type
+        userType: 'INDIVIDUAL',
+        
+        updatedAt: new Date(),
       },
-      include: {
-        profile: true,
-      }
     });
 
     // Initialize user badges for all SDGs
     const badges = await prisma.badge.findMany({
-      where: { tier: 'SUPPORTER' }, // Initialize with supporter level badges
+      where: { rarity: 'SUPPORTER' }, // Initialize with supporter level badges
     });
 
     for (const badge of badges) {
@@ -172,28 +148,14 @@ export async function POST(request: NextRequest) {
         create: {
           userId: updatedUser.id,
           badgeId: badge.id,
-          progress: 0,
+          // progress: 0, // progress field doesn't exist
         },
         update: {}, // Do nothing if already exists
       });
     }
 
-    // Create initial score history entry
-    await prisma.scoreHistory.create({
-      data: {
-        userId: updatedUser.id,
-        oldScore: 0,
-        newScore: 0,
-        change: 0,
-        reason: 'account_created',
-        hoursComponent: 0,
-        intensityComponent: 0,
-        skillComponent: 0,
-        qualityComponent: 0,
-        verificationComponent: 0,
-        locationComponent: 1.0,
-      }
-    });
+    // Note: ScoreHistory model doesn't exist in the schema
+    // Initial score tracking would need to be implemented if required
 
     return NextResponse.json({ 
       success: true,

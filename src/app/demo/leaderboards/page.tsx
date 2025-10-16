@@ -207,7 +207,7 @@ export default function LeaderboardsDemo() {
             Impact Leaderboards
           </h1>
           <p className="text-xl text-yellow-100 mb-8 max-w-3xl mx-auto">
-            See who's making the biggest difference. Compete, collaborate, and celebrate impact achievements together.
+            See who&apos;s making the biggest difference. Compete, collaborate, and celebrate impact achievements together.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button size="lg" className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20 px-8 py-4 text-lg">

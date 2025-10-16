@@ -59,6 +59,11 @@ export default function OrganizationCertificatesPage() {
   const [newTemplate, setNewTemplate] = useState({
     name: '',
     description: '',
+    type: 'participation',
+    category: 'participation',
+    template: {},
+    isDefault: false,
+    isActive: true,
   });
 
   useEffect(() => {
@@ -97,7 +102,15 @@ export default function OrganizationCertificatesPage() {
     setActiveTab('create');
   };
 
-  const handleSaveTemplate = async (templateData: any) => {
+  const handleSaveTemplate = async (templateData: {
+    name: string;
+    description?: string;
+    type: string;
+    category?: string;
+    template: Record<string, unknown>;
+    isDefault?: boolean;
+    isActive?: boolean;
+  }) => {
     try {
       const response = await fetch(`/api/organizations/${params?.id}/certificate-templates`, {
         method: 'POST',

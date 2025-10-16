@@ -112,42 +112,7 @@ const sdgData = [
 
 export function SDGSimple() {
   return (
-    <section className="relative py-20 overflow-hidden bg-blue-50/50 dark:bg-gray-900/50">
-      {/* Purple overlay on top of blue background */}
-      <div className="absolute inset-0 bg-purple-50/30 dark:bg-purple-950/20"></div>
-      {/* Wave pattern background */}
-      <div className="absolute inset-0 overflow-hidden">
-        {/* Transitional bubbles from hero section */}
-        <div className="absolute top-0 left-1/4 w-12 h-12 bg-gradient-to-br from-blue-400/20 to-cyan-400/15 rounded-full shadow-xl shadow-blue-400/10 animate-bounce blur-sm" style={{ animationDelay: '0s', animationDuration: '6s' }}></div>
-        <div className="absolute top-8 right-1/3 w-8 h-8 bg-gradient-to-br from-emerald-400/25 to-teal-400/20 rounded-full shadow-xl shadow-emerald-400/15 animate-bounce blur-sm" style={{ animationDelay: '2s', animationDuration: '7s' }}></div>
-        <div className="absolute top-16 left-1/3 w-10 h-10 bg-gradient-to-br from-purple-400/20 to-pink-400/15 rounded-full shadow-xl shadow-purple-400/10 animate-bounce blur-sm" style={{ animationDelay: '1s', animationDuration: '5.5s' }}></div>
-        
-        {/* SVG Wave patterns */}
-        <div className="absolute inset-0 opacity-20">
-          <svg className="w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="none">
-            <path d="M0,200 Q300,100 600,200 T1200,200 L1200,0 L0,0 Z" fill="rgba(59, 130, 246, 0.1)" />
-            <path d="M0,400 Q300,300 600,400 T1200,400 L1200,200 L0,200 Z" fill="rgba(147, 51, 234, 0.08)" />
-            <path d="M0,600 Q300,500 600,600 T1200,600 L1200,400 L0,400 Z" fill="rgba(99, 102, 241, 0.06)" />
-          </svg>
-        </div>
-        
-        {/* Organic shapes with blue and purple colors */}
-        <div className="absolute top-20 left-1/4 w-16 h-8 bg-blue-200/30 rounded-full transform rotate-12 animate-pulse" style={{ animationDelay: '0s', animationDuration: '6s' }}></div>
-        <div className="absolute top-40 right-1/3 w-12 h-6 bg-purple-200/40 rounded-full transform -rotate-24 animate-pulse" style={{ animationDelay: '2s', animationDuration: '8s' }}></div>
-        <div className="absolute bottom-32 left-1/5 w-20 h-10 bg-indigo-200/25 rounded-full transform rotate-45 animate-pulse" style={{ animationDelay: '4s', animationDuration: '7s' }}></div>
-        
-        {/* Floating circles with different sizes */}
-        <div className="absolute top-1/3 right-1/4 w-6 h-6 bg-blue-300/20 rounded-full animate-bounce" style={{ animationDelay: '1s', animationDuration: '4s' }}></div>
-        <div className="absolute bottom-1/3 left-1/2 w-4 h-4 bg-purple-300/30 rounded-full animate-bounce" style={{ animationDelay: '3s', animationDuration: '5s' }}></div>
-        
-        {/* Dreamy gradient layers - exactly like hero section */}
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-900/8 via-transparent to-purple-900/8 animate-pulse" style={{ animationDuration: '20s' }}></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tl from-emerald-900/6 via-transparent to-cyan-900/6 animate-pulse" style={{ animationDelay: '10s', animationDuration: '25s' }}></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-pink-900/4 via-transparent to-rose-900/4 animate-pulse" style={{ animationDelay: '15s', animationDuration: '22s' }}></div>
-        
-        {/* Subtle grid pattern overlay - exactly like hero section */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJyZ2JhKDU5LCAxMzAsIDI0NiwgMC4wMykiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-15"></div>
-      </div>
+    <section className="relative py-20 overflow-hidden bg-gray-50 dark:bg-gray-950">
       
       <div className="relative container mx-auto px-4 z-10">
         <div className="text-center mb-12">
@@ -211,7 +176,7 @@ export function SDGSimple() {
         </div>
         
         {/* Call to Action - positioned 1.5cm from bottom wave */}
-        <div className="text-center mt-12" style={{marginBottom: '1.5cm'}}>
+        <div className="text-center mt-12" style={{marginBottom: '0.5cm'}}>
           <p className="text-gray-600 mb-6">
             Ready to align your impact with global goals?
           </p>

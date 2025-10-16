@@ -4,13 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { ParticipationStatus } from '@prisma/client';
 import { calculateImpaktrScore } from '@/lib/scoring';
 import { checkAndAwardBadges } from '@/lib/badges';
 
 const updateVerificationSchema = z.object({
-  status: z.nativeEnum(ParticipationStatus),
-  comments: z.string().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+  reviewNote: z.string().optional(),
   rating: z.number().min(0.5).max(1.5).optional(),
 });
 
@@ -26,7 +25,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, comments, rating } = updateVerificationSchema.parse(body);
+    const { status, reviewNote, rating } = updateVerificationSchema.parse(body);
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -55,88 +54,106 @@ export async function PUT(
       );
     }
 
-    // Check if user has permission to update verification
-    const canUpdate = 
-      verification.verifierId === user.id || 
-      verification.participation.event.creatorId === user.id;
-
-    if (!canUpdate) {
+    // Check if verification is for a participation
+    if (!verification.participation) {
       return NextResponse.json(
-        { error: 'Insufficient permissions to update this verification' },
+        { error: 'This verification is not linked to a participation' },
+        { status: 400 }
+      );
+    }
+
+    // Check if user has permission to update verification
+    // Organization members can verify participations in their organization's events
+    const event = verification.participation.event;
+    if (!event.organizationId) {
+      return NextResponse.json(
+        { error: 'Event is not linked to an organization' },
+        { status: 400 }
+      );
+    }
+
+    const isMember = await prisma.organizationMember.findFirst({
+      where: {
+        organizationId: event.organizationId,
+        userId: user.id,
+        role: { in: ['owner', 'admin', 'manager'] } // Only these roles can verify
+      }
+    });
+
+    if (!isMember) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions to verify this participation' },
         { status: 403 }
       );
     }
 
+    // Update verification
     const updatedVerification = await prisma.verification.update({
       where: { id },
       data: {
         status,
-        comments,
+        reviewNote,
         rating,
+        reviewedAt: new Date(),
+        reviewerId: user.id,
       },
       include: {
         participation: {
           include: {
             event: true,
-            user: {
-              include: {
-                profile: true
-              }
-            }
-          }
-        },
-        verifier: {
-          include: {
-            profile: true
+            user: true
           }
         }
       }
     });
 
     // Update participation status if verification is approved
-    if (status === ParticipationStatus.VERIFIED) {
+    if (status === 'APPROVED') {
       await prisma.participation.update({
-        where: { id: verification.participationId },
+        where: { id: verification.participationId! },
         data: {
-          status: ParticipationStatus.VERIFIED,
+          status: 'ATTENDED',
           verifiedAt: new Date(),
-          qualityRating: rating || verification.rating || 1.0,
         }
       });
 
-      // Calculate and update Impaktr Score
-      const newScore = await calculateImpaktrScore(verification.participation.userId);
+      // Calculate and update user's Impaktr Score
+      const participantId = verification.participation.userId;
+      const oldScore = verification.participation.user.impactScore;
+      const newScore = await calculateImpaktrScore(participantId);
+      
       await prisma.user.update({
-        where: { id: verification.participation.userId },
-        data: { impaktrScore: newScore }
+        where: { id: participantId },
+        data: { impactScore: newScore }
       });
 
       // Check and award badges
-      await checkAndAwardBadges(verification.participation.userId);
+      await checkAndAwardBadges(participantId);
 
       // Create score history entry
       await prisma.scoreHistory.create({
         data: {
-          userId: verification.participation.userId,
-          oldScore: verification.participation.user.impaktrScore,
+          userId: participantId,
+          oldScore,
           newScore,
-          change: newScore - verification.participation.user.impaktrScore,
-          reason: 'event_verified',
-          hoursComponent: verification.participation.hoursActual || verification.participation.hoursCommitted,
-          intensityComponent: verification.participation.event.intensity,
-          skillComponent: verification.participation.skillMultiplier,
-          qualityComponent: rating || verification.rating || 1.0,
-          verificationComponent: 1.1, // Peer/organizer verification bonus
-          locationComponent: 1.0, // Default location multiplier
+          change: newScore - oldScore,
+          reason: 'participation_verified',
+          hoursComponent: verification.participation.hours || 0,
+          intensityComponent: 1.0, // Default intensity
+          skillComponent: 1.0, // Default skill
+          qualityComponent: rating || 1.0,
+          verificationComponent: 1.1, // Organization verification bonus
+          locationComponent: 1.0, // Default location
           eventId: verification.participation.eventId,
           participationId: verification.participationId,
         }
       });
-    } else if (status === ParticipationStatus.REJECTED) {
+    } else if (status === 'REJECTED') {
+      // Mark participation as cancelled if rejected
       await prisma.participation.update({
-        where: { id: verification.participationId },
+        where: { id: verification.participationId! },
         data: {
-          status: ParticipationStatus.REJECTED,
+          status: 'CANCELLED',
         }
       });
     }
@@ -196,21 +213,28 @@ export async function DELETE(
       );
     }
 
-    // Check if user has permission to delete verification
-    const canDelete = 
-      verification.verifierId === user.id || 
-      verification.participation.event.creatorId === user.id;
+    // Check permissions
+    if (verification.participation?.event.organizationId) {
+      const isMember = await prisma.organizationMember.findFirst({
+        where: {
+          organizationId: verification.participation.event.organizationId,
+          userId: user.id,
+          role: { in: ['owner', 'admin', 'manager'] }
+        }
+      });
 
-    if (!canDelete) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions to delete this verification' },
-        { status: 403 }
-      );
+      if (!isMember) {
+        return NextResponse.json(
+          { error: 'Insufficient permissions to delete this verification' },
+          { status: 403 }
+        );
+      }
     }
 
-    if (verification.status === ParticipationStatus.VERIFIED) {
+    // Cannot delete approved verifications
+    if (verification.status === 'APPROVED') {
       return NextResponse.json(
-        { error: 'Cannot delete verified verification' },
+        { error: 'Cannot delete approved verification' },
         { status: 400 }
       );
     }

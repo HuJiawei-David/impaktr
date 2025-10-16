@@ -1,0 +1,715 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
+import { 
+  Plus, 
+  MapPin, 
+  Clock, 
+  Users, 
+  Calendar,
+  Briefcase,
+  Filter,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  MoreVertical
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+
+interface Opportunity {
+  id: string;
+  title: string;
+  description: string;
+  requirements: string[];
+  spots: number;
+  spotsFilled: number;
+  deadline?: string;
+  location?: string;
+  isRemote: boolean;
+  skills: string[];
+  sdg?: string;
+  status: string;
+  createdAt: string;
+  organization: {
+    id: string;
+    name: string;
+    logo?: string;
+    tier: string;
+  };
+  stats: {
+    totalApplications: number;
+    spotsRemaining: number;
+  };
+  hasApplied: boolean;
+  applicationStatus?: string;
+}
+
+interface Application {
+  id: string;
+  status: string;
+  message?: string;
+  resumeUrl?: string;
+  appliedAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+    bio?: string;
+    city?: string;
+    country?: string;
+  };
+}
+
+export default function OrganizationOpportunitiesPage() {
+  const { data: session, status } = useSession();
+  const [activeTab, setActiveTab] = useState('opportunities');
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingOpportunity, setIsCreatingOpportunity] = useState(false);
+  const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
+  const [newOpportunity, setNewOpportunity] = useState({
+    title: '',
+    description: '',
+    requirements: [] as string[],
+    spots: 1,
+    deadline: '',
+    location: '',
+    isRemote: false,
+    skills: [] as string[],
+    sdg: '',
+  });
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (!session?.user?.id) {
+      redirect('/signin');
+    }
+
+    fetchOpportunities();
+  }, [session, status]);
+
+  const fetchOpportunities = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/organization/opportunities');
+      if (response.ok) {
+        const data = await response.json();
+        setOpportunities(data.opportunities);
+      }
+    } catch (error) {
+      console.error('Error fetching opportunities:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchApplications = async (opportunityId: string) => {
+    try {
+      const response = await fetch(`/api/organization/opportunities/${opportunityId}/applications`);
+      if (response.ok) {
+        const data = await response.json();
+        setApplications(data.applications);
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
+
+  const handleCreateOpportunity = async () => {
+    if (!newOpportunity.title.trim() || !newOpportunity.description.trim()) return;
+
+    try {
+      setIsCreatingOpportunity(true);
+      const response = await fetch('/api/organization/opportunities', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newOpportunity),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setOpportunities([data.opportunity, ...opportunities]);
+        setNewOpportunity({
+          title: '',
+          description: '',
+          requirements: [],
+          spots: 1,
+          deadline: '',
+          location: '',
+          isRemote: false,
+          skills: [],
+          sdg: '',
+        });
+        setShowCreateOpportunity(false);
+      }
+    } catch (error) {
+      console.error('Error creating opportunity:', error);
+    } finally {
+      setIsCreatingOpportunity(false);
+    }
+  };
+
+  const handleUpdateApplication = async (applicationId: string, status: string) => {
+    try {
+      const response = await fetch(`/api/organization/opportunities/${selectedOpportunity?.id}/applications/${applicationId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        // Refresh applications
+        if (selectedOpportunity) {
+          await fetchApplications(selectedOpportunity.id);
+        }
+        // Refresh opportunities to update spots filled
+        await fetchOpportunities();
+      }
+    } catch (error) {
+      console.error('Error updating application:', error);
+    }
+  };
+
+  const addRequirement = (requirement: string) => {
+    if (requirement.trim() && !newOpportunity.requirements.includes(requirement.trim())) {
+      setNewOpportunity(prev => ({
+        ...prev,
+        requirements: [...prev.requirements, requirement.trim()]
+      }));
+    }
+  };
+
+  const removeRequirement = (requirementToRemove: string) => {
+    setNewOpportunity(prev => ({
+      ...prev,
+      requirements: prev.requirements.filter(req => req !== requirementToRemove)
+    }));
+  };
+
+  const addSkill = (skill: string) => {
+    if (skill.trim() && !newOpportunity.skills.includes(skill.trim())) {
+      setNewOpportunity(prev => ({
+        ...prev,
+        skills: [...prev.skills, skill.trim()]
+      }));
+    }
+  };
+
+  const removeSkill = (skillToRemove: string) => {
+    setNewOpportunity(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
+    }));
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'REJECTED':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'PENDING':
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+  };
+
+  if (status === 'loading' || isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pt-[10px]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="pt-2 pb-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
+                    <Briefcase className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      Opportunities
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Post volunteer opportunities and manage applications
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => setShowCreateOpportunity(true)}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Post Opportunity
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="pt-3 pb-8">
+          <div className="space-y-6">
+            {/* Pill-like Navigation */}
+            <div className="flex space-x-2">
+              <Button
+                variant={activeTab === 'opportunities' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('opportunities')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'opportunities' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Opportunities
+              </Button>
+              <Button
+                variant={activeTab === 'applications' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('applications')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'applications' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Applications
+              </Button>
+            </div>
+
+            {/* Opportunities Tab Content */}
+            {activeTab === 'opportunities' && (
+              <div className="space-y-6">
+              {/* Create Opportunity Modal */}
+              {showCreateOpportunity && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Post New Opportunity</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Title *
+                      </label>
+                      <Input
+                        placeholder="e.g., Beach Cleanup Volunteers Needed"
+                        value={newOpportunity.title}
+                        onChange={(e) => setNewOpportunity(prev => ({ ...prev, title: e.target.value }))}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Description *
+                      </label>
+                      <Textarea
+                        placeholder="Describe the opportunity, what volunteers will do, impact, etc."
+                        value={newOpportunity.description}
+                        onChange={(e) => setNewOpportunity(prev => ({ ...prev, description: e.target.value }))}
+                        className="min-h-[100px]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Number of Spots
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={newOpportunity.spots}
+                          onChange={(e) => setNewOpportunity(prev => ({ ...prev, spots: parseInt(e.target.value) || 1 }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Application Deadline
+                        </label>
+                        <Input
+                          type="datetime-local"
+                          value={newOpportunity.deadline}
+                          onChange={(e) => setNewOpportunity(prev => ({ ...prev, deadline: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Location
+                      </label>
+                      <Input
+                        placeholder="e.g., Central Park, New York"
+                        value={newOpportunity.location}
+                        onChange={(e) => setNewOpportunity(prev => ({ ...prev, location: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isRemote"
+                        checked={newOpportunity.isRemote}
+                        onChange={(e) => setNewOpportunity(prev => ({ ...prev, isRemote: e.target.checked }))}
+                        className="rounded"
+                      />
+                      <label htmlFor="isRemote" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Remote opportunity
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Requirements
+                      </label>
+                      <Input
+                        placeholder="Add requirement (press Enter)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            addRequirement(e.currentTarget.value);
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
+                      {newOpportunity.requirements.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {newOpportunity.requirements.map((req, index) => (
+                            <Badge key={index} variant="secondary" className="cursor-pointer" onClick={() => removeRequirement(req)}>
+                              {req} ×
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Skills
+                      </label>
+                      <Input
+                        placeholder="Add skill (press Enter)"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            addSkill(e.currentTarget.value);
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
+                      {newOpportunity.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {newOpportunity.skills.map((skill, index) => (
+                            <Badge key={index} variant="outline" className="cursor-pointer" onClick={() => removeSkill(skill)}>
+                              {skill} ×
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <Button variant="outline" onClick={() => setShowCreateOpportunity(false)}>
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleCreateOpportunity}
+                        disabled={isCreatingOpportunity || !newOpportunity.title.trim() || !newOpportunity.description.trim()}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      >
+                        {isCreatingOpportunity ? 'Posting...' : 'Post Opportunity'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Opportunities List */}
+              <div className="space-y-4">
+                {opportunities.map((opportunity) => (
+                  <Card key={opportunity.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                              {opportunity.title}
+                            </h3>
+                            <Badge variant={opportunity.status === 'OPEN' ? 'default' : 'secondary'}>
+                              {opportunity.status}
+                            </Badge>
+                          </div>
+                          
+                          <p className="text-gray-600 dark:text-gray-400 mb-3">
+                            {opportunity.description}
+                          </p>
+
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-3">
+                            <div className="flex items-center space-x-1">
+                              <Users className="h-4 w-4" />
+                              <span>{opportunity.spotsFilled}/{opportunity.spots} filled</span>
+                            </div>
+                            {opportunity.location && (
+                              <div className="flex items-center space-x-1">
+                                <MapPin className="h-4 w-4" />
+                                <span>{opportunity.location}</span>
+                              </div>
+                            )}
+                            {opportunity.deadline && (
+                              <div className="flex items-center space-x-1">
+                                <Clock className="h-4 w-4" />
+                                <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                            {opportunity.isRemote && (
+                              <Badge variant="outline">Remote</Badge>
+                            )}
+                          </div>
+
+                          {opportunity.requirements.length > 0 && (
+                            <div className="mb-3">
+                              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Requirements:</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {opportunity.requirements.map((req, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {req}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {opportunity.skills.length > 0 && (
+                            <div className="mb-3">
+                              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Skills:</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {opportunity.skills.map((skill, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs">
+                                    {skill}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4 text-sm">
+                              <span className="text-gray-500 dark:text-gray-400">
+                                {opportunity.stats.totalApplications} applications
+                              </span>
+                              <span className="text-gray-500 dark:text-gray-400">
+                                Posted {new Date(opportunity.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            
+                            <div className="flex space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedOpportunity(opportunity);
+                                  fetchApplications(opportunity.id);
+                                  setActiveTab('applications');
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View Applications
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-red-600">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              </div>
+            )}
+
+            {/* Applications Tab Content */}
+            {activeTab === 'applications' && (
+              <div className="space-y-6">
+              {selectedOpportunity ? (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Applications for "{selectedOpportunity.title}"</CardTitle>
+                    </CardHeader>
+                  </Card>
+
+                  <div className="space-y-4">
+                    {applications.map((application) => (
+                      <Card key={application.id}>
+                        <CardContent className="p-6">
+                          <div className="flex items-start space-x-4">
+                            <Avatar className="h-12 w-12">
+                              {application.user.image && (
+                                <AvatarImage src={application.user.image} alt={application.user.name} />
+                              )}
+                              <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold">
+                                {application.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <h3 className="font-semibold text-gray-900 dark:text-white">
+                                  {application.user.name}
+                                </h3>
+                                <Badge className={getStatusColor(application.status)}>
+                                  {getStatusIcon(application.status)}
+                                  <span className="ml-1">{application.status}</span>
+                                </Badge>
+                              </div>
+                              
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                {application.user.email}
+                              </p>
+                              
+                              {application.user.city && application.user.country && (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                  {application.user.city}, {application.user.country}
+                                </p>
+                              )}
+                              
+                              {application.user.bio && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                  {application.user.bio}
+                                </p>
+                              )}
+                              
+                              {application.message && (
+                                <div className="mb-3">
+                                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message:</h4>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                                    {application.message}
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {application.resumeUrl && (
+                                <div className="mb-3">
+                                  <a 
+                                    href={application.resumeUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-sm"
+                                  >
+                                    View Resume →
+                                  </a>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-gray-500 dark:text-gray-400">
+                                  Applied {new Date(application.appliedAt).toLocaleDateString()}
+                                </span>
+                                
+                                {application.status === 'PENDING' && (
+                                  <div className="flex space-x-2">
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => handleUpdateApplication(application.id, 'REJECTED')}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-1" />
+                                      Reject
+                                    </Button>
+                                    <Button 
+                                      size="sm"
+                                      onClick={() => handleUpdateApplication(application.id, 'APPROVED')}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Approve
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Select an Opportunity
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Choose an opportunity from the Opportunities tab to view applications
+                  </p>
+                </div>
+              )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
