@@ -204,7 +204,8 @@ export async function POST(request: NextRequest) {
     
     if (avatarFile && avatarFile.size > 0) {
       try {
-        const buffer = await avatarFile.arrayBuffer();
+        const arrayBuffer = await avatarFile.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
         const fileName = `community-avatars/${Date.now()}-${avatarFile.name}`;
         avatarUrl = await uploadToS3(buffer, fileName, avatarFile.type);
       } catch (error) {
