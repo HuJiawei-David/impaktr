@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { calculateESGScore } from '@/lib/esg-calculator';
 import { calculateOrganizationKPIs } from '@/lib/organizationHelpers';
 
 export async function GET(request: NextRequest) {
@@ -83,10 +84,24 @@ export async function GET(request: NextRequest) {
       })
     ]);
     
+    // Calculate real ESG score
+    let esgMetrics;
+    try {
+      esgMetrics = await calculateESGScore(organization.id, 'annual');
+    } catch (error) {
+      console.error('Error calculating ESG score:', error);
+      esgMetrics = {
+        environmental: { total: 0 },
+        social: { total: 0 },
+        governance: { total: 0 },
+        overall: 0
+      };
+    }
+
     // Map KPIs to the format expected by CorporateKPIs component
     const kpis = {
       impactScore: rawKpis.averageImpactScore,
-      esgScore: organization.esgScore || 0,
+      esgScore: esgMetrics.overall,
       volunteerHours: rawKpis.volunteerHours || 0,
       carbonOffset: 0, // TODO: Calculate actual carbon offset
     };
@@ -135,6 +150,37 @@ export async function GET(request: NextRequest) {
         },
       },
       kpis,
+      esgMetrics: {
+        environmental: esgMetrics.environmental.total,
+        social: esgMetrics.social.total,
+        governance: esgMetrics.governance.total,
+        overall: esgMetrics.overall,
+        breakdown: {
+          environmental: {
+            sdg6: esgMetrics.environmental.sdg6,
+            sdg7: esgMetrics.environmental.sdg7,
+            sdg11: esgMetrics.environmental.sdg11,
+            sdg12: esgMetrics.environmental.sdg12,
+            sdg13: esgMetrics.environmental.sdg13,
+            sdg14: esgMetrics.environmental.sdg14,
+            sdg15: esgMetrics.environmental.sdg15,
+          },
+          social: {
+            sdg1: esgMetrics.social.sdg1,
+            sdg2: esgMetrics.social.sdg2,
+            sdg3: esgMetrics.social.sdg3,
+            sdg4: esgMetrics.social.sdg4,
+            sdg5: esgMetrics.social.sdg5,
+            sdg8: esgMetrics.social.sdg8,
+            sdg10: esgMetrics.social.sdg10,
+          },
+          governance: {
+            sdg16: esgMetrics.governance.sdg16,
+            sdg17: esgMetrics.governance.sdg17,
+            sdg12_6: esgMetrics.governance.sdg12_6,
+          }
+        }
+      },
       members: formattedMembers,
       recentEvents: recentEvents.map((e) => ({
         ...e,

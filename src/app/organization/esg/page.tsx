@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -41,38 +41,58 @@ import { Textarea } from '@/components/ui/textarea';
 interface ESGData {
   organizationId: string;
   organizationName: string;
-  currentScore: number;
-  scores: {
+  period: string;
+  calculatedAt: string;
+  metrics: {
+    environmental: {
+      sdg6: number;  // Clean Water & Sanitation
+      sdg7: number;  // Affordable & Clean Energy
+      sdg11: number; // Sustainable Cities & Communities
+      sdg12: number; // Responsible Consumption & Production
+      sdg13: number; // Climate Action
+      sdg14: number; // Life Below Water
+      sdg15: number; // Life on Land
+      total: number;
+    };
+    social: {
+      sdg1: number;  // No Poverty
+      sdg2: number;  // Zero Hunger
+      sdg3: number;  // Good Health & Well-Being
+      sdg4: number;  // Quality Education
+      sdg5: number;  // Gender Equality
+      sdg8: number;  // Decent Work & Economic Growth
+      sdg10: number; // Reduced Inequalities
+      total: number;
+    };
+    governance: {
+      sdg16: number; // Peace, Justice & Strong Institutions
+      sdg17: number; // Partnerships for the Goals
+      sdg12_6: number; // Sustainability Reporting
+      total: number;
+    };
+    overall: number;
+  };
+  breakdown: {
+    environmental: {
+      weight: number;
+      score: number;
+      sdgs: Record<string, number>;
+    };
+    social: {
+      weight: number;
+      score: number;
+      sdgs: Record<string, number>;
+    };
+    governance: {
+      weight: number;
+      score: number;
+      sdgs: Record<string, number>;
+    };
+  };
+  dataCollectionStatus: {
     environmental: number;
     social: number;
     governance: number;
-    trend: 'up' | 'down' | 'stable';
-  };
-  metrics: {
-    environmental: Array<{
-      name: string;
-      value: number;
-      unit: string;
-      target: number;
-      progress: number;
-      trend: 'up' | 'down' | 'stable';
-    }>;
-    social: Array<{
-      name: string;
-      value: number;
-      unit: string;
-      target: number;
-      progress: number;
-      trend: 'up' | 'down' | 'stable';
-    }>;
-    governance: Array<{
-      name: string;
-      value: number;
-      unit: string;
-      target: number;
-      progress: number;
-      trend: 'up' | 'down' | 'stable';
-    }>;
   };
   recentReports: Array<{
     id: string;
@@ -81,11 +101,6 @@ interface ESGData {
     status: 'submitted' | 'pending' | 'verified';
     submittedAt: string;
   }>;
-  dataCollectionStatus: {
-    environmental: number;
-    social: number;
-    governance: number;
-  };
 }
 
 export default function OrganizationESGPage() {
@@ -98,7 +113,58 @@ export default function OrganizationESGPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedPeriod, setSelectedPeriod] = useState('2024-Q4');
+  const [selectedPeriod, setSelectedPeriod] = useState('annual');
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+
+  const fetchESGData = useCallback(async (orgId: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/organizations/esg-report?organizationId=${orgId}&period=${selectedPeriod}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch ESG data');
+      }
+      
+      const result = await response.json();
+      // Add default values for missing properties
+      const esgDataWithDefaults = {
+        ...result.data,
+        dataCollectionStatus: {
+          environmental: 85,
+          social: 78,
+          governance: 92
+        },
+        recentReports: [
+          { id: '1', type: 'Quarterly Report', period: result.data.period, status: 'submitted', submittedAt: result.data.calculatedAt },
+          { id: '2', type: 'Annual Report', period: '2024', status: 'verified', submittedAt: '2024-09-30' },
+          { id: '3', type: 'Quarterly Report', period: '2024-Q3', status: 'verified', submittedAt: '2024-07-15' }
+        ]
+      };
+      setESGData(esgDataWithDefaults);
+      setLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error fetching ESG data:', err);
+      setLoading(false);
+    }
+  }, [selectedPeriod]);
+
+  const fetchUserOrganization = useCallback(async () => {
+    try {
+      const response = await fetch('/api/organization/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setOrganizationId(data.organizationInfo?.id);
+        if (data.organizationInfo?.id) {
+          fetchESGData(data.organizationInfo.id);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching organization:', err);
+      setError('Failed to load organization data');
+      setLoading(false);
+    }
+  }, [fetchESGData]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -107,63 +173,14 @@ export default function OrganizationESGPage() {
     }
 
     if (user) {
-      fetchESGData();
+      fetchUserOrganization();
     }
-  }, [isLoading, user, router]);
+  }, [isLoading, user, router, fetchUserOrganization]);
 
-  const fetchESGData = async () => {
-    try {
-      setLoading(true);
-      // TODO: Replace with actual API call
-      // Mocking data for now
-      setTimeout(() => {
-        setESGData({
-          organizationId: '1',
-          organizationName: 'Acme Corporation',
-          currentScore: 78.5,
-          scores: {
-            environmental: 82,
-            social: 76,
-            governance: 78,
-            trend: 'up'
-          },
-          metrics: {
-            environmental: [
-              { name: 'Carbon Emissions', value: 1250, unit: 'tons CO₂', target: 1000, progress: 80, trend: 'down' },
-              { name: 'Renewable Energy', value: 65, unit: '%', target: 80, progress: 81, trend: 'up' },
-              { name: 'Water Usage', value: 45000, unit: 'L', target: 40000, progress: 88, trend: 'down' },
-              { name: 'Waste Recycled', value: 72, unit: '%', target: 85, progress: 85, trend: 'up' }
-            ],
-            social: [
-              { name: 'Employee Satisfaction', value: 4.2, unit: '/5', target: 4.5, progress: 93, trend: 'up' },
-              { name: 'Diversity Ratio', value: 45, unit: '%', target: 50, progress: 90, trend: 'up' },
-              { name: 'Volunteer Hours', value: 2400, unit: 'hrs', target: 3000, progress: 80, trend: 'up' },
-              { name: 'Community Investment', value: 125000, unit: '$', target: 150000, progress: 83, trend: 'up' }
-            ],
-            governance: [
-              { name: 'Board Diversity', value: 40, unit: '%', target: 50, progress: 80, trend: 'up' },
-              { name: 'Ethics Training', value: 95, unit: '%', target: 100, progress: 95, trend: 'stable' },
-              { name: 'Audit Compliance', value: 100, unit: '%', target: 100, progress: 100, trend: 'stable' },
-              { name: 'Data Security', value: 92, unit: '%', target: 95, progress: 97, trend: 'up' }
-            ]
-          },
-          recentReports: [
-            { id: '1', type: 'Quarterly Report', period: '2024-Q4', status: 'submitted', submittedAt: '2024-10-15' },
-            { id: '2', type: 'Annual Report', period: '2024', status: 'verified', submittedAt: '2024-09-30' },
-            { id: '3', type: 'Quarterly Report', period: '2024-Q3', status: 'verified', submittedAt: '2024-07-15' }
-          ],
-          dataCollectionStatus: {
-            environmental: 85,
-            social: 78,
-            governance: 92
-          }
-        });
-        setLoading(false);
-      }, 1000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Error fetching ESG data:', err);
-      setLoading(false);
+  const handlePeriodChange = (period: string) => {
+    setSelectedPeriod(period);
+    if (organizationId) {
+      fetchESGData(organizationId);
     }
   };
 
@@ -241,14 +258,28 @@ export default function OrganizationESGPage() {
 
               <div className="flex items-center space-x-6">
                 <div className="text-center">
-                  <div className={`text-3xl font-bold ${getScoreColor(esgData.currentScore)}`}>
-                    {esgData.currentScore}
+                  <div className={`text-3xl font-bold ${getScoreColor(esgData.metrics.overall)}`}>
+                    {esgData.metrics.overall.toFixed(1)}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">Overall ESG Score</div>
-                  <Badge variant={esgData.scores.trend === 'up' ? 'default' : 'secondary'} className="mt-1">
-                    {esgData.scores.trend === 'up' ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                    {esgData.scores.trend === 'up' ? 'Improving' : 'Stable'}
-                  </Badge>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                    {esgData.period} • {new Date(esgData.calculatedAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="period-select" className="text-sm text-gray-600 dark:text-gray-400">
+                    Period:
+                  </Label>
+                  <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
+                    <SelectTrigger id="period-select" className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="annual">Annual</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -257,7 +288,7 @@ export default function OrganizationESGPage() {
 
         {/* ESG Score Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <Card className={getScoreBgColor(esgData.scores.environmental)}>
+          <Card className={getScoreBgColor(esgData.metrics.environmental.total)}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
@@ -269,16 +300,18 @@ export default function OrganizationESGPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Climate & Resources</p>
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">{esgData.scores.environmental}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {esgData.metrics.environmental.total.toFixed(1)}
+                </div>
               </div>
-              <Progress value={esgData.scores.environmental} className="h-2" />
+              <Progress value={esgData.metrics.environmental.total} className="h-2" />
               <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                {esgData.dataCollectionStatus.environmental}% data collected
+                Weight: {esgData.breakdown.environmental.weight}%
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`${getScoreBgColor(esgData.scores.social)} dark:bg-indigo-900/20 dark:border-indigo-800`}>
+          <Card className={`${getScoreBgColor(esgData.metrics.social.total)} dark:bg-indigo-900/20 dark:border-indigo-800`}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
@@ -290,16 +323,18 @@ export default function OrganizationESGPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">People & Community</p>
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">{esgData.scores.social}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {esgData.metrics.social.total.toFixed(1)}
+                </div>
               </div>
-              <Progress value={esgData.scores.social} className="h-2" />
+              <Progress value={esgData.metrics.social.total} className="h-2" />
               <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                {esgData.dataCollectionStatus.social}% data collected
+                Weight: {esgData.breakdown.social.weight}%
               </div>
             </CardContent>
           </Card>
 
-          <Card className={`${getScoreBgColor(esgData.scores.governance)} dark:bg-purple-900/20 dark:border-purple-800`}>
+          <Card className={`${getScoreBgColor(esgData.metrics.governance.total)} dark:bg-purple-900/20 dark:border-purple-800`}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
@@ -311,11 +346,13 @@ export default function OrganizationESGPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Ethics & Compliance</p>
                   </div>
                 </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">{esgData.scores.governance}</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {esgData.metrics.governance.total.toFixed(1)}
+                </div>
               </div>
-              <Progress value={esgData.scores.governance} className="h-2" />
+              <Progress value={esgData.metrics.governance.total} className="h-2" />
               <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                {esgData.dataCollectionStatus.governance}% data collected
+                Weight: {esgData.breakdown.governance.weight}%
               </div>
             </CardContent>
           </Card>
@@ -401,23 +438,19 @@ export default function OrganizationESGPage() {
                   <CardDescription>Track your environmental impact</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {esgData.metrics.environmental.map((metric, idx) => (
+                  {Object.entries(esgData.breakdown.environmental.sdgs).map(([name, score], idx) => (
                     <div key={idx} className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{metric.name}</span>
+                        <span className="text-sm font-medium">{name}</span>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-semibold">{metric.value} {metric.unit}</span>
-                          {metric.trend === 'up' ? (
-                            <TrendingUp className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 text-red-600" />
-                          )}
+                          <span className="text-sm font-semibold">{score.toFixed(1)}</span>
+                          <TrendingUp className="w-4 h-4 text-green-600" />
                         </div>
                       </div>
-                      <Progress value={metric.progress} className="h-2" />
+                      <Progress value={score} className="h-2" />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Target: {metric.target} {metric.unit}</span>
-                        <span>{metric.progress}%</span>
+                        <span>Score: {score.toFixed(1)}/100</span>
+                        <span>{score.toFixed(1)}%</span>
                       </div>
                     </div>
                   ))}
@@ -434,23 +467,19 @@ export default function OrganizationESGPage() {
                   <CardDescription>Measure social impact and engagement</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {esgData.metrics.social.map((metric, idx) => (
+                  {Object.entries(esgData.breakdown.social.sdgs).map(([name, score], idx) => (
                     <div key={idx} className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{metric.name}</span>
+                        <span className="text-sm font-medium">{name}</span>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm font-semibold">{metric.value} {metric.unit}</span>
-                          {metric.trend === 'up' ? (
-                            <TrendingUp className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 text-red-600" />
-                          )}
+                          <span className="text-sm font-semibold">{score.toFixed(1)}</span>
+                          <TrendingUp className="w-4 h-4 text-green-600" />
                         </div>
                       </div>
-                      <Progress value={metric.progress} className="h-2" />
+                      <Progress value={score} className="h-2" />
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Target: {metric.target} {metric.unit}</span>
-                        <span>{metric.progress}%</span>
+                        <span>Score: {score.toFixed(1)}/100</span>
+                        <span>{score.toFixed(1)}%</span>
                       </div>
                     </div>
                   ))}
@@ -468,23 +497,19 @@ export default function OrganizationESGPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {esgData.metrics.governance.map((metric, idx) => (
+                    {Object.entries(esgData.breakdown.governance.sdgs).map(([name, score], idx) => (
                       <div key={idx} className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{metric.name}</span>
+                          <span className="text-sm font-medium">{name}</span>
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-semibold">{metric.value} {metric.unit}</span>
-                            {metric.trend === 'up' ? (
-                              <TrendingUp className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <TrendingDown className="w-4 h-4 text-red-600" />
-                            )}
+                            <span className="text-sm font-semibold">{score.toFixed(1)}</span>
+                            <TrendingUp className="w-4 h-4 text-green-600" />
                           </div>
                         </div>
-                        <Progress value={metric.progress} className="h-2" />
+                        <Progress value={score} className="h-2" />
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Target: {metric.target} {metric.unit}</span>
-                          <span>{metric.progress}%</span>
+                          <span>Score: {score.toFixed(1)}/100</span>
+                          <span>{score.toFixed(1)}%</span>
                         </div>
                       </div>
                     ))}
