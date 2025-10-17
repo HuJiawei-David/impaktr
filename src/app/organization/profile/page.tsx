@@ -19,7 +19,8 @@ import {
   Edit3,
   Briefcase,
   Phone,
-  Mail
+  Mail,
+  Leaf
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,7 @@ interface OrganizationProfile {
     totalVolunteerHours: number;
     impactScore: number;
     badgesEarned: number;
-    certificatesIssued: number;
+    esgScore: number;
   };
   recentEvents: Array<{
     id: string;
@@ -153,7 +154,10 @@ export default function OrganizationProfilePage() {
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Organization Not Found</h2>
           <p className="text-muted-foreground mb-4">You are not part of any organization.</p>
-          <Button onClick={() => router.push('/dashboard')}>
+          <Button 
+            onClick={() => router.push('/dashboard')}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+          >
             Go to Dashboard
           </Button>
         </div>
@@ -166,7 +170,7 @@ export default function OrganizationProfilePage() {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Profile Header */}
         <div className="mb-8">
-          <Card className="border-0 shadow-lg">
+          <Card className="border-0 shadow-lg dark:border dark:border-gray-700">
             <CardContent className="p-8">
               <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
                 <Avatar className="w-24 h-24 border-4 border-background">
@@ -296,9 +300,9 @@ export default function OrganizationProfilePage() {
 
           <Card>
             <CardContent className="p-4 text-center">
-              <Star className="w-6 h-6 mx-auto mb-2 text-red-500" />
-              <div className="text-xl font-bold">{profile.stats?.certificatesIssued || 0}</div>
-              <div className="text-xs text-muted-foreground">Certificates</div>
+              <Leaf className="w-6 h-6 mx-auto mb-2 text-green-500" />
+              <div className="text-xl font-bold">{profile.stats?.esgScore?.toFixed(1) || '0.0'}</div>
+              <div className="text-xs text-muted-foreground">ESG Score</div>
             </CardContent>
           </Card>
         </div>

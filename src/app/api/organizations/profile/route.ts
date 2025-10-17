@@ -12,13 +12,31 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const orgId = url.searchParams.get('id');
 
-    if (!orgId) {
-      return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 });
+    let organizationId = orgId;
+
+    // If no ID provided, fetch the current user's organization
+    if (!organizationId) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        include: {
+          organizationMemberships: {
+            include: {
+              organization: true
+            }
+          }
+        }
+      });
+
+      if (!user || !user.organizationMemberships || user.organizationMemberships.length === 0) {
+        return NextResponse.json({ error: 'Not part of any organization' }, { status: 404 });
+      }
+
+      organizationId = user.organizationMemberships[0].organizationId;
     }
 
     // Fetch organization with related data
     const organization = await prisma.organization.findUnique({
-      where: { id: orgId },
+      where: { id: organizationId },
       include: {
         members: {
           include: {
@@ -26,6 +44,7 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
+                email: true,
                 image: true,
               }
             }
@@ -131,6 +150,18 @@ export async function GET(request: NextRequest) {
       email: organization.email,
       phone: organization.phone,
       tier: organization.tier,
+      industry: organization.industry,
+      companySize: organization.employeeCount?.toString() || 'Not specified',
+      address: organization.address,
+      createdAt: organization.createdAt.toISOString(),
+      stats: {
+        impactScore: organization.averageImpactScore || 0,
+        esgScore: organization.esgScore || 0,
+        totalMembers: organization.members.length,
+        totalEvents: organization.events.length,
+        totalVolunteerHours: totalHours._sum.hours || 0,
+        badgesEarned: organization.corporateBadges.length,
+      },
       impactScore: organization.averageImpactScore || 0,
       esgScore: organization.esgScore || 0,
       memberCount: organization.members.length,
@@ -143,16 +174,25 @@ export async function GET(request: NextRequest) {
         name: cb.badge.name,
         description: cb.badge.description,
         tier: cb.badge.tier,
-        earnedAt: cb.earnedAt
+        earnedAt: cb.earnedAt.toISOString()
       })),
       recentEvents: organization.events.map(event => ({
         id: event.id,
         title: event.title,
-        startDate: event.startDate,
-        endDate: event.endDate,
+        description: event.title,
+        startDate: event.startDate.toISOString(),
+        endDate: event.endDate?.toISOString(),
         location: event.location,
         status: event.status,
-        imageUrl: event.imageUrl
+        participantCount: 0,
+      })),
+      members: organization.members.map(m => ({
+        id: m.id,
+        name: m.user.name || 'Unknown',
+        email: m.user.email || '',
+        role: m.role,
+        joinedAt: m.joinedAt.toISOString(),
+        avatar: m.user.image,
       })),
       topVolunteers: topVolunteers
     };

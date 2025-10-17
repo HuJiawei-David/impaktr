@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { Building2, Image as ImageIcon, Video, FileText, Calendar as CalendarIcon } from 'lucide-react';
+import { Building2, Image as ImageIcon, Video, FileText, Calendar as CalendarIcon, Plus, Award, TrendingUp, Zap } from 'lucide-react';
 import CorporateKPIs from '@/components/organization/CorporateKPIs';
 import OrganizationSidebar from '@/components/organization/OrganizationSidebar';
 import { AchievementFeed } from '@/components/dashboard/AchievementFeed';
@@ -77,6 +77,17 @@ const getTierColor = (tier: string) => {
     GLOBAL_IMPACT_LEADER: 'bg-gradient-to-r from-yellow-400 to-orange-500',
   };
   return colors[tier] || 'bg-gray-500';
+};
+
+const getOrganizationTypeDisplay = (type: string) => {
+  const typeMap: Record<string, string> = {
+    'NGO': 'Non-Profit Organization',
+    'COMPANY': 'Company',
+    'CORPORATE': 'Company',
+    'SCHOOL': 'Educational Institution',
+    'HEALTHCARE': 'Healthcare Organization',
+  };
+  return typeMap[type] || type;
 };
 
 export default function OrganizationDashboardPage() {
@@ -228,17 +239,17 @@ export default function OrganizationDashboardPage() {
                   <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                     {organization.name}
                   </h1>
-                  <div className="flex items-center space-x-3 mt-1">
+                  <div className="flex items-center space-x-2 mt-1">
                     <Badge className={`${getTierColor(organization.subscriptionTier)} text-white`}>
                       {organization.subscriptionTier.replace(/_/g, ' ')}
                     </Badge>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {organization.type}
-                    </span>
+                    <Badge className="bg-purple-600 dark:bg-purple-500 text-white border-0">
+                      {getOrganizationTypeDisplay(organization.type)}
+                    </Badge>
                     {organization.industry && (
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        • {organization.industry}
-                      </span>
+                      <Badge variant="outline" className="text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600">
+                        {organization.industry}
+                      </Badge>
                     )}
                   </div>
                 </div>

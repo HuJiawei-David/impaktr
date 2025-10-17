@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     // Map KPIs to the format expected by CorporateKPIs component
     const kpis = {
       impactScore: rawKpis.averageImpactScore,
-      participationRate: rawKpis.participationRate,
+      esgScore: organization.esgScore || 0,
       volunteerHours: rawKpis.volunteerHours || 0,
       carbonOffset: 0, // TODO: Calculate actual carbon offset
     };

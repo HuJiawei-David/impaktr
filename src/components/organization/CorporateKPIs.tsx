@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown, Users, Clock, Leaf } from 'lucide-react';
 
 interface KPIData {
   impactScore?: number;
-  participationRate?: number;
+  esgScore?: number;
   volunteerHours?: number;
   carbonOffset?: number;
 }
@@ -64,7 +64,7 @@ export default function CorporateKPIs({ kpis }: CorporateKPIsProps) {
   // Mock trend data - in production, calculate from historical data
   const trends = {
     impactScore: 12.5,
-    participationRate: 8.3,
+    esgScore: 8.3,
     volunteerHours: 15.7,
     carbonOffset: 22.1,
   };
@@ -81,10 +81,10 @@ export default function CorporateKPIs({ kpis }: CorporateKPIsProps) {
       />
 
       <KPICard
-        title="Employee Participation"
-        value={`${(kpis?.participationRate || 0).toFixed(1)}%`}
-        subtitle="Active this month"
-        trend={trends.participationRate}
+        title="ESG Score"
+        value={`${(kpis?.esgScore || 0).toFixed(1)}`}
+        subtitle="Environmental, Social, Governance"
+        trend={trends.esgScore}
         icon={<Users className="h-6 w-6 text-white" />}
         iconBgColor="bg-purple-600"
       />
