@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -25,43 +26,33 @@ interface FeaturedOrganizationsProps {
 }
 
 export function FeaturedOrganizations({ organizations }: FeaturedOrganizationsProps) {
-  // Mock data - in real app, this would come from props or API
-  const mockOrganizations: Organization[] = [
-    { 
-      id: '1', 
-      name: "WWF Malaysia", 
-      members: "1.2K", 
-      focus: "Environment",
-      description: "Conserving nature and reducing threats to biodiversity",
-      isFollowing: false
-    },
-    { 
-      id: '2', 
-      name: "UNICEF", 
-      members: "890", 
-      focus: "Children",
-      description: "Protecting children's rights and wellbeing worldwide",
-      isFollowing: true
-    },
-    { 
-      id: '3', 
-      name: "Red Crescent", 
-      members: "2.1K", 
-      focus: "Healthcare",
-      description: "Providing humanitarian aid and emergency response",
-      isFollowing: false
-    },
-    { 
-      id: '4', 
-      name: "Greenpeace", 
-      members: "1.5K", 
-      focus: "Environment",
-      description: "Campaigning for environmental protection and peace",
-      isFollowing: false
-    }
-  ];
+  const [orgs, setOrgs] = React.useState<Organization[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const displayOrgs = organizations || mockOrganizations;
+  React.useEffect(() => {
+    const fetchOrganizations = async () => {
+      try {
+        const response = await fetch('/api/organizations/dashboard?featured=true&limit=4');
+        if (response.ok) {
+          const data = await response.json();
+          setOrgs(data.organizations || []);
+        }
+      } catch (error) {
+        console.error('Error fetching organizations:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!organizations) {
+      fetchOrganizations();
+    } else {
+      setOrgs(organizations);
+      setLoading(false);
+    }
+  }, [organizations]);
+
+  const displayOrgs = orgs;
 
   const getFocusColor = (focus: string) => {
     switch (focus.toLowerCase()) {
@@ -82,13 +73,25 @@ export function FeaturedOrganizations({ organizations }: FeaturedOrganizationsPr
     <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center space-x-2 text-lg">
-          <Building2 className="w-5 h-5 text-purple-600" />
-          <span>Featured Organizations</span>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+            <Building2 className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-gray-900 dark:text-white">Featured Organizations</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {displayOrgs.map((org) => (
-          <div key={org.id} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer group transition-colors">
+        {loading ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            Loading...
+          </div>
+        ) : displayOrgs.length === 0 ? (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            No organizations found
+          </div>
+        ) : (
+          displayOrgs.map((org) => (
+          <Link key={org.id} href={`/organizations/${org.id}`}>
+            <div className="flex items-center space-x-3 p-3 rounded-lg bg-white dark:bg-gray-700 shadow-sm border border-gray-200 dark:border-transparent hover:shadow-md cursor-pointer group transition-all">
             <Avatar className="w-10 h-10">
               <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                 {org.name.split(' ').map(word => word[0]).join('')}
@@ -130,16 +133,20 @@ export function FeaturedOrganizations({ organizations }: FeaturedOrganizationsPr
               </Button>
             </div>
           </div>
-        ))}
+          </Link>
+        ))
+        )}
         
         <div className="pt-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
-          >
-            Discover More
-          </Button>
+          <Link href="/leaderboards?type=organizations">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+            >
+              Discover More
+            </Button>
+          </Link>
         </div>
       </CardContent>
     </Card>

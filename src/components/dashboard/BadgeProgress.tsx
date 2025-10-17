@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Award, TrendingUp, Target, ChevronRight, Star, Trophy } from 'lucide-react';
+import { Award, TrendingUp, Target, ChevronRight, Star, Trophy, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -187,84 +187,86 @@ export function BadgeProgress() {
     return 'text-gray-600';
   };
 
-  const renderBadgeCard = (badge: BadgeProgressItem, showProgress = true) => (
-    <Card key={badge.id} className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start space-x-3">
-          {/* SDG Badge */}
-          <div
-            className="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white flex-shrink-0"
-            style={{ backgroundColor: getSDGColor(badge.sdgNumber) }}
-          >
-            <div className="text-xs font-bold">SDG</div>
-            <div className="text-sm font-bold leading-none">{badge.sdgNumber}</div>
-          </div>
-
-          {/* Badge Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h4 className="font-semibold text-sm leading-tight flex items-center">
-                  {getBadgeIcon(badge.tier)} {badge.name}
+  const renderBadgeCard = (badge: BadgeProgressItem, showProgress = true) => {
+    const hoursNeeded = badge.requirements.minHours - badge.userStats.currentHours;
+    const activitiesNeeded = badge.requirements.minActivities - badge.userStats.currentActivities;
+    
+    return (
+      <Card key={badge.id} className="hover:shadow-md transition-shadow">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-[auto,1fr] gap-4">
+            {/* First Column: SDG Badge and Name */}
+            <div className="flex flex-col items-center gap-2">
+              <div
+                className="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white flex-shrink-0"
+                style={{ backgroundColor: getSDGColor(badge.sdgNumber) }}
+              >
+                <div className="text-xs font-bold">SDG</div>
+                <div className="text-sm font-bold leading-none">{badge.sdgNumber}</div>
+              </div>
+              <div className="text-center">
+                <h4 className="font-semibold text-xs leading-tight flex items-center justify-center">
+                  {badge.name}
                   {badge.earned && <Star className="w-3 h-3 ml-1 text-yellow-500 fill-current" />}
                 </h4>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {badge.description}
+                  {badge.tier}
                 </p>
               </div>
-              
+            </div>
+
+            {/* Second Column: Progress */}
+            <div className="flex flex-col justify-center">
               {badge.earned && (
-                <Badge variant="success" className="text-xs px-2 py-1">
+                <Badge variant="success" className="text-xs px-2 py-1 self-start mb-2 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
                   Earned
                 </Badge>
               )}
+
+              {/* Progress */}
+              {showProgress && !badge.earned && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className={`font-medium ${getProgressColor(badge.progress)}`}>
+                      {badge.progress}%
+                    </span>
+                  </div>
+                  <Progress value={badge.progress} className="h-2" />
+                  
+                  {/* Requirements - Only show what's still needed */}
+                  <div className="text-xs text-muted-foreground">
+                    {hoursNeeded > 0 && activitiesNeeded > 0 && (
+                      <span>Need {hoursNeeded.toFixed(1)} more hours and {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
+                    )}
+                    {hoursNeeded > 0 && activitiesNeeded <= 0 && (
+                      <span>Need {hoursNeeded.toFixed(1)} more hours</span>
+                    )}
+                    {hoursNeeded <= 0 && activitiesNeeded > 0 && (
+                      <span>Need {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Next Tier */}
+              {badge.earned && badge.nextTier && (
+                <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <div className="text-xs font-semibold text-gray-900 dark:text-white mb-1">
+                    Next: {badge.nextTier.name}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Need {badge.nextTier.requirements.minHours} hours and {badge.nextTier.requirements.minActivities} {badge.nextTier.requirements.minActivities === 1 ? 'activity' : 'activities'}
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* Progress */}
-            {showProgress && !badge.earned && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className={`font-medium ${getProgressColor(badge.progress)}`}>
-                    {badge.progress}%
-                  </span>
-                </div>
-                <Progress value={badge.progress} className="h-2" />
-                
-                {/* Requirements */}
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">Hours: </span>
-                    <span className="font-medium">
-                      {badge.userStats.currentHours}/{badge.requirements.minHours}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Activities: </span>
-                    <span className="font-medium">
-                      {badge.userStats.currentActivities}/{badge.requirements.minActivities}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Next Tier */}
-            {badge.earned && badge.nextTier && (
-              <div className="mt-2 p-2 bg-primary/10 rounded border border-primary/20">
-                <div className="text-xs text-primary font-medium">
-                  Next: {badge.nextTier.name}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Need {badge.nextTier.requirements.minHours} hours, {badge.nextTier.requirements.minActivities} activities
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -298,44 +300,58 @@ export function BadgeProgress() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center">
-            <Award className="w-5 h-5 mr-2" />
-            Badge Progress
-          </span>
-          <Link href="/profile?tab=badges">
-            <Button variant="ghost" size="sm">
-              View All
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </Link>
+    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center text-gray-900 dark:text-white">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
+            <Award className="w-4 h-4 text-white" />
+          </div>
+          Badge Progress
         </CardTitle>
       </CardHeader>
       
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4">
         {/* Summary Stats */}
-        <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-primary">{badgeData.earnedBadges}</div>
-            <div className="text-xs text-muted-foreground">Earned</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Trophy className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">{badgeData.earnedBadges}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">Earned</div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{badgeData.inProgress.length}</div>
-            <div className="text-xs text-muted-foreground">In Progress</div>
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
+            <div className="flex items-center justify-center mb-2">
+              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">{badgeData.inProgress.length}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">In Progress</div>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-muted-foreground">{badgeData.available.length}</div>
-            <div className="text-xs text-muted-foreground">Available</div>
-          </div>
+        </div>
+
+        {/* View All Link */}
+        <div className="mb-3">
+          <Link href="/profile/badges">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+            >
+              <Award className="w-4 h-4 mr-2" />
+              View All Badges
+            </Button>
+          </Link>
         </div>
 
         {/* Badge Filter Pills */}
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => setActiveTab('progress')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
               activeTab === 'progress'
                 ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -345,23 +361,13 @@ export function BadgeProgress() {
           </button>
           <button
             onClick={() => setActiveTab('earned')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
               activeTab === 'earned'
                 ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
             Recently Earned
-          </button>
-          <button
-            onClick={() => setActiveTab('available')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-              activeTab === 'available'
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            Available
           </button>
         </div>
 
@@ -403,31 +409,6 @@ export function BadgeProgress() {
                 <Trophy className="w-8 h-8 mx-auto mb-2" />
                 <p className="text-sm">No badges earned yet</p>
                 <p className="text-xs">Complete verified activities to earn your first badge</p>
-              </div>
-            )}
-            </>
-          )}
-
-          {activeTab === 'available' && (
-            <>
-            {badgeData.available.length > 0 ? (
-              <>
-                {badgeData.available.slice(0, 3).map((badge) => renderBadgeCard(badge, false))}
-                {badgeData.available.length > 3 && (
-                  <div className="text-center">
-                    <Link href="/profile?tab=badges">
-                      <Button variant="outline" size="sm">
-                        View All Available Badges
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Award className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm">All badges unlocked!</p>
-                <p className="text-xs">You've made progress on all available badges</p>
               </div>
             )}
             </>

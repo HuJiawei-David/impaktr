@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
-    let where: Prisma.PostWhereInput = {};
+    const where: Prisma.PostWhereInput = {};
 
     // Apply filters
     if (achievementsOnly) {
@@ -118,8 +118,8 @@ export async function GET(request: NextRequest) {
       });
       
       where.OR = [
-        { userId: { in: following.map((f: any) => f.followingId).filter(Boolean) as string[] } },
-        { organizationId: { in: following.map((f: any) => f.followingOrgId).filter(Boolean) as string[] } }
+        { userId: { in: following.map((f: { followingId: string | null }) => f.followingId).filter(Boolean) as string[] } },
+        { organizationId: { in: following.map((f: { followingOrgId: string | null }) => f.followingOrgId).filter(Boolean) as string[] } }
       ];
     }
 

@@ -3,6 +3,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { 
   Heart, 
@@ -16,7 +17,8 @@ import {
   ExternalLink,
   MoreHorizontal,
   Flag,
-  Bookmark
+  Bookmark,
+  UserPlus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -344,17 +346,21 @@ export function Feed({ feedType = 'all', userId }: FeedProps) {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex space-x-3">
-                    <Avatar>
-                      <AvatarImage src={post.user.avatar} alt={post.user.name} />
-                      <AvatarFallback>
-                        {getInitials(post.user.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Link href={`/profile/${post.user.id}`}>
+                      <Avatar className="cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all">
+                        <AvatarImage src={post.user.avatar} alt={post.user.name} />
+                        <AvatarFallback>
+                          {getInitials(post.user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
                     
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
                         {postContent.icon}
-                        <h4 className="font-medium">{postContent.title}</h4>
+                        <Link href={`/profile/${post.user.id}`}>
+                          <h4 className="font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer inline">{postContent.title}</h4>
+                        </Link>
                       </div>
                       
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
@@ -367,8 +373,18 @@ export function Feed({ feedType = 'all', userId }: FeedProps) {
                     </div>
                   </div>
 
-                  {/* Post Menu */}
-                  <DropdownMenu>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      className="h-7 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                    >
+                      <UserPlus className="w-3 h-3 mr-1" />
+                      Follow
+                    </Button>
+
+                    {/* Post Menu */}
+                    <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm">
                         <MoreHorizontal className="w-4 h-4" />
@@ -389,6 +405,7 @@ export function Feed({ feedType = 'all', userId }: FeedProps) {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  </div>
                 </div>
               </CardHeader>
 

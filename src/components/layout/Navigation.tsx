@@ -28,7 +28,8 @@ import {
   Shield,
   MessageCircle,
   Briefcase,
-  Target
+  Target,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,7 +82,8 @@ export function Navigation() {
   const router = useRouter();
 
   // Determine if user is an organization
-  const isOrgContext = pathname.startsWith('/organization');
+  // Only show org navbar for /organization/* routes, NOT /organizations/[id] (public profile view)
+  const isOrgContext = pathname.startsWith('/organization/') || pathname === '/organization';
   const isOrganization = isOrgContext || (user?.userType && user.userType !== 'INDIVIDUAL');
   
   // Use appropriate navigation items
@@ -302,6 +304,13 @@ export function Navigation() {
                 <span className="truncate">Leaderboards</span>
               </Link>
               <Link 
+                href="/methodology" 
+                className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <BookOpen className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
+                <span className="truncate">Methodology</span>
+              </Link>
+              <Link 
                 href="/demo/community" 
                 className="flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
@@ -356,14 +365,14 @@ export function Navigation() {
                 {/* Profile Dropdown */}
                 <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-purple-200 dark:hover:ring-purple-800 transition-all duration-200">
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm" delayMs={0}>
-                          {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
+                    <button className="relative h-10 w-10 p-0 rounded-full ring-2 ring-transparent hover:ring-purple-200 dark:hover:ring-purple-800 transition-all duration-200 cursor-pointer border-0 outline-none focus:outline-none focus:ring-purple-200 dark:focus:ring-purple-800" style={{
+                      background: 'linear-gradient(to right, #2563eb, #9333ea)'
+                    }}>
+                      <span className="text-white font-semibold text-sm">
+                        {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                      </span>
                       <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-white dark:border-gray-900"></div>
-                    </Button>
+                    </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-xl overflow-hidden" align="end" forceMount>
                     {/* Profile Header */}

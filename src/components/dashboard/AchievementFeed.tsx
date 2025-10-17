@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +21,8 @@ import {
   TrendingUp,
   Star,
   ChevronRight,
-  Plus
+  Plus,
+  UserPlus
 } from 'lucide-react';
 import { getSDGById } from '@/constants/sdgs';
 
@@ -283,20 +285,24 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
           <div key={post.id} className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors shadow-sm">
                 {/* Post Header */}
                 <div className="flex items-start space-x-3 mb-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={post.userAvatar} alt={post.userName} />
-                    <AvatarFallback className="bg-blue-500 text-white text-sm">
-                      {post.userName.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Link href={`/profile/${post.userId}`}>
+                    <Avatar className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all">
+                      <AvatarImage src={post.userAvatar} alt={post.userName} />
+                      <AvatarFallback className="bg-blue-500 text-white text-sm">
+                        {post.userName.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
                   
                   <div className="flex-1">
                     <div className="flex items-center space-x-2">
-                      <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
-                        {post.userName}
-                      </h4>
+                      <Link href={`/profile/${post.userId}`}>
+                        <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                          {post.userName}
+                        </h4>
+                      </Link>
                       {post.userTitle && (
-                        <Badge className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700">
+                        <Badge className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                           {post.userTitle}
                         </Badge>
                       )}
@@ -308,6 +314,14 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                   
                   <div className="flex items-center space-x-1">
                     {getAchievementIcon(post.type)}
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      className="h-7 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                    >
+                      <UserPlus className="w-3 h-3 mr-1" />
+                      Follow
+                    </Button>
                   </div>
                 </div>
 
@@ -330,7 +344,7 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                           {post.achievement.badgeName}
                         </h5>
                         {post.achievement.tierLevel && (
-                          <Badge className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-800">
+                          <Badge className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
                             Tier {post.achievement.tierLevel}
                           </Badge>
                         )}
@@ -408,17 +422,21 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                     <div className="space-y-2">
                       {post.comments.map((comment) => (
                         <div key={comment.id} className="flex items-start space-x-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarImage src={comment.userAvatar} alt={comment.userName} />
-                            <AvatarFallback className="bg-gray-500 text-white text-xs">
-                              {comment.userName.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <Link href={`/profile/${comment.userId}`}>
+                            <Avatar className="w-6 h-6 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all">
+                              <AvatarImage src={comment.userAvatar} alt={comment.userName} />
+                              <AvatarFallback className="bg-gray-500 text-white text-xs">
+                                {comment.userName.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                          </Link>
                           <div className="flex-1">
                             <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
-                              <div className="font-medium text-xs text-gray-900 dark:text-white">
-                                {comment.userName}
-                              </div>
+                              <Link href={`/profile/${comment.userId}`}>
+                                <div className="font-medium text-xs text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer inline">
+                                  {comment.userName}
+                                </div>
+                              </Link>
                               <p className="text-xs text-gray-700 dark:text-gray-300">
                                 {comment.content}
                               </p>

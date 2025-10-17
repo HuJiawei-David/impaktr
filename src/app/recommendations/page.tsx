@@ -30,7 +30,6 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
@@ -258,17 +257,63 @@ export default function RecommendationsPage() {
           </Card>
         </div>
 
+        {/* Type Pills */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('events')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === 'events'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Calendar className="w-4 h-4 mr-2 inline-block" />
+            Events
+          </button>
+          <button
+            onClick={() => setActiveTab('opportunities')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === 'opportunities'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Briefcase className="w-4 h-4 mr-2 inline-block" />
+            Opportunities
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              activeTab === 'users'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Users className="w-4 h-4 mr-2 inline-block" />
+            People
+          </button>
+        </div>
+
         {/* Main Content */}
         <div className="pb-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="events">Events</TabsTrigger>
-              <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
-              <TabsTrigger value="users">People</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="events" className="space-y-4">
-              {sortedRecommendations.map((rec) => (
+          <div className="space-y-4">
+            {activeTab === 'events' && (
+              <div className="space-y-4">
+                {sortedRecommendations.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">No Event Recommendations Yet</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Complete your profile and participate in events to get personalized recommendations.
+                      </p>
+                      <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                        Browse All Events
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  sortedRecommendations.map((rec) => (
                 <Card key={rec.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
@@ -354,11 +399,28 @@ export default function RecommendationsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </TabsContent>
+                  ))
+                )}
+              </div>
+            )}
 
-            <TabsContent value="opportunities" className="space-y-4">
-              {sortedRecommendations.map((rec) => (
+            {activeTab === 'opportunities' && (
+              <div className="space-y-4">
+                {sortedRecommendations.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">No Opportunity Recommendations Yet</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Update your skills and preferences to get personalized opportunity recommendations.
+                      </p>
+                      <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                        Browse All Opportunities
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  sortedRecommendations.map((rec) => (
                 <Card key={rec.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
@@ -452,11 +514,28 @@ export default function RecommendationsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </TabsContent>
+                  ))
+                )}
+              </div>
+            )}
 
-            <TabsContent value="users" className="space-y-4">
-              {sortedRecommendations.map((rec) => (
+            {activeTab === 'users' && (
+              <div className="space-y-4">
+                {sortedRecommendations.length === 0 ? (
+                  <Card>
+                    <CardContent className="p-12 text-center">
+                      <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                      <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">No People Recommendations Yet</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-6">
+                        Complete your profile and connect with others to get personalized people recommendations.
+                      </p>
+                      <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                        Explore Community
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  sortedRecommendations.map((rec) => (
                 <Card key={rec.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-start space-x-4">
@@ -541,9 +620,11 @@ export default function RecommendationsPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </TabsContent>
-          </Tabs>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

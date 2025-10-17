@@ -23,12 +23,17 @@ interface RankingEntry {
   rank: number;
   id?: string;
   name: string;
+  image?: string | null;
   avatar?: string | null;
   logo?: string | null;
-  location?: string | null;
-  score: number;
+  location?: string | { city?: string; country?: string } | null;
+  score?: number;
+  impactScore?: number;
+  volunteerHours?: number;
+  eventsJoined?: number;
+  badgesEarned?: number;
   rank_title?: string;
-  tier?: string;
+  tier?: string | { toString(): string };
   type?: string | null;
   badges?: Array<{
     sdg: string;
@@ -62,7 +67,9 @@ export async function GET(request: NextRequest) {
 
     if (type === 'individuals') {
       // Individual leaderboard
-      const where: Prisma.UserWhereInput = {};
+      const where: Prisma.UserWhereInput = {
+        userType: 'INDIVIDUAL', // Only show actual individual users, not organizations
+      };
       
       if (country) {
         where.country = {
@@ -114,10 +121,7 @@ export async function GET(request: NextRequest) {
       }
 
       const users = await prisma.user.findMany({
-        where: {
-          ...where,
-          ...scoreFilter,
-        },
+        where,
         include: {
           badges: {
             include: {
@@ -128,6 +132,12 @@ export async function GET(request: NextRequest) {
                 category: { equals: sdg.toString() },
               }
             } : undefined,
+          },
+          participations: {
+            where: { status: 'VERIFIED' },
+            include: {
+              event: true,
+            }
           },
           _count: {
             select: {
@@ -142,35 +152,32 @@ export async function GET(request: NextRequest) {
         take: limit,
       });
 
-      total = await prisma.user.count({
-        where: {
-          ...where,
-          ...scoreFilter,
-        }
-      });
+      total = await prisma.user.count({ where });
 
       type UserWithRelations = typeof users[0];
       
-      rankings = users.map((user: UserWithRelations, index) => ({
-        rank: skip + index + 1,
-        id: user.id,
-        name: user.name || 'Anonymous User',
-        avatar: user.image,
-        location: user.location,
-        score: user.impactScore,
-        rank_title: user.tier,
-        badges: user.badges?.map((ub) => ({
-          sdg: ub.badge.category,
-          tier: ub.badge.rarity,
-          name: ub.badge.name,
-          progress: 100, // Default progress since we don't have this field
-          earned: !!ub.earnedAt,
-        })),
-        stats: {
-          verified_hours: user._count?.participations || 0,
-          certificates: 0,
-        }
-      }));
+      // Calculate volunteer hours and unique events
+      rankings = users.map((user: UserWithRelations, index) => {
+        const volunteerHours = user.participations?.reduce((sum, p) => sum + (p.hours || 0), 0) || 0;
+        const uniqueEvents = new Set(user.participations?.map(p => p.eventId) || []).size;
+        const badgesEarned = user.badges?.filter(b => b.earnedAt).length || 0;
+        
+        return {
+          rank: skip + index + 1,
+          id: user.id,
+          name: user.name || 'Anonymous User',
+          image: user.image,
+          impactScore: user.impactScore,
+          volunteerHours,
+          eventsJoined: uniqueEvents,
+          badgesEarned,
+          tier: user.tier,
+          location: user.city && user.country ? {
+            city: user.city,
+            country: user.country,
+          } : (user.location || undefined),
+        };
+      });
 
       // Find current user's ranking if logged in
       if (session?.user?.id) {
@@ -188,6 +195,10 @@ export async function GET(request: NextRequest) {
                   badge: { category: sdg.toString() }
                 } : undefined,
               },
+              participations: {
+                where: { status: 'VERIFIED' },
+                include: { event: true }
+              },
               _count: {
                 select: {
                   participations: { where: { status: 'VERIFIED' } }
@@ -201,30 +212,28 @@ export async function GET(request: NextRequest) {
             const higherScoreCount = await prisma.user.count({
               where: {
                 ...where,
-                ...scoreFilter,
                 impactScore: { gt: currentUser.impactScore }
               }
             });
+
+            const volunteerHours = currentUser.participations?.reduce((sum, p) => sum + (p.hours || 0), 0) || 0;
+            const uniqueEvents = new Set(currentUser.participations?.map(p => p.eventId) || []).size;
+            const badgesEarned = currentUser.badges?.filter(b => b.earnedAt).length || 0;
 
             currentUserRanking = {
               rank: higherScoreCount + 1,
               id: currentUser.id,
               name: currentUser.name || 'Anonymous User',
-              avatar: currentUser.image,
-              location: currentUser.location,
-              score: currentUser.impactScore,
-              rank_title: currentUser.tier,
-              badges: currentUser.badges?.map((ub) => ({
-                sdg: ub.badge.category,
-                tier: ub.badge.rarity,
-                name: ub.badge.name,
-                progress: 100,
-                earned: !!ub.earnedAt,
-              })),
-              stats: {
-                verified_hours: currentUser._count?.participations || 0,
-                certificates: 0,
-              }
+              image: currentUser.image,
+              impactScore: currentUser.impactScore,
+              volunteerHours,
+              eventsJoined: uniqueEvents,
+              badgesEarned,
+              tier: currentUser.tier,
+              location: currentUser.city && currentUser.country ? {
+                city: currentUser.city,
+                country: currentUser.country,
+              } : (currentUser.location || undefined),
             };
           }
         }

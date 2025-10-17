@@ -72,8 +72,8 @@ export function SDGSelector({
                 className={cn(
                   "relative aspect-square rounded-lg border-2 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed",
                   isSelected 
-                    ? "border-white shadow-lg scale-105" 
-                    : "border-transparent hover:border-white/30"
+                    ? "border-white dark:border-blue-300 shadow-lg dark:shadow-blue-500/30 scale-105" 
+                    : "border-transparent hover:border-white/30 dark:hover:border-blue-300/30"
                 )}
                 style={{ 
                   backgroundColor: getSDGColor(sdgNumber),
@@ -85,8 +85,8 @@ export function SDGSelector({
                   <div className="text-lg font-bold leading-none">{sdgNumber}</div>
                 </div>
                 {isSelected && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-primary rounded-full" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white dark:bg-blue-100 rounded-full flex items-center justify-center shadow-lg">
+                    <div className="w-2 h-2 bg-blue-600 dark:bg-blue-700 rounded-full" />
                   </div>
                 )}
               </button>
@@ -154,13 +154,14 @@ export function SDGSelector({
               key={sdgNumber}
               type="button"
               onClick={() => !isDisabled && handleSDGClick(sdgNumber)}
-              className={cn(
-                "relative w-full text-left rounded-lg border transition-all duration-150",
+              className={`relative w-full text-left rounded-lg border transition-all duration-150 ${
                 isSelected 
-                  ? "border-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-500" 
-                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/80",
-                isDisabled && "opacity-40 cursor-not-allowed"
-              )}
+                  ? "border-blue-600 bg-blue-50 dark:bg-blue-800 dark:border-blue-400 shadow-lg dark:shadow-blue-500/30" 
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/80"
+              } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+              style={isSelected ? { 
+                backgroundColor: typeof window !== 'undefined' && document.documentElement.classList.contains('dark') ? '#1e40af' : undefined 
+              } : {}}
             >
               <div className="flex items-start gap-4 p-4">
                 {/* SDG Icon Badge */}

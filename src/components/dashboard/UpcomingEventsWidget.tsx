@@ -93,13 +93,15 @@ export function UpcomingEventsWidget({ events }: UpcomingEventsWidgetProps) {
     <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center space-x-2 text-lg">
-          <Calendar className="w-5 h-5 text-blue-600" />
-          <span>Upcoming Events</span>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+            <Calendar className="w-4 h-4 text-white" />
+          </div>
+          <span className="text-gray-900 dark:text-white">Upcoming Events</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {displayEvents.map((event) => (
-          <div key={event.id} className="border-l-4 border-blue-500 pl-4 py-2 cursor-pointer group">
+          <div key={event.id} className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent border-l-4 border-l-blue-500 cursor-pointer group hover:shadow-md transition-all">
             <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-1">
               {event.title}
             </h4>

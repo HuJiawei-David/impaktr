@@ -410,19 +410,35 @@ export default function DashboardPage() {
           <div className="lg:col-span-3 space-y-4">
             {/* Your Impact Stats */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardContent className="p-4">
+              <CardContent className="p-5">
                 <div className="text-center mb-4">
-                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">2,347</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Impact Score</div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <div className="text-lg font-semibold text-gray-900 dark:text-white">87.5</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Hours</div>
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 mb-3 shadow-lg">
+                    <TrendingUp className="w-8 h-8 text-white" />
                   </div>
-                  <div>
-                    <div className="text-lg font-semibold text-gray-900 dark:text-white">12</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Badges</div>
+                  <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+                    2,347
+                  </div>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Impact Score</div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
+                    <div className="flex items-center justify-center mb-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                        <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    </div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white text-center">87.5</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">Hours</div>
+                  </div>
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
+                    <div className="flex items-center justify-center mb-2">
+                      <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                        <Award className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                    </div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white text-center">12</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">Badges</div>
                   </div>
                 </div>
               </CardContent>
@@ -431,7 +447,12 @@ export default function DashboardPage() {
             {/* Quick Actions */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardContent className="p-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
+                <div className="flex items-center mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
+                    <Zap className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Quick Actions</h3>
+                </div>
                 <div className="space-y-2">
                   <Button 
                     variant="outline" 
@@ -572,33 +593,35 @@ export default function DashboardPage() {
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
-                  <TrendingUp className="w-4 h-4 mr-2" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
+                    <TrendingUp className="w-4 h-4 text-white" />
+                  </div>
                   Impact Summary
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Global Rank</span>
+                  <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
+                    <span className="text-gray-500 dark:text-gray-400">Global Rank</span>
                     <span className="font-medium text-gray-900 dark:text-white">#2,847</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">Country Rank</span>
+                  <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
+                    <span className="text-gray-500 dark:text-gray-400">Country Rank</span>
                     <span className="font-medium text-gray-900 dark:text-white">#284</span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">SDG Areas</span>
+                  <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
+                    <span className="text-gray-500 dark:text-gray-400">SDG Areas</span>
                     <span className="font-medium text-gray-900 dark:text-white">6 SDGs</span>
                   </div>
                 </div>
                 
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                   <div className="flex justify-between items-center text-xs mb-1">
-                    <span className="text-gray-500">Progress to Builder</span>
+                    <span className="text-gray-500 dark:text-gray-400">Progress to Builder</span>
                     <span className="font-medium text-gray-900 dark:text-white">74%</span>
                   </div>
-                  <Progress value={74} className="h-1.5" />
-                  <p className="text-xs text-gray-400 mt-1">53 points needed</p>
+                  <Progress value={74} className="h-2" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">53 points needed</p>
                 </div>
               </CardContent>
             </Card>
@@ -607,26 +630,30 @@ export default function DashboardPage() {
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
-                  <Users className="w-4 h-4 mr-2" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
+                    <Users className="w-4 h-4 text-white" />
+                  </div>
                   Recent Connections
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="flex -space-x-2">
-                  <Avatar className="w-8 h-8 border-2 border-white">
+                <div className="flex -space-x-2 mb-3">
+                  <Avatar className="w-8 h-8 border-2 border-white dark:border-gray-800">
                     <AvatarFallback className="bg-blue-500 text-white text-xs">JD</AvatarFallback>
                   </Avatar>
-                  <Avatar className="w-8 h-8 border-2 border-white">
+                  <Avatar className="w-8 h-8 border-2 border-white dark:border-gray-800">
                     <AvatarFallback className="bg-green-500 text-white text-xs">SM</AvatarFallback>
                   </Avatar>
-                  <Avatar className="w-8 h-8 border-2 border-white">
+                  <Avatar className="w-8 h-8 border-2 border-white dark:border-gray-800">
                     <AvatarFallback className="bg-purple-500 text-white text-xs">AL</AvatarFallback>
                   </Avatar>
-                  <div className="w-8 h-8 border-2 border-white bg-gray-100 rounded-full flex items-center justify-center">
-                    <span className="text-xs text-gray-600">+12</span>
+                  <div className="w-8 h-8 border-2 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <span className="text-xs text-gray-600 dark:text-gray-300 font-semibold">+12</span>
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">15 new connections this week</p>
+                <div className="bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">15 new connections this week</p>
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Trophy, 
@@ -27,7 +27,8 @@ import {
   Clock,
   BarChart3,
   Leaf,
-  MapPin
+  MapPin,
+  Search
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { sdgs } from '@/constants/sdgs';
+import { countries } from '@/constants/countries';
 
 interface UserRanking {
   id: string;
@@ -50,35 +52,72 @@ interface UserRanking {
   tier: string;
   trend?: number; // Rank change
   specialty?: string;
+  location?: {
+    city?: string;
+    country?: string;
+  };
+}
+
+interface OrganizationRanking {
+  id: string;
+  name: string;
+  logo?: string;
+  type?: string;
+  impactScore: number;
+  esgScore?: number;
+  rank: number;
+  tier?: string;
+  location?: {
+    city?: string;
+    country?: string;
+  };
+  stats?: {
+    members?: number;
+    events?: number;
+  };
 }
 
 interface LeaderboardData {
   users: UserRanking[];
+  organizations?: OrganizationRanking[];
+  rankings?: OrganizationRanking[];
   currentUser?: UserRanking;
   totalUsers: number;
+  type?: string;
 }
 
-export default function LeaderboardsPage() {
+function LeaderboardsPageContent() {
   const { data: session, status } = useSession();
   const user = session?.user;
   const isLoading = status === 'loading';
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Get initial type from URL params
+  const initialType = searchParams.get('type') === 'organizations' ? 'organizations' : 'individuals';
+  
   // Filters
+  const [leaderboardType, setLeaderboardType] = useState<'individuals' | 'organizations'>(initialType);
   const [sdgFilter, setSdgFilter] = useState<string>('all');
   const [periodFilter, setPeriodFilter] = useState('monthly');
+  const [countryFilter, setCountryFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [countrySearchQuery, setCountrySearchQuery] = useState('');
   
   const fetchLeaderboardData = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
+        type: leaderboardType,
         period: periodFilter,
       });
       if (sdgFilter !== 'all') params.set('sdg', sdgFilter);
+      if (countryFilter !== 'all') params.set('country', countryFilter);
 
       const response = await fetch(`/api/leaderboards?${params}`);
       
@@ -99,7 +138,7 @@ export default function LeaderboardsPage() {
     } finally {
       setLoading(false);
     }
-  }, [periodFilter, sdgFilter, router]);
+  }, [leaderboardType, periodFilter, sdgFilter, countryFilter, router]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -110,7 +149,20 @@ export default function LeaderboardsPage() {
     if (user) {
       fetchLeaderboardData();
     }
-  }, [isLoading, user, router, periodFilter, sdgFilter, fetchLeaderboardData]);
+  }, [isLoading, user, router, leaderboardType, periodFilter, sdgFilter, countryFilter, fetchLeaderboardData]);
+
+  // Close country dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showCountryDropdown && !target.closest('.country-dropdown-container')) {
+        setShowCountryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCountryDropdown]);
 
   // Derived helpers for SDG category mapping and leaderboard summaries
   const sdgToCategory = useCallback((sdgId: number): 'ENV' | 'SOC' | 'GOV' => {
@@ -120,49 +172,76 @@ export default function LeaderboardsPage() {
   }, []);
 
   const sortedBySdg = useMemo(() => {
-    if (!leaderboardData) return [] as UserRanking[];
-    if (sdgFilter === 'all') return leaderboardData.users;
-    const sdgId = Number(sdgFilter);
-    const category = sdgToCategory(sdgId);
-    const arr = [...leaderboardData.users];
-    if (category === 'ENV') {
-      return arr.sort((a, b) => b.volunteerHours - a.volunteerHours);
+    if (!leaderboardData) return [];
+    
+    if (leaderboardType === 'individuals') {
+      let filtered = [...(leaderboardData.users || [])] as UserRanking[];
+      
+      // Apply search filter
+      if (searchQuery.trim()) {
+        filtered = filtered.filter(u => 
+          u.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      
+      // Apply SDG filter and sorting
+      if (sdgFilter !== 'all') {
+        const sdgId = Number(sdgFilter);
+        const category = sdgToCategory(sdgId);
+        if (category === 'ENV') {
+          return filtered.sort((a, b) => (b.volunteerHours || 0) - (a.volunteerHours || 0));
+        }
+        if (category === 'SOC') {
+          return filtered.sort((a, b) => (b.eventsJoined || 0) - (a.eventsJoined || 0));
+        }
+        return filtered.sort((a, b) => (b.badgesEarned || 0) - (a.badgesEarned || 0));
+      }
+      
+      return filtered;
+    } else {
+      // Organizations
+      let filtered = [...(leaderboardData.rankings || [])] as OrganizationRanking[];
+      
+      // Apply search filter
+      if (searchQuery.trim()) {
+        filtered = filtered.filter(u => 
+          u.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      
+      return filtered;
     }
-    if (category === 'SOC') {
-      return arr.sort((a, b) => b.eventsJoined - a.eventsJoined);
-    }
-    return arr.sort((a, b) => b.badgesEarned - a.badgesEarned);
-  }, [leaderboardData, sdgFilter, sdgToCategory]);
+  }, [leaderboardData, leaderboardType, sdgFilter, sdgToCategory, searchQuery]);
 
   const topEnv = useMemo(() => {
-    if (!leaderboardData) return [] as UserRanking[];
+    if (!leaderboardData || !leaderboardData.users) return [] as UserRanking[];
     return [...leaderboardData.users].sort((a,b) => b.volunteerHours - a.volunteerHours).slice(0,3);
   }, [leaderboardData]);
 
   const topSoc = useMemo(() => {
-    if (!leaderboardData) return [] as UserRanking[];
+    if (!leaderboardData || !leaderboardData.users) return [] as UserRanking[];
     return [...leaderboardData.users].sort((a,b) => b.eventsJoined - a.eventsJoined).slice(0,3);
   }, [leaderboardData]);
 
   const topGov = useMemo(() => {
-    if (!leaderboardData) return [] as UserRanking[];
+    if (!leaderboardData || !leaderboardData.users) return [] as UserRanking[];
     return [...leaderboardData.users].sort((a,b) => b.badgesEarned - a.badgesEarned).slice(0,3);
   }, [leaderboardData]);
 
   const mostHours = useMemo(() => {
-    if (!leaderboardData) return null as UserRanking | null;
+    if (!leaderboardData || !leaderboardData.users) return null as UserRanking | null;
     return [...leaderboardData.users].sort((a,b) => b.volunteerHours - a.volunteerHours)[0] || null;
   }, [leaderboardData]);
   const mostEvents = useMemo(() => {
-    if (!leaderboardData) return null as UserRanking | null;
+    if (!leaderboardData || !leaderboardData.users) return null as UserRanking | null;
     return [...leaderboardData.users].sort((a,b) => b.eventsJoined - a.eventsJoined)[0] || null;
   }, [leaderboardData]);
   const mostBadges = useMemo(() => {
-    if (!leaderboardData) return null as UserRanking | null;
+    if (!leaderboardData || !leaderboardData.users) return null as UserRanking | null;
     return [...leaderboardData.users].sort((a,b) => b.badgesEarned - a.badgesEarned)[0] || null;
   }, [leaderboardData]);
   const biggestClimber = useMemo(() => {
-    if (!leaderboardData) return null as UserRanking | null;
+    if (!leaderboardData || !leaderboardData.users) return null as UserRanking | null;
     return [...leaderboardData.users]
       .filter(u => typeof u.trend === 'number')
       .sort((a,b) => (b.trend || 0) - (a.trend || 0))[0] || null;
@@ -170,7 +249,7 @@ export default function LeaderboardsPage() {
 
   const progressInfo = useMemo(() => {
     const current = leaderboardData?.currentUser;
-    if (!current) return null as null | {
+    if (!current || !leaderboardData?.users) return null as null | {
       currentRank: number;
       impactScore: number;
       nextRank?: number;
@@ -178,7 +257,7 @@ export default function LeaderboardsPage() {
       progressPct?: number;
       delta?: number;
     };
-    const sortedByScore = [...(leaderboardData?.users || [])].sort((a,b) => (b.impactScore || 0) - (a.impactScore || 0));
+    const sortedByScore = [...(leaderboardData.users || [])].sort((a,b) => (b.impactScore || 0) - (a.impactScore || 0));
     const idx = sortedByScore.findIndex(u => u.id === current.id);
     const target = idx > 0 ? sortedByScore[idx-1] : undefined;
     const delta = target ? Math.max(0, (target.impactScore || 0) - (current.impactScore || 0)) : 0;
@@ -224,11 +303,17 @@ export default function LeaderboardsPage() {
 
   const getTierColor = (tier: string) => {
     switch (tier) {
-      case 'PLATINUM': return 'bg-purple-100 text-purple-800';
-      case 'GOLD': return 'bg-yellow-100 text-yellow-800';
-      case 'SILVER': return 'bg-gray-100 text-gray-800';
-      case 'BRONZE': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'GLOBAL_CITIZEN': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'AMBASSADOR': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400';
+      case 'LEADER': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'MENTOR': return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400';
+      case 'CHANGEMAKER': return 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400';
+      case 'ADVOCATE': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      case 'BUILDER': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'CONTRIBUTOR': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+      case 'SUPPORTER': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400';
+      case 'HELPER': return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
@@ -275,6 +360,32 @@ export default function LeaderboardsPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[22px] pb-8">
 
+        {/* Leaderboard Type Tabs */}
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <button
+            onClick={() => setLeaderboardType('individuals')}
+            className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
+              leaderboardType === 'individuals'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg scale-105'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            <Users className="w-4 h-4 mr-2" />
+            Individual Leaderboard
+          </button>
+          <button
+            onClick={() => setLeaderboardType('organizations')}
+            className={`flex items-center px-6 py-3 rounded-lg font-medium transition-all ${
+              leaderboardType === 'organizations'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg scale-105'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700'
+            }`}
+          >
+            <Building2 className="w-4 h-4 mr-2" />
+            Organization Leaderboard
+          </button>
+        </div>
+
         {/* Compact Professional Header */}
         <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 mb-6">
           <CardContent className="p-6">
@@ -283,15 +394,22 @@ export default function LeaderboardsPage() {
               <div className="flex items-center space-x-4">
                 <div className="relative group">
                   <div className="w-16 h-16 border-2 border-gray-100 dark:border-gray-700 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center cursor-pointer transition-all duration-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2">
-                    <Trophy className="h-8 w-8 text-white" />
+                    {leaderboardType === 'individuals' ? (
+                      <Trophy className="h-8 w-8 text-white" />
+                    ) : (
+                      <Building2 className="h-8 w-8 text-white" />
+                    )}
                   </div>
                 </div>
             <div>
                   <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    Individual Leaderboard
+                    {leaderboardType === 'individuals' ? 'Individual Leaderboard' : 'Organization Leaderboard'}
                   </h1>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    See how you rank against other volunteers
+                    {leaderboardType === 'individuals' 
+                      ? 'See how you rank against other volunteers'
+                      : 'Compare organizations by their social impact'
+                    }
                   </p>
                 </div>
               </div>
@@ -302,15 +420,17 @@ export default function LeaderboardsPage() {
                   <div className="text-2xl font-bold text-gray-900 dark:text-white">
                     {leaderboardData.totalUsers}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Volunteers</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {leaderboardType === 'individuals' ? 'Volunteers' : 'Organizations'}
+                  </div>
             </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Current User Card */}
-        {leaderboardData.currentUser && (
+        {/* Current User Card - Only for individuals */}
+        {leaderboardType === 'individuals' && leaderboardData.currentUser && (
           <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 border-blue-200 dark:border-blue-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -328,16 +448,27 @@ export default function LeaderboardsPage() {
                   </Avatar>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 dark:text-white">{leaderboardData.currentUser.name}</h2>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge className={getTierColor(leaderboardData.currentUser.tier)}>
-                        {leaderboardData.currentUser.tier}
-                      </Badge>
-                      {leaderboardData.currentUser.specialty && (
-                        <Badge variant="outline">
-                          {leaderboardData.currentUser.specialty}
-                        </Badge>
-                      )}
-          </div>
+                    {leaderboardData.currentUser.location && (
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        {leaderboardData.currentUser.location.city && `${leaderboardData.currentUser.location.city}, `}
+                        {leaderboardData.currentUser.location.country}
+                      </div>
+                    )}
+                    {(leaderboardData.currentUser.tier || leaderboardData.currentUser.specialty) && (
+                      <div className="flex items-center space-x-2 mt-1">
+                        {leaderboardData.currentUser.tier && (
+                          <Badge className={getTierColor(leaderboardData.currentUser.tier)}>
+                            {leaderboardData.currentUser.tier}
+                          </Badge>
+                        )}
+                        {leaderboardData.currentUser.specialty && (
+                          <Badge variant="outline">
+                            {leaderboardData.currentUser.specialty}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
         </div>
                 </div>
                 <div className="text-right">
@@ -363,7 +494,14 @@ export default function LeaderboardsPage() {
                   <SelectTrigger>
                     <SelectValue placeholder="SDG" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent 
+                    className="max-h-80 overflow-y-auto" 
+                    position="popper" 
+                    side="bottom"
+                    align="start"
+                    sideOffset={4}
+                    avoidCollisions={false}
+                  >
                     <SelectItem value="all">All SDGs</SelectItem>
                     {sdgs.map((s) => (
                       <SelectItem key={s.id} value={String(s.id)}>
@@ -372,7 +510,7 @@ export default function LeaderboardsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                </div>
+              </div>
               <div className="md:w-48">
                 <Select value={periodFilter} onValueChange={setPeriodFilter}>
                   <SelectTrigger>
@@ -385,84 +523,93 @@ export default function LeaderboardsPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="md:w-64 country-dropdown-container relative">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                  className="h-10 w-full justify-between"
+                >
+                  <div className="flex items-center">
+                    <Globe className="w-4 h-4 mr-2" />
+                    {countryFilter === 'all' ? 'All Countries' : 
+                      countries.find(c => c.name === countryFilter)?.name || 'All Countries'
+                    }
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
+                </Button>
+                
+                {showCountryDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
+                    {/* Search Input */}
+                    <div className="p-3 border-b border-gray-200 dark:border-gray-600">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search countries..."
+                          value={countrySearchQuery}
+                          onChange={(e) => setCountrySearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Country List */}
+                    <div className="overflow-y-auto max-h-60">
+                      <button
+                        onClick={() => {
+                          setCountryFilter('all');
+                          setShowCountryDropdown(false);
+                          setCountrySearchQuery('');
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
+                      >
+                        <span className="mr-2">🌍</span>
+                        All Countries
+                      </button>
+                      {countries
+                        .filter(country => 
+                          country.name.toLowerCase().includes(countrySearchQuery.toLowerCase())
+                        )
+                        .map(country => (
+                          <button
+                            key={country.code}
+                            onClick={() => {
+                              setCountryFilter(country.name);
+                              setShowCountryDropdown(false);
+                              setCountrySearchQuery('');
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
+                          >
+                            <span className="mr-2">{country.flag}</span>
+                            {country.name}
+                          </button>
+                        ))}
+                      {countries.filter(country => 
+                        country.name.toLowerCase().includes(countrySearchQuery.toLowerCase())
+                      ).length === 0 && countrySearchQuery && (
+                        <div className="px-4 py-3 text-gray-500 dark:text-gray-400 text-center">
+                          No countries found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Search by name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Top 3 Podium */}
-        {leaderboardData.users.length >= 3 && (
-          <Card className="mb-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
-            <CardContent className="p-8">
-              <div className="flex items-end justify-center space-x-8">
-                {/* Second Place */}
-                {leaderboardData.users[1] && (
-                  <div className="flex flex-col items-center space-y-3" style={{ paddingBottom: '40px' }}>
-                    <Avatar className="h-20 w-20 border-4 border-gray-400">
-                      {leaderboardData.users[1].image && (
-                        <AvatarImage src={leaderboardData.users[1].image} alt={leaderboardData.users[1].name} />
-                      )}
-                      <AvatarFallback className="bg-gradient-to-r from-gray-400 to-gray-600 text-white font-bold text-2xl">
-                        {leaderboardData.users[1].name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="w-32 h-32 bg-gradient-to-t from-gray-300 to-gray-400 rounded-t-lg flex flex-col items-center justify-center shadow-lg">
-                      <Medal className="h-12 w-12 text-white mb-2" />
-                      <span className="text-white font-bold text-2xl">2nd</span>
-              </div>
-                    <div className="text-center">
-                      <p className="font-bold text-gray-900 dark:text-white">{leaderboardData.users[1].name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{(leaderboardData.users[1].impactScore || 0).toLocaleString()} pts</p>
-                </div>
-              </div>
-                )}
-
-                {/* First Place */}
-                {leaderboardData.users[0] && (
-                  <div className="flex flex-col items-center space-y-3">
-                    <Avatar className="h-24 w-24 border-4 border-yellow-400">
-                      {leaderboardData.users[0].image && (
-                        <AvatarImage src={leaderboardData.users[0].image} alt={leaderboardData.users[0].name} />
-                      )}
-                      <AvatarFallback className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white font-bold text-3xl">
-                        {leaderboardData.users[0].name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="w-32 h-40 bg-gradient-to-t from-yellow-400 to-yellow-600 rounded-t-lg flex flex-col items-center justify-center shadow-xl">
-                      <Crown className="h-16 w-16 text-white mb-2" />
-                      <span className="text-white font-bold text-3xl">1st</span>
-            </div>
-                    <div className="text-center">
-                      <p className="font-bold text-gray-900 dark:text-white">{leaderboardData.users[0].name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{(leaderboardData.users[0].impactScore || 0).toLocaleString()} pts</p>
-          </div>
-        </div>
-                )}
-
-                {/* Third Place */}
-                {leaderboardData.users[2] && (
-                  <div className="flex flex-col items-center space-y-3" style={{ paddingBottom: '80px' }}>
-                    <Avatar className="h-20 w-20 border-4 border-orange-400">
-                      {leaderboardData.users[2].image && (
-                        <AvatarImage src={leaderboardData.users[2].image} alt={leaderboardData.users[2].name} />
-                      )}
-                      <AvatarFallback className="bg-gradient-to-r from-orange-400 to-orange-600 text-white font-bold text-2xl">
-                        {leaderboardData.users[2].name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="w-32 h-24 bg-gradient-to-t from-orange-400 to-orange-600 rounded-t-lg flex flex-col items-center justify-center shadow-lg">
-                      <Award className="h-10 w-10 text-white mb-2" />
-                      <span className="text-white font-bold text-2xl">3rd</span>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-bold text-gray-900 dark:text-white">{leaderboardData.users[2].name}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{(leaderboardData.users[2].impactScore || 0).toLocaleString()} pts</p>
-                    </div>
-            </div>
-                )}
-          </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Full Rankings */}
         <Card>
@@ -471,17 +618,32 @@ export default function LeaderboardsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {sortedBySdg.map((user) => {
+              {leaderboardType === 'individuals' ? 
+                // Individual Rankings
+                (sortedBySdg as UserRanking[]).map((user) => {
                 const isCurrentUser = leaderboardData.currentUser?.id === user.id;
+                
+                // Get rank-specific styling
+                const getRankStyling = () => {
+                  if (isCurrentUser) {
+                    return 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 border-2 border-blue-600 dark:border-blue-400 hover:from-blue-200 hover:to-purple-200 dark:hover:from-blue-800 dark:hover:to-purple-800';
+                  }
+                  if (user.rank === 1) {
+                    return 'bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border-2 border-yellow-400 dark:border-yellow-600 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-900/30 dark:hover:to-yellow-800/30';
+                  }
+                  if (user.rank === 2) {
+                    return 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50 border-2 border-gray-400 dark:border-gray-600 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-800/70 dark:hover:to-gray-700/70';
+                  }
+                  if (user.rank === 3) {
+                    return 'bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-2 border-orange-400 dark:border-orange-600 hover:from-orange-100 hover:to-orange-200 dark:hover:from-orange-900/30 dark:hover:to-orange-800/30';
+                  }
+                  return 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700';
+                };
                 
                 return (
                   <div
                     key={user.id}
-                    className={`flex items-center justify-between p-4 rounded-lg transition-all ${
-                      isCurrentUser
-                        ? 'bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 border-2 border-blue-600 dark:border-blue-400'
-                        : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
+                    className={`flex items-center justify-between p-4 rounded-lg transition-all ${getRankStyling()}`}
                   >
                     <div className="flex items-center space-x-4 flex-1">
                       {getRankBadge(user.rank)}
@@ -501,17 +663,28 @@ export default function LeaderboardsPage() {
                           {isCurrentUser && (
                             <Badge className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">You</Badge>
                           )}
-                          </div>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Badge className={getTierColor(user.tier)} variant="outline">
-                            {user.tier}
-                          </Badge>
-                          {user.specialty && (
-                            <Badge variant="outline">
-                              {user.specialty}
-                            </Badge>
-                          )}
                         </div>
+                        {user.location && (
+                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {user.location.city && `${user.location.city}, `}
+                            {user.location.country}
+                          </div>
+                        )}
+                        {(user.tier || user.specialty) && (
+                          <div className="flex items-center space-x-2 mt-1">
+                            {user.tier && (
+                              <Badge className={getTierColor(user.tier)} variant="outline">
+                                {user.tier}
+                              </Badge>
+                            )}
+                            {user.specialty && (
+                              <Badge variant="outline">
+                                {user.specialty}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
             
@@ -554,12 +727,94 @@ export default function LeaderboardsPage() {
                     </div>
                   </div>
                 );
-              })}
+              }) : 
+                // Organization Rankings
+                (sortedBySdg as OrganizationRanking[]).map((org) => {
+                  // Get rank-specific styling for organizations
+                  const getRankStyling = () => {
+                    if (org.rank === 1) {
+                      return 'bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border-2 border-yellow-400 dark:border-yellow-600 hover:from-yellow-100 hover:to-yellow-200 dark:hover:from-yellow-900/30 dark:hover:to-yellow-800/30';
+                    }
+                    if (org.rank === 2) {
+                      return 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50 border-2 border-gray-400 dark:border-gray-600 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-800/70 dark:hover:to-gray-700/70';
+                    }
+                    if (org.rank === 3) {
+                      return 'bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-2 border-orange-400 dark:border-orange-600 hover:from-orange-100 hover:to-orange-200 dark:hover:from-orange-900/30 dark:hover:to-orange-800/30';
+                    }
+                    return 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700';
+                  };
+                  
+                  return (
+                  <div
+                    key={org.id}
+                    className={`flex items-center justify-between p-4 rounded-lg transition-all ${getRankStyling()}`}
+                  >
+                    <div className="flex items-center space-x-4 flex-1">
+                      {getRankBadge(org.rank)}
+                      <Avatar className="h-12 w-12">
+                        {org.logo && (
+                          <AvatarImage src={org.logo} alt={org.name} />
+                        )}
+                        <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg">
+                          {org.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <p className="font-bold text-gray-900 dark:text-white">{org.name}</p>
+                        </div>
+                        {org.type && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            {org.type}
+                          </div>
+                        )}
+                        {org.tier && (
+                          <div className="flex items-center space-x-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {org.tier}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+            
+                    <div className="flex items-center space-x-6">
+                      <div className="flex items-center space-x-4 text-sm">
+                        {org.stats?.members !== undefined && (
+                          <div className="text-center">
+                            <p className="font-semibold">{org.stats.members.toLocaleString()}</p>
+                            <p className="text-muted-foreground text-xs">Members</p>
+                          </div>
+                        )}
+                        {org.stats?.events !== undefined && (
+                          <div className="text-center">
+                            <p className="font-semibold">{org.stats.events}</p>
+                            <p className="text-muted-foreground text-xs">Events</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="h-12 w-px bg-gray-300 dark:bg-gray-600"></div>
+                      
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                          {(org.esgScore || org.impactScore || 0).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">ESG Score</p>
+                      </div>
+                    </div>
+                  </div>
+                  );
+                })
+              }
               
-              {leaderboardData.users.length === 0 && (
+              {((leaderboardType === 'individuals' && (!leaderboardData.users || leaderboardData.users.length === 0)) || 
+                (leaderboardType === 'organizations' && (!leaderboardData.rankings || leaderboardData.rankings.length === 0))) && (
                 <div className="text-center py-12">
                   <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No users found</h3>
+                  <h3 className="text-xl font-semibold mb-2">
+                    {leaderboardType === 'individuals' ? 'No users found' : 'No organizations found'}
+                  </h3>
                   <p className="text-muted-foreground">
                     Try adjusting your filters to see more results
                   </p>
@@ -569,7 +824,8 @@ export default function LeaderboardsPage() {
                     </CardContent>
                   </Card>
 
-        {/* Category Leaders by SDG (Proxy categories) */}
+        {/* Category Leaders by SDG (Proxy categories) - Only for individuals */}
+        {leaderboardType === 'individuals' && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Category Leaders</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -652,8 +908,10 @@ export default function LeaderboardsPage() {
                 </Card>
                             </div>
                           </div>
+        )}
 
-        {/* Special Achievements */}
+        {/* Special Achievements - Only for individuals */}
+        {leaderboardType === 'individuals' && (
         <div className="mt-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Special Achievements</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -699,9 +957,10 @@ export default function LeaderboardsPage() {
                     </Card>
           </div>
         </div>
+        )}
 
-        {/* Your Progress */}
-        {progressInfo && (
+        {/* Your Progress - Only for individuals */}
+        {leaderboardType === 'individuals' && leaderboardData.currentUser && (
           <Card className="mt-8">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
@@ -709,31 +968,79 @@ export default function LeaderboardsPage() {
                 <span>Your Progress</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Rankings Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">#{progressInfo.currentRank}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Current Rank</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{(progressInfo.impactScore || 0).toLocaleString()}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Impact Points</div>
-                </div>
-        <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{progressInfo.nextRank ? `#${progressInfo.nextRank}` : 'Top'}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Next Target</div>
-                </div>
+                <Card className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 border-0">
+                  <CardContent className="p-4 text-center">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-3">
+                      <Trophy className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                      #{leaderboardData.currentUser.rank}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Global Rank</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      out of {leaderboardData.totalUsers.toLocaleString()} volunteers
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {leaderboardData.currentUser.location?.country && (
+                  <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-0">
+                    <CardContent className="p-4 text-center">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 flex items-center justify-center mx-auto mb-3">
+                        <MapPin className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                        #{leaderboardData.currentUser.rank}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {leaderboardData.currentUser.location.country} Rank
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        in your country
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 border-0">
+                  <CardContent className="p-4 text-center">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500 to-amber-600 flex items-center justify-center mx-auto mb-3">
+                      <Star className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
+                      {(leaderboardData.currentUser.impactScore || 0).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Impact Score</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      total points earned
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-              {progressInfo.nextScore !== undefined && (
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">Progress to next rank</span>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{(progressInfo.impactScore || 0).toLocaleString()} / {(progressInfo.nextScore || 0).toLocaleString()} pts</span>
+
+              {/* Progress to Next Rank */}
+              {progressInfo && progressInfo.nextScore !== undefined && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 rounded-lg p-6 border border-blue-100 dark:border-blue-900">
+                  <div className="flex justify-between items-center mb-3">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white">Next Rank: #{progressInfo.nextRank}</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Keep going to climb higher!</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {progressInfo.delta?.toLocaleString()}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">points to go</div>
+                    </div>
                   </div>
-                  <Progress value={progressInfo.progressPct || 0} className="h-2" />
-                  {typeof progressInfo.delta === 'number' && (
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">{progressInfo.delta.toLocaleString()} points to go</p>
-                  )}
+                  <Progress value={progressInfo.progressPct || 0} className="h-3" />
+                  <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mt-2">
+                    <span>{(progressInfo.impactScore || 0).toLocaleString()} pts</span>
+                    <span>{(progressInfo.nextScore || 0).toLocaleString()} pts</span>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -758,5 +1065,13 @@ export default function LeaderboardsPage() {
             </div>
       </div>
     </div>
+  );
+}
+
+export default function LeaderboardsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LeaderboardsPageContent />
+    </Suspense>
   );
 }

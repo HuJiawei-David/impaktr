@@ -32,7 +32,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useTheme } from 'next-themes';
@@ -90,7 +89,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      redirect('/auth/signin');
+      redirect('/signin');
       return;
     }
 
@@ -101,14 +100,78 @@ export default function SettingsPage() {
 
   const fetchSettings = async () => {
     try {
+      console.log('[Settings] Fetching settings...');
       const response = await fetch('/api/users/settings');
+      console.log('[Settings] Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('[Settings] Settings data:', data);
         setSettings(data.settings);
+      } else {
+        console.error('[Settings] Failed to fetch settings:', response.status);
+        // Set default settings to unblock the UI
+        setSettings({
+          displayName: '',
+          email: session?.user?.email || '',
+          bio: '',
+          website: '',
+          isPublic: true,
+          showEmail: false,
+          emailNotifications: true,
+          pushNotifications: true,
+          badgeNotifications: true,
+          eventReminders: true,
+          verificationRequests: true,
+          weeklyDigest: true,
+          marketingEmails: false,
+          profileVisibility: 'public',
+          showProgress: true,
+          showLocation: true,
+          allowRecommendations: true,
+          allowMessaging: true,
+          twoFactorEnabled: false,
+          loginAlerts: true,
+          sessionTimeout: 60,
+          subscriptionPlan: 'Free Tier',
+          billingEmail: session?.user?.email || '',
+          autoRenew: false,
+          downloadData: false,
+          deleteAccount: false,
+        });
       }
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error('[Settings] Error fetching settings:', error);
       toast.error('Failed to load settings');
+      // Set default settings to unblock the UI
+      setSettings({
+        displayName: '',
+        email: session?.user?.email || '',
+        bio: '',
+        website: '',
+        isPublic: true,
+        showEmail: false,
+        emailNotifications: true,
+        pushNotifications: true,
+        badgeNotifications: true,
+        eventReminders: true,
+        verificationRequests: true,
+        weeklyDigest: true,
+        marketingEmails: false,
+        profileVisibility: 'public',
+        showProgress: true,
+        showLocation: true,
+        allowRecommendations: true,
+        allowMessaging: true,
+        twoFactorEnabled: false,
+        loginAlerts: true,
+        sessionTimeout: 60,
+        subscriptionPlan: 'Free Tier',
+        billingEmail: session?.user?.email || '',
+        autoRenew: false,
+        downloadData: false,
+        deleteAccount: false,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -206,37 +269,80 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* Settings Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Profile
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              Notifications
-            </TabsTrigger>
-            <TabsTrigger value="privacy" className="flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Privacy
-            </TabsTrigger>
-            <TabsTrigger value="security" className="flex items-center gap-2">
-              <Lock className="w-4 h-4" />
-              Security
-            </TabsTrigger>
-            <TabsTrigger value="billing" className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              Billing
-            </TabsTrigger>
-            <TabsTrigger value="data" className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Data
-            </TabsTrigger>
-          </TabsList>
+        {/* Settings Pills */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'profile'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            Profile
+          </button>
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'notifications'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            Notifications
+          </button>
+          <button
+            onClick={() => setActiveTab('privacy')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'privacy'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Privacy
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'security'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <Lock className="w-4 h-4" />
+            Security
+          </button>
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'billing'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            Billing
+          </button>
+          <button
+            onClick={() => setActiveTab('data')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'data'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Data
+          </button>
+        </div>
+
+        <div className="space-y-6">
 
           {/* Profile Tab */}
-          <TabsContent value="profile">
+          {activeTab === 'profile' && (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -317,7 +423,11 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <Button onClick={() => updateSettings(settings)} disabled={isSaving}>
+                  <Button 
+                    onClick={() => updateSettings(settings)} 
+                    disabled={isSaving}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  >
                     <Save className="w-4 h-4 mr-2" />
                     {isSaving ? 'Saving...' : 'Save Changes'}
                   </Button>
@@ -364,10 +474,10 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          )}
 
           {/* Notifications Tab */}
-          <TabsContent value="notifications">
+          {activeTab === 'notifications' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -464,10 +574,10 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* Privacy Tab */}
-          <TabsContent value="privacy">
+          {activeTab === 'privacy' && (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -538,10 +648,10 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          )}
 
           {/* Security Tab */}
-          <TabsContent value="security">
+          {activeTab === 'security' && (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -625,10 +735,10 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          )}
 
           {/* Billing Tab */}
-          <TabsContent value="billing">
+          {activeTab === 'billing' && (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -691,10 +801,10 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          )}
 
           {/* Data Tab */}
-          <TabsContent value="data">
+          {activeTab === 'data' && (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -777,8 +887,8 @@ export default function SettingsPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
     </div>
   );

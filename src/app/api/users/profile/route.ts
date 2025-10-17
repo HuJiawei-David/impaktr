@@ -1,77 +1,64 @@
-// /home/ubuntu/impaktrweb/src/app/api/users/profile/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-config';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
-
-// Force dynamic rendering for this route
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-
-const updateProfileSchema = z.object({
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  displayName: z.string().optional(),
-  bio: z.string().optional(),
-  website: z.string().url().optional().or(z.literal('')),
-  location: z.object({
-    city: z.string(),
-    state: z.string(),
-    country: z.string(),
-    coordinates: z.object({
-      lat: z.number(),
-      lng: z.number(),
-    }).optional(),
-  }).optional(),
-  languages: z.array(z.string()).optional(),
-  dateOfBirth: z.string().transform((str) => new Date(str)).optional(),
-  gender: z.string().optional(),
-  nationality: z.string().optional(),
-  occupation: z.string().optional(),
-  organization: z.string().optional(),
-  sdgFocus: z.array(z.number().min(1).max(17)).optional(),
-  isPublic: z.boolean().optional(),
-  showEmail: z.boolean().optional(),
-  notifications: z.object({}).optional(),
-});
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const session = await getSession();
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('id') || session.user.id;
+
+    // Fetch user with related data
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: userId },
       include: {
-        // profile: true, // profile relation doesn't exist
+        volunteerProfile: {
+          select: {
+            interests: true,
+            skills: true,
+          }
+        },
         badges: {
+          orderBy: { earnedAt: 'desc' },
+          take: 20,
           include: {
-            badge: true,
-          },
+            badge: {
+              select: {
+                id: true,
+                name: true,
+                sdgNumber: true,
+                tier: true,
+              }
+            }
+          }
         },
-        achievements: true,
         participations: {
-          include: {
-            event: true,
-          },
-        },
-        scoreHistory: {
+          where: { status: 'VERIFIED' },
           orderBy: { createdAt: 'desc' },
           take: 10,
+          include: {
+            event: {
+              select: {
+                id: true,
+                title: true,
+                sdg: true,
+                startDate: true,
+                type: true,
+              }
+            }
+          }
+        },
+        followers: {
+          where: { followerId: session.user.id }
         },
         _count: {
           select: {
-            participations: {
-              where: { status: 'VERIFIED' }
-            },
-            // certificates: true, // certificates field doesn't exist
             followers: true,
-            // follows: true, // follows field doesn't exist
+            following: true,
           }
         }
       }
@@ -81,46 +68,107 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Calculate stats
-    const totalHours = user.participations?.reduce((sum, p) => sum + (p.hours || 0), 0) || 0;
-    const verifiedHours = user.participations?.filter(p => p.status === 'VERIFIED').reduce((sum, p) => sum + (p.hours || 0), 0) || 0;
-    const eventsJoined = user.participations?.length || 0;
-    const badgesEarned = user.badges?.length || 0;
-    const certificates = 0; // TODO: Calculate actual certificates
-    const followers = user._count?.followers || 0;
-    const following = 0; // TODO: Calculate actual following count
+    // Check if profile is public or if the current user has permission to view
+    if (!user.isPublic && user.id !== session.user.id) {
+      return NextResponse.json({ error: 'Profile is private' }, { status: 403 });
+    }
 
-    // Transform user data to match frontend expectations
+    // Calculate stats
+    const volunteerHours = user.participations.reduce((sum, p) => sum + (p.hours || 0), 0);
+    const eventsJoined = new Set(user.participations.map(p => p.eventId)).size;
+    const badgesEarned = user.badges.filter(b => b.earnedAt).length;
+
+    // Get user's global rank
+    const rank = await prisma.user.count({
+      where: {
+        impactScore: { gt: user.impactScore },
+        userType: 'INDIVIDUAL'
+      }
+    }) + 1;
+
+    // Format recent activities
+    const recentActivities = user.participations.map(p => ({
+      id: p.id,
+      type: p.event.type,
+      title: p.event.title,
+      date: p.createdAt,
+      sdg: p.event.sdg ? parseInt(p.event.sdg) : undefined
+    }));
+
+    // Format badges
+    const badges = user.badges.map(ub => ({
+      id: ub.badgeId,
+      name: ub.badge.name,
+      sdgNumber: ub.badge.sdgNumber,
+      tier: ub.badge.tier,
+      earnedAt: ub.earnedAt
+    }));
+
+    // Check if current user is following this user
+    const isFollowing = user.followers.length > 0;
+
     const profileData = {
-      ...user,
+      id: user.id,
+      name: user.name,
+      email: user.isPublic ? user.email : undefined,
+      image: user.image,
+      bio: user.bio,
+      city: user.city,
+      country: user.country,
+      website: user.website,
+      tier: user.tier,
+      impactScore: user.impactScore,
+      volunteerHours,
+      eventsJoined,
+      badgesEarned,
+      isFollowing,
+      badges,
+      recentActivities,
       stats: {
-        totalHours,
-        verifiedHours,
-        eventsJoined,
-        badgesEarned,
-        certificates,
-        followers,
-        following,
-      },
-      impaktrScore: user.impactScore || 0,
-      currentRank: user.tier || 'BRONZE',
-      joinedAt: user.createdAt,
-      sdgFocus: user.sdgFocus || [],
-      recentActivity: user.scoreHistory?.map(entry => ({
-        id: entry.id,
-        type: 'score_update',
-        title: 'Score Updated',
-        description: `Score increased by ${entry.change}`,
-        date: entry.createdAt,
-        points: entry.change,
-      })) || [],
+        followers: user._count.followers,
+        following: user._count.following,
+        rank
+      }
     };
 
-    return NextResponse.json({ user: profileData });
+    // If requesting current user's profile (no id param), return in dashboard format
+    if (!url.searchParams.get('id')) {
+      return NextResponse.json({
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          userType: user.userType,
+          tier: user.tier,
+          impactScore: user.impactScore,
+          profile: {
+            sdgFocus: user.volunteerProfile?.interests || [],
+            bio: user.bio,
+            city: user.city,
+            country: user.country,
+            website: user.website,
+          },
+          stats: {
+            volunteerHours,
+            eventsJoined,
+            badgesEarned,
+            followers: user._count.followers,
+            following: user._count.following,
+            rank
+          },
+          badges,
+          recentActivities
+        }
+      });
+    }
+
+    // For other users' profiles, return in profile page format
+    return NextResponse.json({ profile: profileData });
   } catch (error) {
     console.error('Error fetching user profile:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Failed to fetch user profile' },
       { status: 500 }
     );
   }
