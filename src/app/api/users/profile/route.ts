@@ -143,11 +143,24 @@ export async function GET(request: NextRequest) {
           tier: user.tier,
           impactScore: user.impactScore,
           profile: {
-            sdgFocus: user.volunteerProfile?.interests || [],
+            sdgFocus: user.sdgFocus || [],
+            interests: user.volunteerProfile?.interests || [],
+            skills: user.volunteerProfile?.skills || [],
             bio: user.bio,
             city: user.city,
             country: user.country,
             website: user.website,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            displayName: user.displayName,
+            gender: user.gender,
+            nationality: user.nationality,
+            occupation: user.occupation,
+            organization: user.organization,
+            dateOfBirth: user.dateOfBirth,
+            languages: user.languages,
+            isPublic: user.isPublic,
+            showEmail: user.showEmail
           },
           stats: {
             volunteerHours,
@@ -169,6 +182,113 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching user profile:', error);
     return NextResponse.json(
       { error: 'Failed to fetch user profile' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const formData = await request.formData();
+    
+    // Extract fields from FormData
+    const firstName = formData.get('firstName') as string | null;
+    const lastName = formData.get('lastName') as string | null;
+    const displayName = formData.get('displayName') as string | null;
+    const bio = formData.get('bio') as string | null;
+    const dateOfBirth = formData.get('dateOfBirth') as string | null;
+    const gender = formData.get('gender') as string | null;
+    const nationality = formData.get('nationality') as string | null;
+    const city = formData.get('city') as string | null;
+    const state = formData.get('state') as string | null;
+    const country = formData.get('country') as string | null;
+    const occupation = formData.get('occupation') as string | null;
+    const organization = formData.get('organization') as string | null;
+    const website = formData.get('website') as string | null;
+    const isPublic = formData.get('isPublic') === 'true';
+    const showEmail = formData.get('showEmail') === 'true';
+    
+    // Parse JSON fields
+    const sdgFocusStr = formData.get('sdgFocus') as string | null;
+    const sdgFocus = sdgFocusStr ? JSON.parse(sdgFocusStr) : undefined;
+    
+    const interestsStr = formData.get('interests') as string | null;
+    const interests = interestsStr ? JSON.parse(interestsStr) : undefined;
+    
+    const skillsStr = formData.get('skills') as string | null;
+    const skills = skillsStr ? JSON.parse(skillsStr) : undefined;
+    
+    const languagesStr = formData.get('languages') as string | null;
+    const languages = languagesStr ? JSON.parse(languagesStr) : undefined;
+
+    // Update user profile
+    const updatedUser = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        firstName,
+        lastName,
+        displayName,
+        bio,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
+        gender,
+        nationality,
+        city,
+        state,
+        country,
+        occupation,
+        organization,
+        website,
+        sdgFocus,
+        isPublic,
+        showEmail,
+        languages
+      }
+    });
+
+    // Update volunteer profile if interests or skills provided
+    if (interests || skills) {
+      await prisma.volunteerProfile.upsert({
+        where: { userId: session.user.id },
+        create: {
+          userId: session.user.id,
+          interests: interests || [],
+          skills: skills || []
+        },
+        update: {
+          interests: interests || [],
+          skills: skills || []
+        }
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        image: updatedUser.image,
+        userType: updatedUser.userType,
+        profile: {
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          displayName: updatedUser.displayName,
+          bio: updatedUser.bio,
+          city: updatedUser.city,
+          country: updatedUser.country,
+          website: updatedUser.website
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return NextResponse.json(
+      { error: 'Failed to update user profile' },
       { status: 500 }
     );
   }

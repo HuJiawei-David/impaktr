@@ -230,11 +230,11 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
 
   const getAchievementColor = (type: string) => {
     switch (type) {
-      case 'badge_earned': return 'from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-200 dark:border-yellow-800';
-      case 'level_up': return 'from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800';
-      case 'milestone': return 'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800';
-      case 'event_completed': return 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800';
-      default: return 'from-gray-50 to-slate-50 dark:from-gray-800 dark:to-gray-700 border-gray-200 dark:border-gray-700';
+      case 'badge_earned': return 'bg-yellow-50 dark:bg-gray-800 border-yellow-200 dark:border-gray-700';
+      case 'level_up': return 'bg-blue-50 dark:bg-gray-800 border-blue-200 dark:border-gray-700';
+      case 'milestone': return 'bg-purple-50 dark:bg-gray-800 border-purple-200 dark:border-gray-700';
+      case 'event_completed': return 'bg-green-50 dark:bg-gray-800 border-green-200 dark:border-gray-700';
+      default: return 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700';
     }
   };
 
@@ -326,7 +326,7 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                 </div>
 
                 {/* Achievement Card */}
-                <div className={`bg-gradient-to-r ${getAchievementColor(post.type)} rounded-lg p-4 mb-3 border`}>
+                <div className={`${getAchievementColor(post.type)} rounded-lg p-4 mb-3 border`}>
                   <div className="flex items-start space-x-3">
                     {sdg && (
                       <div
@@ -340,22 +340,22 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                     
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
-                        <h5 className="font-bold text-gray-900 dark:text-white">
+                        <h5 className="font-bold text-gray-900 dark:text-gray-100">
                           {post.achievement.badgeName}
                         </h5>
                         {post.achievement.tierLevel && (
-                          <Badge className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">
+                          <Badge className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200">
                             Tier {post.achievement.tierLevel}
                           </Badge>
                         )}
                       </div>
                       
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                      <p className="text-sm text-gray-700 dark:text-gray-200 mb-2">
                         {post.achievement.description}
                       </p>
                       
                       {(post.achievement.hours || post.achievement.activities) && (
-                        <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center space-x-4 text-xs text-gray-600 dark:text-gray-300">
                           {post.achievement.hours && (
                             <div className="flex items-center space-x-1">
                               <Clock className="w-3 h-3" />

@@ -194,9 +194,9 @@ export function BadgeProgress() {
     return (
       <Card key={badge.id} className="hover:shadow-md transition-shadow">
         <CardContent className="p-4">
-          <div className="grid grid-cols-[auto,1fr] gap-4">
-            {/* First Column: SDG Badge and Name */}
-            <div className="flex flex-col items-center gap-2">
+          <div className="space-y-3">
+            {/* SDG Badge and Name - Top */}
+            <div className="flex items-center gap-3">
               <div
                 className="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white flex-shrink-0"
                 style={{ backgroundColor: getSDGColor(badge.sdgNumber) }}
@@ -204,64 +204,62 @@ export function BadgeProgress() {
                 <div className="text-xs font-bold">SDG</div>
                 <div className="text-sm font-bold leading-none">{badge.sdgNumber}</div>
               </div>
-              <div className="text-center">
-                <h4 className="font-semibold text-xs leading-tight flex items-center justify-center">
+              <div className="flex-1">
+                <h4 className="font-semibold text-sm flex items-center">
                   {badge.name}
                   {badge.earned && <Star className="w-3 h-3 ml-1 text-yellow-500 fill-current" />}
                 </h4>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground">
                   {badge.tier}
                 </p>
               </div>
             </div>
 
-            {/* Second Column: Progress */}
-            <div className="flex flex-col justify-center">
-              {badge.earned && (
-                <Badge variant="success" className="text-xs px-2 py-1 self-start mb-2 flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  Earned
-                </Badge>
-              )}
+            {/* Earned Badge */}
+            {badge.earned && (
+              <Badge variant="success" className="text-xs px-2 py-1 w-fit flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Earned
+              </Badge>
+            )}
 
-              {/* Progress */}
-              {showProgress && !badge.earned && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className={`font-medium ${getProgressColor(badge.progress)}`}>
-                      {badge.progress}%
-                    </span>
-                  </div>
-                  <Progress value={badge.progress} className="h-2" />
-                  
-                  {/* Requirements - Only show what's still needed */}
-                  <div className="text-xs text-muted-foreground">
-                    {hoursNeeded > 0 && activitiesNeeded > 0 && (
-                      <span>Need {hoursNeeded.toFixed(1)} more hours and {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
-                    )}
-                    {hoursNeeded > 0 && activitiesNeeded <= 0 && (
-                      <span>Need {hoursNeeded.toFixed(1)} more hours</span>
-                    )}
-                    {hoursNeeded <= 0 && activitiesNeeded > 0 && (
-                      <span>Need {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
-                    )}
-                  </div>
+            {/* Progress - Full Width Below */}
+            {showProgress && !badge.earned && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Progress</span>
+                  <span className={`font-medium ${getProgressColor(badge.progress)}`}>
+                    {badge.progress}%
+                  </span>
                 </div>
-              )}
+                <Progress value={badge.progress} className="h-2" />
+                
+                {/* Requirements - Only show what's still needed */}
+                <div className="text-xs text-muted-foreground">
+                  {hoursNeeded > 0 && activitiesNeeded > 0 && (
+                    <span>Need {hoursNeeded.toFixed(1)} more hours and {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
+                  )}
+                  {hoursNeeded > 0 && activitiesNeeded <= 0 && (
+                    <span>Need {hoursNeeded.toFixed(1)} more hours</span>
+                  )}
+                  {hoursNeeded <= 0 && activitiesNeeded > 0 && (
+                    <span>Need {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
+                  )}
+                </div>
+              </div>
+            )}
 
-              {/* Next Tier */}
-              {badge.earned && badge.nextTier && (
-                <div className="mt-2 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <div className="text-xs font-semibold text-gray-900 dark:text-white mb-1">
-                    Next: {badge.nextTier.name}
-                  </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    Need {badge.nextTier.requirements.minHours} hours and {badge.nextTier.requirements.minActivities} {badge.nextTier.requirements.minActivities === 1 ? 'activity' : 'activities'}
-                  </div>
+            {/* Next Tier */}
+            {badge.earned && badge.nextTier && (
+              <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div className="text-xs font-semibold text-gray-900 dark:text-white mb-1">
+                  Next: {badge.nextTier.name}
                 </div>
-              )}
-            </div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Need {badge.nextTier.requirements.minHours} hours and {badge.nextTier.requirements.minActivities} {badge.nextTier.requirements.minActivities === 1 ? 'activity' : 'activities'}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

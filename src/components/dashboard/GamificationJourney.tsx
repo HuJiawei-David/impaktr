@@ -197,7 +197,8 @@ export function GamificationJourney({ compact = false }: GamificationJourneyProp
   };
 
   const getSDGBadgeInfo = (sdgNumber: number, tier: number) => {
-    return (SDG_BADGE_TIERS as any)[sdgNumber]?.[tier] || { 
+    const sdgTiers = SDG_BADGE_TIERS as Record<number, Record<number, { name: string; icon: string; color: string }>>;
+    return sdgTiers[sdgNumber]?.[tier] || { 
       name: `Tier ${tier}`, 
       icon: '⭐', 
       color: 'bg-gray-500' 
@@ -400,7 +401,7 @@ export function GamificationJourney({ compact = false }: GamificationJourneyProp
                   Recently Earned
                 </h4>
                 <div className="space-y-2">
-                  {gamificationData.recentBadges.map((badge, index) => {
+                  {gamificationData.recentBadges?.map((badge, index) => {
                     const badgeInfo = getSDGBadgeInfo(badge.sdgNumber, badge.tier);
                     return (
                       <div key={index} className="flex items-center space-x-3 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200/50 dark:border-green-800/50">
@@ -429,7 +430,7 @@ export function GamificationJourney({ compact = false }: GamificationJourneyProp
                   In Progress
                 </h4>
                 <div className="space-y-2">
-                  {gamificationData.progressBadges.map((badge, index) => {
+                  {gamificationData.progressBadges?.map((badge, index) => {
                     const badgeInfo = getSDGBadgeInfo(badge.sdgNumber, badge.tier);
                     return (
                       <div key={index} className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
