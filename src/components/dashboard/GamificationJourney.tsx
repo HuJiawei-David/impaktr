@@ -239,7 +239,7 @@ export function GamificationJourney({ compact = false }: GamificationJourneyProp
           Impaktr Journey
         </h3>
         
-        <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 rounded-lg border border-blue-200/50 dark:border-gray-700 space-y-2">
+        <div className="p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50 space-y-2">
           {/* Rank with icon - Line 1 */}
           <div className="flex items-center space-x-2">
             <div className="text-xl">{currentRank.icon}</div>

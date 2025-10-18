@@ -230,11 +230,11 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
 
   const getAchievementColor = (type: string) => {
     switch (type) {
-      case 'badge_earned': return 'from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-800 border-yellow-200 dark:border-gray-700';
-      case 'level_up': return 'from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border-blue-200 dark:border-gray-700';
-      case 'milestone': return 'from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-800 border-purple-200 dark:border-gray-700';
-      case 'event_completed': return 'from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-800 border-green-200 dark:border-gray-700';
-      default: return 'from-gray-50 to-slate-50 dark:from-gray-800 dark:to-gray-800 border-gray-200 dark:border-gray-700';
+      case 'badge_earned': return 'from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-200 dark:border-yellow-800';
+      case 'level_up': return 'from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800';
+      case 'milestone': return 'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800';
+      case 'event_completed': return 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800';
+      default: return 'from-gray-50 to-slate-50 dark:from-gray-800 dark:to-gray-700 border-gray-200 dark:border-gray-700';
     }
   };
 
