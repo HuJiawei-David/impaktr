@@ -176,6 +176,16 @@ export default function OrganizationEventsPage() {
     }
   };
 
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'ACTIVE': return 'Active';
+      case 'DRAFT': return 'Draft';
+      case 'COMPLETED': return 'Completed';
+      case 'CANCELLED': return 'Cancelled';
+      default: return status;
+    }
+  };
+
   const getTypeColor = (isPublic: boolean) => {
     return isPublic ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800';
   };
@@ -360,14 +370,18 @@ export default function OrganizationEventsPage() {
         {/* Events List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredEvents.map((event) => (
-            <Card key={event.id} className="hover:shadow-lg transition-shadow">
+            <Card 
+              key={event.id} 
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => router.push(`/organization/events/${event.id}`)}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="text-lg mb-2">{event.title}</CardTitle>
                     <div className="flex items-center space-x-2 mb-2">
                       <Badge className={getStatusColor(event.status)}>
-                        {event.status}
+                        {getStatusDisplay(event.status)}
                       </Badge>
                       <Badge className={getTypeColor(event.isPublic)}>
                         {event.isPublic ? 'Public' : 'Private'}
@@ -376,25 +390,41 @@ export default function OrganizationEventsPage() {
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Filter className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={() => router.push(`/events/${event.id}`)}>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/organization/events/${event.id}`);
+                      }}>
                         <Eye className="w-4 h-4 mr-3" />
                         View Event
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => router.push(`/events/${event.id}/edit`)}>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/organization/events/${event.id}/edit`);
+                      }}>
                         <Edit className="w-4 h-4 mr-3" />
                         Edit Event
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicateEvent(event.id)}>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        handleDuplicateEvent(event.id);
+                      }}>
                         <Copy className="w-4 h-4 mr-3" />
                         Duplicate Event
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => handleDeleteEvent(event.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteEvent(event.id);
+                        }}
                         className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
                         <Trash2 className="w-4 h-4 mr-3" />

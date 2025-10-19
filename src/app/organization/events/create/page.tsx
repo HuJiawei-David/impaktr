@@ -833,6 +833,7 @@ export default function CreateEventPage() {
                   type="button"
                   onClick={handleNext}
                   disabled={!watch('title') && currentStep === 1}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                 >
                   Continue
                 </Button>
@@ -840,7 +841,7 @@ export default function CreateEventPage() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-8"
+                  className="px-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
                 >
                   {isSubmitting ? 'Creating Event...' : 'Create Event'}
                 </Button>

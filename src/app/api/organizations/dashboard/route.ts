@@ -98,18 +98,26 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // Get leaderboard position (mock for now)
+    const leaderboardPosition = {
+      rank: 42,
+      total: 150,
+    };
+
+    // Calculate Global Ranking (replaces Community Impact Score)
+    // This shows where the organization ranks globally
+    const globalRanking = {
+      rank: leaderboardPosition.rank,
+      total: leaderboardPosition.total,
+      percentile: Math.round(((leaderboardPosition.total - leaderboardPosition.rank + 1) / leaderboardPosition.total) * 100)
+    };
+
     // Map KPIs to the format expected by CorporateKPIs component
     const kpis = {
       impactScore: rawKpis.averageImpactScore,
       esgScore: esgMetrics.overall,
       volunteerHours: rawKpis.volunteerHours || 0,
-      carbonOffset: 0, // TODO: Calculate actual carbon offset
-    };
-
-    // Get leaderboard position (mock for now)
-    const leaderboardPosition = {
-      rank: 42,
-      total: 150,
+      globalRanking: globalRanking,
     };
 
     // Format member data

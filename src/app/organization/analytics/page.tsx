@@ -380,7 +380,7 @@ export default function OrganizationAnalyticsPage() {
                         event.status === 'ACTIVE' ? 'default' :
                         event.status === 'COMPLETED' ? 'secondary' : 'outline'
                       }>
-                        {event.status}
+                        {event.status === 'ACTIVE' ? 'Active' : event.status === 'DRAFT' ? 'Draft' : event.status === 'COMPLETED' ? 'Completed' : event.status === 'CANCELLED' ? 'Cancelled' : event.status}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-3 gap-4 text-sm">

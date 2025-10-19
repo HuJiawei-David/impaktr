@@ -124,12 +124,38 @@ export default function OrganizationBillingPage() {
     }
   };
 
+  const getTierDisplay = (tier: string) => {
+    const tierMap: { [key: string]: string } = {
+      'REGISTERED': 'Free',
+      'STARTER': 'Starter',
+      'ACTIVE_CONTRIBUTOR': 'Active Contributor',
+      'COMMUNITY_BUILDER': 'Community Builder',
+      'IMPACT_PIONEER': 'Impact Pioneer',
+      'CHANGE_CATALYST': 'Change Catalyst',
+      'SUSTAINABILITY_CHAMPION': 'Sustainability Champion',
+      'INNOVATION_LEADER': 'Innovation Leader',
+      'GLOBAL_IMPACT_LEADER': 'Global Impact Leader',
+    };
+    return tierMap[tier] || tier.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   const getTierColor = (tier: string) => {
     switch (tier) {
-      case 'ENTERPRISE': return 'bg-purple-100 text-purple-800';
-      case 'PROFESSIONAL': return 'bg-blue-100 text-blue-800';
-      case 'STARTER': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'GLOBAL_IMPACT_LEADER':
+      case 'INNOVATION_LEADER':
+      case 'SUSTAINABILITY_CHAMPION': 
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'CHANGE_CATALYST':
+      case 'IMPACT_PIONEER':
+      case 'COMMUNITY_BUILDER': 
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'STARTER':
+      case 'ACTIVE_CONTRIBUTOR': 
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'REGISTERED':
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+      default: 
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
 
@@ -208,7 +234,7 @@ export default function OrganizationBillingPage() {
               <span className="ml-1">{billing.subscriptionStatus}</span>
             </Badge>
             <Badge className={getTierColor(billing.subscriptionTier)}>
-              {billing.subscriptionTier}
+              {getTierDisplay(billing.subscriptionTier)}
             </Badge>
           </div>
         </div>
@@ -226,9 +252,9 @@ export default function OrganizationBillingPage() {
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-2xl font-bold">{billing.subscriptionTier}</h3>
+                    <h3 className="text-2xl font-bold">{getTierDisplay(billing.subscriptionTier)}</h3>
                     <p className="text-muted-foreground">
-                      {billing.currency} {billing.price}/month
+                      {billing.currency} {billing.price.toFixed(2)}/month
                     </p>
                   </div>
                   <div className="text-right">
@@ -331,12 +357,12 @@ export default function OrganizationBillingPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Current Plan</span>
-                  <span className="font-semibold">{billing.subscriptionTier}</span>
+                  <span className="font-semibold">{getTierDisplay(billing.subscriptionTier)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Monthly Cost</span>
                   <span className="font-semibold">
-                    {billing.currency} {billing.price}
+                    {billing.currency} {billing.price.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -348,7 +374,7 @@ export default function OrganizationBillingPage() {
                 <div className="border-t pt-4">
                   <div className="flex justify-between font-semibold">
                     <span>Total</span>
-                    <span>{billing.currency} {billing.price}</span>
+                    <span>{billing.currency} {billing.price.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -365,17 +391,17 @@ export default function OrganizationBillingPage() {
                     <div key={invoice.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div>
                         <p className="font-semibold text-sm">
-                          {invoice.currency} {invoice.amount}
+                          {invoice.currency} {invoice.amount.toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {new Date(invoice.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge variant={
-                          invoice.status === 'paid' ? 'default' : 
-                          invoice.status === 'pending' ? 'secondary' : 'destructive'
-                        }>
+                        <Badge 
+                          variant={invoice.status === 'paid' ? 'default' : invoice.status === 'pending' ? 'secondary' : 'destructive'}
+                          className={invoice.status === 'paid' ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0' : ''}
+                        >
                           {invoice.status}
                         </Badge>
                         <Button

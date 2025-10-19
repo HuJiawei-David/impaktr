@@ -72,7 +72,7 @@ export default function MethodologyPage() {
     },
     {
       question: "How are organization scores different from individual scores?",
-      answer: "Organization scores focus on collective impact, employee engagement, and program quality. They measure participation rates, average hours per employee, quality ratings, verification rates, skills usage, and SDG diversity."
+      answer: "Organization scores focus on collective impact, employee engagement, and community mobilization. They measure participation rates, total volunteer hours (including external volunteers), quality ratings, verification rates, skills usage, event diversity, and community reach. Scores range from 0-1000+ points."
     },
     {
       question: "Can I lose points or badges?",
@@ -396,15 +396,15 @@ export default function MethodologyPage() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <p className="text-lg">
-                      Organizations are measured differently from individuals, focusing on <strong>collective impact</strong>, <strong>employee engagement</strong>, and <strong>program quality</strong>. The Organization Score (0-100) reflects corporate social responsibility performance.
+                      Organizations are measured differently from individuals, focusing on <strong>collective impact</strong>, <strong>employee engagement</strong>, and <strong>program quality</strong>. The Organization Score (0-1000+) reflects corporate social responsibility performance and community mobilization.
                     </p>
 
                     <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/30 dark:to-indigo-950/30 border-2 border-purple-200 dark:border-purple-800 rounded-lg p-6">
                       <div className="font-mono text-center text-lg mb-4">
-                        Org Score = (E + H + Q + V + S + C) × G × 100
+                        Org Score = (E + H + Q + V + S + I + C) × G × 1000
                       </div>
                       <p className="text-sm text-center text-muted-foreground">
-                        Maximum score: 100 (representing 100% excellence across all metrics)
+                        Maximum score: 1000+ points (includes external volunteers and community impact)
                       </p>
                     </div>
 
@@ -439,8 +439,9 @@ export default function MethodologyPage() {
                                 <code className="bg-muted px-2 py-1 rounded">log₁₀(Total Hours / Total Members + 1) × 0.15</code>
                               </p>
                               <p className="text-sm">
-                                Average volunteer hours per employee (log-scaled for fairness). Measures organizational
-                                commitment by time invested per employee, not just total hours.
+                                <strong>Now includes ALL volunteer hours</strong> (employees + external volunteers) per employee. 
+                                Measures organizational commitment and community mobilization by time invested per employee, 
+                                rewarding organizations that engage external volunteers.
                               </p>
                             </div>
                           </div>
@@ -504,15 +505,35 @@ export default function MethodologyPage() {
                       <Card className="border-l-4 border-orange-500">
                         <CardContent className="pt-6">
                           <div className="flex items-start gap-4">
-                            <Target className="w-6 h-6 text-orange-600 mt-1" />
+                            <Zap className="w-6 h-6 text-orange-600 mt-1" />
                             <div>
-                              <h4 className="font-semibold text-lg mb-2">C = Cause Diversity (10%)</h4>
+                              <h4 className="font-semibold text-lg mb-2">I = Innovation Factor (10%)</h4>
                               <p className="text-sm text-muted-foreground mb-2">
-                                <code className="bg-muted px-2 py-1 rounded">min(Unique SDGs / 17, 1) × 0.10</code>
+                                <code className="bg-muted px-2 py-1 rounded">min(Unique Event Types / 5, 1) × 0.10</code>
                               </p>
                               <p className="text-sm">
-                                Number of different SDGs the organization works on (max 17). Encourages comprehensive
-                                CSR programs addressing multiple social and environmental challenges.
+                                <strong>NEW COMPONENT:</strong> Rewards organizations for event diversity and innovation. 
+                                Measures variety of event types (volunteering, workshops, fundraisers, etc.) to encourage 
+                                comprehensive and creative CSR programs.
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-l-4 border-teal-500">
+                        <CardContent className="pt-6">
+                          <div className="flex items-start gap-4">
+                            <Target className="w-6 h-6 text-teal-600 mt-1" />
+                            <div>
+                              <h4 className="font-semibold text-lg mb-2">C = Community Reach (10%)</h4>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                <code className="bg-muted px-2 py-1 rounded">min(Unique Participants / 100, 1) × 0.10</code>
+                              </p>
+                              <p className="text-sm">
+                                <strong>REDEFINED:</strong> Now measures unique participants (employees + external volunteers) 
+                                instead of SDG diversity. Rewards organizations that mobilize large communities and 
+                                create broad social impact beyond their own employees.
                               </p>
                             </div>
                           </div>
@@ -544,18 +565,19 @@ export default function MethodologyPage() {
                         Example Calculation
                       </h3>
                       <div className="space-y-2 text-sm">
-                        <p><strong>Scenario:</strong> Company with 100 employees, 35 participated, 500 total hours, good quality</p>
+                        <p><strong>Scenario:</strong> Company with 100 employees, 35 participated, 2000 total hours (including 1500 from external volunteers), good quality</p>
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg font-mono text-xs space-y-1 mt-3">
                           <p>E = (35 / 100) × 0.25 = 0.0875 (8.75%)</p>
-                          <p>H = log₁₀(500 / 100 + 1) × 0.15 = log₁₀(6) × 0.15 = 0.117 (11.7%)</p>
+                          <p>H = log₁₀(2000 / 100 + 1) × 0.15 = log₁₀(21) × 0.15 = 0.196 (19.6%)</p>
                           <p>Q = 1.0 × 0.15 = 0.15 (15%)</p>
-                          <p>V = (350 / 350) × 0.10 = 0.10 (10%) - all verified</p>
-                          <p>S = (150 / 350) × 0.15 = 0.064 (6.4%) - some skilled work</p>
-                          <p>C = (5 / 17) × 0.10 = 0.029 (2.9%) - worked on 5 SDGs</p>
+                          <p>V = (2000 / 2000) × 0.10 = 0.10 (10%) - all verified</p>
+                          <p>S = (800 / 2000) × 0.15 = 0.06 (6%) - some skilled work</p>
+                          <p>I = min(4 / 5, 1) × 0.10 = 0.08 (8%) - 4 event types</p>
+                          <p>C = min(150 / 100, 1) × 0.10 = 0.10 (10%) - 150 unique participants</p>
                           <p>G = 1.0 (global fairness)</p>
-                          <p className="border-t pt-2 mt-2">Score = (0.0875 + 0.117 + 0.15 + 0.10 + 0.064 + 0.029) × 1.0 × 100 = <strong className="text-purple-600">54.75 / 100</strong></p>
+                          <p className="border-t pt-2 mt-2">Score = (0.0875 + 0.196 + 0.15 + 0.10 + 0.06 + 0.08 + 0.10) × 1.0 × 1000 = <strong className="text-purple-600">773.5 points</strong></p>
                         </div>
-                        <p className="text-muted-foreground mt-3">This score places the company at <strong>CSR Practitioner</strong> tier, with room to grow in participation rate and SDG diversity.</p>
+                        <p className="text-muted-foreground mt-3">This score places the company at <strong>ESG Champion</strong> tier, demonstrating strong community mobilization and external volunteer engagement.</p>
                       </div>
                     </div>
 

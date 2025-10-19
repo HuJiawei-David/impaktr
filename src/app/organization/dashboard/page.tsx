@@ -86,8 +86,24 @@ const getOrganizationTypeDisplay = (type: string) => {
     'CORPORATE': 'Company',
     'SCHOOL': 'Educational Institution',
     'HEALTHCARE': 'Healthcare Organization',
+    'REGISTERED': 'Registered',
   };
-  return typeMap[type] || type;
+  return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+};
+
+const getSubscriptionTierDisplay = (tier: string) => {
+  const tierMap: Record<string, string> = {
+    'REGISTERED': 'Free',
+    'STARTER': 'Starter',
+    'ACTIVE_CONTRIBUTOR': 'Active Contributor',
+    'COMMUNITY_BUILDER': 'Community Builder',
+    'IMPACT_PIONEER': 'Impact Pioneer',
+    'CHANGE_CATALYST': 'Change Catalyst',
+    'SUSTAINABILITY_CHAMPION': 'Sustainability Champion',
+    'INNOVATION_LEADER': 'Innovation Leader',
+    'GLOBAL_IMPACT_LEADER': 'Global Impact Leader',
+  };
+  return tierMap[tier] || tier.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
 
 export default function OrganizationDashboardPage() {
@@ -241,7 +257,7 @@ export default function OrganizationDashboardPage() {
                   </h1>
                   <div className="flex items-center space-x-2 mt-1">
                     <Badge className={`${getTierColor(organization.subscriptionTier)} text-white`}>
-                      {organization.subscriptionTier.replace(/_/g, ' ')}
+                      {getSubscriptionTierDisplay(organization.subscriptionTier)}
                     </Badge>
                     <Badge className="bg-purple-600 dark:bg-purple-500 text-white border-0">
                       {getOrganizationTypeDisplay(organization.type)}
@@ -356,7 +372,7 @@ export default function OrganizationDashboardPage() {
                         </Avatar>
                         <div>
                           <p className="font-semibold text-gray-900 dark:text-white">{organization.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{organization.type}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{getOrganizationTypeDisplay(organization.type)}</p>
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => { setShowCreatePost(false); setNewPostContent(''); }}>
@@ -373,13 +389,13 @@ export default function OrganizationDashboardPage() {
                     <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
                       <div className="flex items-center space-x-2">
                         <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <ImageIcon className="w-5 h-5" />
+                          <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         </Button>
                         <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <Video className="w-5 h-5" />
+                          <Video className="w-5 h-5 text-green-600 dark:text-green-400" />
                         </Button>
                         <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <FileText className="w-5 h-5" />
+                          <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         </Button>
                       </div>
                       <Button onClick={handleCreateOrgPost} disabled={isCreatingPost || !newPostContent.trim()} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full px-6">

@@ -18,6 +18,8 @@ import {
   Star,
   Target,
   Zap,
+  Mail,
+  Shield,
   Building2,
   Globe
 } from 'lucide-react';
@@ -63,27 +65,27 @@ const defaultQuickStats: QuickStat[] = [
     value: 12,
     change: 15,
     icon: <Users className="h-4 w-4" />,
-    color: 'text-green-600'
+    color: 'text-green-600 dark:text-green-400 border-green-600 dark:border-green-400'
   },
   {
     label: 'Upcoming Events',
     value: 3,
     change: -2,
     icon: <Calendar className="h-4 w-4" />,
-    color: 'text-blue-600'
+    color: 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400'
   },
   {
     label: 'Badges Earned',
     value: 5,
     change: 1,
     icon: <Award className="h-4 w-4" />,
-    color: 'text-purple-600'
+    color: 'text-purple-600 dark:text-purple-400 border-purple-600 dark:border-purple-400'
   },
   {
     label: 'Pending Actions',
     value: 7,
     icon: <AlertCircle className="h-4 w-4" />,
-    color: 'text-orange-600'
+    color: 'text-orange-600 dark:text-orange-400 border-orange-600 dark:border-orange-400'
   }
 ];
 
@@ -147,31 +149,6 @@ export default function OrganizationSidebar({
   topContributors = defaultTopContributors,
   pendingActions = defaultPendingActions
 }: OrganizationSidebarProps) {
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return 'bg-red-50 dark:bg-red-900/10';
-      case 'medium':
-        return 'bg-yellow-50 dark:bg-yellow-900/10';
-      case 'low':
-        return 'bg-green-50 dark:bg-green-900/10';
-      default:
-        return 'bg-gray-50 dark:bg-gray-700';
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />;
-      case 'medium':
-        return <Clock className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />;
-      case 'low':
-        return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-600 dark:text-gray-400" />;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -249,30 +226,101 @@ export default function OrganizationSidebar({
           <CardTitle className="text-lg text-gray-900 dark:text-white">This Week</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {quickStats.map((stat, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-700 ${stat.color}`}>
-                  {stat.icon}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {stat.label}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
-                  </p>
-                </div>
+          {/* Active This Week */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
               </div>
-              {stat.change !== undefined && (
-                <div className={`text-sm font-medium ${
-                  stat.change > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {stat.change > 0 ? '+' : ''}{stat.change}%
-                </div>
-              )}
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Active This Week
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {typeof quickStats[0]?.value === 'number' ? quickStats[0].value.toLocaleString() : quickStats[0]?.value || 12}
+                </p>
+              </div>
             </div>
-          ))}
+            {quickStats[0]?.change !== undefined && (
+              <div className={`text-sm font-medium ${
+                quickStats[0].change > 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {quickStats[0].change > 0 ? '+' : ''}{quickStats[0].change}%
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming Events */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Upcoming Events
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {typeof quickStats[1]?.value === 'number' ? quickStats[1].value.toLocaleString() : quickStats[1]?.value || 3}
+                </p>
+              </div>
+            </div>
+            {quickStats[1]?.change !== undefined && (
+              <div className={`text-sm font-medium ${
+                quickStats[1].change > 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {quickStats[1].change > 0 ? '+' : ''}{quickStats[1].change}%
+              </div>
+            )}
+          </div>
+
+          {/* Badges Earned */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                <Award className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Badges Earned
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {typeof quickStats[2]?.value === 'number' ? quickStats[2].value.toLocaleString() : quickStats[2]?.value || 5}
+                </p>
+              </div>
+            </div>
+            {quickStats[2]?.change !== undefined && (
+              <div className={`text-sm font-medium ${
+                quickStats[2].change > 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {quickStats[2].change > 0 ? '+' : ''}{quickStats[2].change}%
+              </div>
+            )}
+          </div>
+
+          {/* Pending Actions */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Pending Actions
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {typeof quickStats[3]?.value === 'number' ? quickStats[3].value.toLocaleString() : quickStats[3]?.value || 7}
+                </p>
+              </div>
+            </div>
+            {quickStats[3]?.change !== undefined && (
+              <div className={`text-sm font-medium ${
+                quickStats[3].change > 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {quickStats[3].change > 0 ? '+' : ''}{quickStats[3].change}%
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -332,11 +380,12 @@ export default function OrganizationSidebar({
           <CardTitle className="text-lg text-gray-900 dark:text-white">Pending Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {pendingActions.map((action) => (
+          {/* Verification */}
+          {pendingActions.filter(a => a.type === 'verification').map((action) => (
             <div key={action.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${getPriorityColor(action.priority)}`}>
-                  {getPriorityIcon(action.priority)}
+                <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                  <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
@@ -347,7 +396,51 @@ export default function OrganizationSidebar({
                   </p>
                 </div>
               </div>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs font-semibold border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-300">
+                {action.count}
+              </Badge>
+            </div>
+          ))}
+          
+          {/* Certificate */}
+          {pendingActions.filter(a => a.type === 'certificate').map((action) => (
+            <div key={action.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                  <Award className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {action.title}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {action.description}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs font-semibold border-purple-600 dark:border-purple-400 text-purple-700 dark:text-purple-300">
+                {action.count}
+              </Badge>
+            </div>
+          ))}
+          
+          {/* Invitation */}
+          {pendingActions.filter(a => a.type === 'invitation').map((action) => (
+            <div key={action.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
+                  <Mail className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {action.title}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {action.description}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs border-green-500 dark:border-green-400 text-green-600 dark:text-green-400">
                 {action.count}
               </Badge>
             </div>

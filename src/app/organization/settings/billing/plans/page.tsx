@@ -52,7 +52,7 @@ export default function OrganizationPlansPage() {
   const isLoading = status === 'loading';
   const router = useRouter();
   
-  const [currentTier, setCurrentTier] = useState<string>('STARTER');
+  const [currentPlan, setCurrentPlan] = useState<string>('FREE');
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'annual'>('monthly');
   const [loading, setLoading] = useState(true);
 
@@ -74,7 +74,7 @@ export default function OrganizationPlansPage() {
       
       if (response.ok) {
         const data = await response.json();
-        setCurrentTier(data.billing.subscriptionTier);
+        setCurrentPlan(data.billing?.subscriptionTier || 'FREE');
       }
     } catch (err) {
       console.error('Error fetching current plan:', err);
@@ -85,21 +85,45 @@ export default function OrganizationPlansPage() {
 
   const plans: Plan[] = [
     {
-      id: 'STARTER',
-      name: 'Starter',
-      price: billingPeriod === 'monthly' ? 99 : 950,
+      id: 'FREE',
+      name: 'Free',
+      price: 0,
       currency: 'USD',
       billingPeriod,
-      description: 'Perfect for small teams getting started with impact tracking',
+      description: 'Perfect for small organizations getting started',
       icon: <Zap className="w-6 h-6" />,
+      color: 'bg-gray-500',
+      features: [
+        'Up to 10 team members',
+        'Up to 5 events per month',
+        'Basic impact analytics',
+        'Community features',
+        'Email support',
+        '1 GB storage'
+      ],
+      limits: {
+        members: 10,
+        events: 5,
+        storage: '1 GB',
+        support: 'Email'
+      }
+    },
+    {
+      id: 'STARTER',
+      name: 'Starter',
+      price: billingPeriod === 'monthly' ? 49 : 470,
+      currency: 'USD',
+      billingPeriod,
+      description: 'Great for growing teams making an impact',
+      icon: <Rocket className="w-6 h-6" />,
       color: 'bg-green-500',
       features: [
         'Up to 50 team members',
         'Up to 20 events per month',
-        'Basic impact analytics',
+        'Enhanced analytics',
         'ESG reporting dashboard',
-        'Community features',
-        'Email support',
+        'Priority email support',
+        'Event certificates',
         '10 GB storage',
         'Mobile app access'
       ],
@@ -107,18 +131,18 @@ export default function OrganizationPlansPage() {
         members: 50,
         events: 20,
         storage: '10 GB',
-        support: 'Email'
+        support: 'Priority Email'
       }
     },
     {
       id: 'PROFESSIONAL',
       name: 'Professional',
-      price: billingPeriod === 'monthly' ? 299 : 2870,
+      price: billingPeriod === 'monthly' ? 199 : 1910,
       currency: 'USD',
       billingPeriod,
-      description: 'For growing organizations serious about their social impact',
+      description: 'For organizations serious about their social impact',
       icon: <Building2 className="w-6 h-6" />,
-      color: 'bg-gradient-to-r from-purple-600 to-purple-700',
+      color: 'bg-gradient-to-r from-blue-500 to-purple-600',
       recommended: true,
       features: [
         'Up to 200 team members',
@@ -126,7 +150,7 @@ export default function OrganizationPlansPage() {
         'Advanced analytics & insights',
         'Custom ESG reports',
         'White-label certificates',
-        'Priority email support',
+        'Priority support',
         'API access',
         '100 GB storage',
         'Custom branding',
@@ -138,16 +162,16 @@ export default function OrganizationPlansPage() {
         members: 200,
         events: 999999,
         storage: '100 GB',
-        support: 'Priority Email'
+        support: 'Priority + Chat'
       }
     },
     {
       id: 'ENTERPRISE',
       name: 'Enterprise',
-      price: billingPeriod === 'monthly' ? 799 : 7670,
+      price: billingPeriod === 'monthly' ? 499 : 4790,
       currency: 'USD',
       billingPeriod,
-      description: 'For large enterprises with complex impact management needs',
+      description: 'For large enterprises with complex impact needs',
       icon: <Crown className="w-6 h-6" />,
       color: 'bg-purple-500',
       features: [
@@ -158,7 +182,7 @@ export default function OrganizationPlansPage() {
         'Advanced reporting suite',
         '24/7 phone & email support',
         'Custom integrations',
-        '1 TB storage',
+        'Unlimited storage',
         'SSO & advanced security',
         'Dedicated success manager',
         'Custom onboarding & training',
@@ -170,14 +194,14 @@ export default function OrganizationPlansPage() {
       limits: {
         members: 999999,
         events: 999999,
-        storage: '1 TB',
+        storage: 'Unlimited',
         support: '24/7 Phone & Email'
       }
     }
   ];
 
   const handleSelectPlan = (planId: string) => {
-    if (planId === currentTier) {
+    if (planId === currentPlan) {
       toast.error('You are already on this plan');
       return;
     }
@@ -200,7 +224,7 @@ export default function OrganizationPlansPage() {
     );
   }
 
-  const annualSavings = Math.round((1 - (950 + 2870 + 7670) / ((99 + 299 + 799) * 12)) * 100);
+  const annualSavings = Math.round((1 - ((470 + 1910 + 4790) / ((49 + 199 + 499) * 12))) * 100);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -256,9 +280,9 @@ export default function OrganizationPlansPage() {
         </div>
 
         {/* Plans Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
           {plans.map((plan) => {
-            const isCurrentPlan = plan.id === currentTier;
+            const isCurrentPlan = plan.id === currentPlan;
             
             return (
               <Card 
@@ -296,16 +320,22 @@ export default function OrganizationPlansPage() {
                   </CardDescription>
                   <div className="mt-4">
                     <div className="flex items-baseline">
+                      <span className="text-sm text-muted-foreground">$</span>
                       <span className="text-4xl font-bold">
-                        ${plan.price}
+                        {plan.price.toFixed(2)}
                       </span>
                       <span className="text-muted-foreground ml-2">
                         /{billingPeriod === 'monthly' ? 'mo' : 'yr'}
                       </span>
                     </div>
-                    {billingPeriod === 'annual' && (
+                    {billingPeriod === 'annual' && plan.price > 0 && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        ${Math.round(plan.price / 12)}/month billed annually
+                        ${(plan.price / 12).toFixed(2)}/month billed annually
+                      </p>
+                    )}
+                    {plan.price === 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Free forever
                       </p>
                     )}
                   </div>
@@ -369,7 +399,7 @@ export default function OrganizationPlansPage() {
                     }`}
                     variant={plan.recommended ? 'default' : 'outline'}
                   >
-                    {isCurrentPlan ? 'Current Plan' : `Upgrade to ${plan.name}`}
+                    {isCurrentPlan ? 'Current Plan' : plan.price === 0 ? 'Get Started Free' : `Upgrade to ${plan.name}`}
                   </Button>
                 </CardContent>
               </Card>
@@ -391,6 +421,7 @@ export default function OrganizationPlansPage() {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-4 px-4">Feature</th>
+                    <th className="text-center py-4 px-4">Free</th>
                     <th className="text-center py-4 px-4">Starter</th>
                     <th className="text-center py-4 px-4">Professional</th>
                     <th className="text-center py-4 px-4">Enterprise</th>
@@ -399,12 +430,14 @@ export default function OrganizationPlansPage() {
                 <tbody className="divide-y">
                   <tr>
                     <td className="py-4 px-4 font-medium">Team Members</td>
+                    <td className="text-center py-4 px-4">Up to 10</td>
                     <td className="text-center py-4 px-4">Up to 50</td>
                     <td className="text-center py-4 px-4">Up to 200</td>
                     <td className="text-center py-4 px-4">Unlimited</td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 font-medium">Events per Month</td>
+                    <td className="text-center py-4 px-4">5</td>
                     <td className="text-center py-4 px-4">20</td>
                     <td className="text-center py-4 px-4">Unlimited</td>
                     <td className="text-center py-4 px-4">Unlimited</td>
@@ -418,11 +451,13 @@ export default function OrganizationPlansPage() {
                   <tr>
                     <td className="py-4 px-4 font-medium">Custom Branding</td>
                     <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
+                    <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 font-medium">API Access</td>
+                    <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
@@ -431,16 +466,19 @@ export default function OrganizationPlansPage() {
                     <td className="py-4 px-4 font-medium">SSO & Advanced Security</td>
                     <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
+                    <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 font-medium">Dedicated Account Manager</td>
+                    <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
                   </tr>
                   <tr>
                     <td className="py-4 px-4 font-medium">SLA Guarantee</td>
+                    <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><X className="w-5 h-5 text-gray-300 mx-auto" /></td>
                     <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-500 mx-auto" /></td>
@@ -466,7 +504,7 @@ export default function OrganizationPlansPage() {
             <div>
               <h3 className="font-semibold mb-2">What happens if I exceed my limits?</h3>
               <p className="text-muted-foreground text-sm">
-                We&apos;ll notify you when you&apos;re approaching your limits. You can upgrade to a higher tier or purchase additional capacity.
+                We&apos;ll notify you when you&apos;re approaching your limits. You can upgrade to a higher plan or purchase additional capacity.
               </p>
             </div>
             <div>

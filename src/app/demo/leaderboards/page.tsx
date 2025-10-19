@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
-  Trophy, 
+  Trophy,
   Medal, 
   Award,
   Crown, 
@@ -250,7 +250,7 @@ export default function DemoLeaderboardsPage() {
                 <div className="text-right">
                   <div className="flex items-center justify-end mb-2">
                     {getRankBadge(currentUserMock.rank)}
-                  </div>
+          </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Current Rank</p>
                   <p className="text-lg font-semibold text-blue-600 dark:text-blue-400">
                     {currentUserMock.impactScore.toLocaleString()} pts
@@ -312,7 +312,7 @@ export default function DemoLeaderboardsPage() {
                     }
                   </div>
                   <ChevronDown className={`w-4 h-4 transition-transform ${showCountryDropdown ? 'rotate-180' : ''}`} />
-                </Button>
+              </Button>
                 
                 {showCountryDropdown && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50 max-h-80 overflow-hidden flex flex-col">
@@ -572,8 +572,8 @@ export default function DemoLeaderboardsPage() {
             <Button size="lg" className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
               <Sparkles className="w-5 h-5 mr-2" />
               Find Events to Join
-            </Button>
-          </Link>
+              </Button>
+            </Link>
         </div>
       </div>
     </div>

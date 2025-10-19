@@ -200,7 +200,7 @@ export default function EventGalleryPage({ params }: EventGalleryPageProps) {
                     variant={event.status === 'ACTIVE' ? 'default' : 'secondary'}
                     className="capitalize"
                   >
-                    {event.status.toLowerCase()}
+                    {event.status === 'ACTIVE' ? 'Active' : event.status === 'DRAFT' ? 'Draft' : event.status === 'COMPLETED' ? 'Completed' : event.status === 'CANCELLED' ? 'Cancelled' : event.status}
                   </Badge>
                 </div>
               </CardContent>

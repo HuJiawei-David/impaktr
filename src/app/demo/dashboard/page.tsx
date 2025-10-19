@@ -307,8 +307,8 @@ export default function DemoDashboardPage() {
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                         {sdg.shortTitle}
-                      </p>
-                    </div>
+          </p>
+        </div>
                   </div>
                 );
               })}
@@ -1050,9 +1050,9 @@ export default function DemoDashboardPage() {
                   <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
                     <span className="text-gray-500 dark:text-gray-400">SDG Areas</span>
                     <span className="font-medium text-gray-900 dark:text-white">{mockUser.sdgFocus.length} SDGs</span>
-                  </div>
-                </div>
-                
+          </div>
+        </div>
+
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                   <div className="flex justify-between items-center text-xs mb-1">
                     <span className="text-gray-500 dark:text-gray-400">Progress to Builder</span>

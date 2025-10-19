@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -78,6 +79,15 @@ export function Navigation() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [unreadCount, setUnreadCount] = useState(3); // Mock unread count
+  const [organizationData, setOrganizationData] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    logo?: string;
+    tier: string;
+    type: string;
+    userRole: string;
+  } | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -88,6 +98,31 @@ export function Navigation() {
   
   // Use appropriate navigation items
   const navItems = isOrganization ? organizationNavItems : navigationItems;
+
+  // Helper function to format organization type
+  const getOrganizationTypeDisplay = (type: string) => {
+    switch (type) {
+      case 'NGO': return 'NGO';
+      case 'CORPORATE': return 'Corporation';
+      case 'SCHOOL': return 'Education Institute';
+      case 'HEALTHCARE': return 'Healthcare Organization';
+      default: return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+    }
+  };
+
+  // Fetch organization data when in organization context
+  useEffect(() => {
+    if (isOrgContext && user) {
+      fetch('/api/organization/current')
+        .then(res => res.json())
+        .then(data => {
+          if (data.organization) {
+            setOrganizationData(data.organization);
+          }
+        })
+        .catch(err => console.error('Error fetching organization data:', err));
+    }
+  }, [isOrgContext, user]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -383,23 +418,44 @@ export function Navigation() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-xl overflow-hidden" align="end" forceMount>
                     {/* Profile Header */}
-                    <div className="px-4 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
+                    <div className="px-4 py-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-12 w-12 ring-2 ring-purple-100 dark:ring-purple-800">
-                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg" delayMs={0}>
-                            {user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
-                          </AvatarFallback>
+                          {isOrgContext && organizationData ? (
+                            <>
+                              {organizationData.logo ? (
+                                <Image 
+                                  src={organizationData.logo} 
+                                  alt={organizationData.name}
+                                  width={48}
+                                  height={48}
+                                  className="h-full w-full object-cover rounded-full"
+                                />
+                              ) : (
+                                <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg" delayMs={0}>
+                                  {organizationData.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'O'}
+                                </AvatarFallback>
+                              )}
+                            </>
+                          ) : (
+                            <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-lg" delayMs={0}>
+                              {user.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+                            </AvatarFallback>
+                          )}
                         </Avatar>
                         <div className="flex flex-col space-y-1 min-w-0 flex-1">
                           <p className="font-semibold text-base text-gray-900 dark:text-white truncate">
-                            {user.name}
+                            {isOrgContext && organizationData ? organizationData.name : user.name}
                           </p>
                           <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                            {user.email}
+                            {isOrgContext && organizationData ? organizationData.email : user.email}
                           </p>
                           <div>
                             <Badge className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 border-0">
-                              {user.userType === 'NGO' ? 'NGO' : user.userType === 'COMPANY' ? 'Company' : 'Individual'}
+                              {isOrgContext && organizationData 
+                                ? getOrganizationTypeDisplay(organizationData.type)
+                                : user.userType === 'NGO' ? 'NGO' : user.userType === 'COMPANY' ? 'Company' : 'Individual'
+                              }
                             </Badge>
                           </div>
                         </div>

@@ -121,7 +121,7 @@ export function SDGSelector({
   return (
     <div className="space-y-6">
       {showSelectAll && (
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 rounded-xl border border-blue-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
           <p className="text-sm font-semibold text-gray-900 dark:text-white">
             <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{selectedSDGs.length}</span>
             <span className="text-gray-600 dark:text-gray-300"> of 17 SDGs selected</span>

@@ -101,6 +101,45 @@ export default function OrganizationOpportunitiesPage() {
     sdg: '',
   });
 
+  // Helper function to get badge color based on content
+  const getBadgeColor = (text: string, type: 'requirement' | 'skill') => {
+    const lowerText = text.toLowerCase();
+    
+    if (type === 'requirement') {
+      // Requirements color scheme
+      if (lowerText.includes('experience') || lowerText.includes('years')) {
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      } else if (lowerText.includes('skill') || lowerText.includes('ability')) {
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      } else if (lowerText.includes('available') || lowerText.includes('time')) {
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      } else if (lowerText.includes('check') || lowerText.includes('background')) {
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      } else if (lowerText.includes('transportation') || lowerText.includes('location')) {
+        return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200';
+      } else {
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+      }
+    } else {
+      // Skills color scheme
+      if (lowerText.includes('leadership') || lowerText.includes('management')) {
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      } else if (lowerText.includes('teaching') || lowerText.includes('education')) {
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200';
+      } else if (lowerText.includes('computer') || lowerText.includes('technical') || lowerText.includes('data')) {
+        return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200';
+      } else if (lowerText.includes('communication') || lowerText.includes('patience')) {
+        return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
+      } else if (lowerText.includes('environmental') || lowerText.includes('sustainability')) {
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200';
+      } else if (lowerText.includes('research') || lowerText.includes('analysis')) {
+        return 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200';
+      } else {
+        return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200';
+      }
+    }
+  };
+
   useEffect(() => {
     if (status === 'loading') return;
     
@@ -422,7 +461,7 @@ export default function OrganizationOpportunitiesPage() {
                       {newOpportunity.requirements.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {newOpportunity.requirements.map((req, index) => (
-                            <Badge key={index} variant="secondary" className="cursor-pointer" onClick={() => removeRequirement(req)}>
+                            <Badge key={index} className={`cursor-pointer ${getBadgeColor(req, 'requirement')}`} onClick={() => removeRequirement(req)}>
                               {req} ×
                             </Badge>
                           ))}
@@ -446,7 +485,7 @@ export default function OrganizationOpportunitiesPage() {
                       {newOpportunity.skills.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {newOpportunity.skills.map((skill, index) => (
-                            <Badge key={index} variant="outline" className="cursor-pointer" onClick={() => removeSkill(skill)}>
+                            <Badge key={index} className={`cursor-pointer ${getBadgeColor(skill, 'skill')}`} onClick={() => removeSkill(skill)}>
                               {skill} ×
                             </Badge>
                           ))}
@@ -481,8 +520,8 @@ export default function OrganizationOpportunitiesPage() {
                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                               {opportunity.title}
                             </h3>
-                            <Badge variant={opportunity.status === 'OPEN' ? 'default' : 'secondary'}>
-                              {opportunity.status}
+                            <Badge className={opportunity.status === 'OPEN' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}>
+                              {opportunity.status === 'OPEN' ? 'Open' : 'Closed'}
                             </Badge>
                           </div>
                           
@@ -517,7 +556,7 @@ export default function OrganizationOpportunitiesPage() {
                               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Requirements:</h4>
                               <div className="flex flex-wrap gap-1">
                                 {opportunity.requirements.map((req, index) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
+                                  <Badge key={index} className={`text-xs ${getBadgeColor(req, 'requirement')}`}>
                                     {req}
                                   </Badge>
                                 ))}
@@ -530,7 +569,7 @@ export default function OrganizationOpportunitiesPage() {
                               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Skills:</h4>
                               <div className="flex flex-wrap gap-1">
                                 {opportunity.skills.map((skill, index) => (
-                                  <Badge key={index} variant="outline" className="text-xs">
+                                  <Badge key={index} className={`text-xs ${getBadgeColor(skill, 'skill')}`}>
                                     {skill}
                                   </Badge>
                                 ))}
@@ -550,20 +589,19 @@ export default function OrganizationOpportunitiesPage() {
                             
                             <div className="flex space-x-2">
                               <Button 
-                                variant="outline" 
-                                size="sm"
                                 onClick={() => {
                                   setSelectedOpportunity(opportunity);
                                   fetchApplications(opportunity.id);
                                   setActiveTab('applications');
                                 }}
+                                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
                               >
-                                <Eye className="h-4 w-4 mr-1" />
+                                <Eye className="h-4 w-4 mr-2" />
                                 View Applications
                               </Button>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm">
+                                  <Button variant="ghost" className="px-3 py-2 hover:bg-transparent">
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>

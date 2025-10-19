@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus } from '@/types/events';
 import { OrganizationMember, Participation } from '@prisma/client';
+import { calculateImpaktrScore } from '@/lib/scoring';
 
 // Types for notification data
 interface NotificationData {
@@ -157,19 +158,36 @@ export async function PUT(
       });
 
       for (const participation of verifiedParticipations) {
-        // Calculate new impact score (you'd implement this based on your scoring algorithm)
-        const scoreIncrease = calculateScoreIncrease(participation);
+        // Calculate new impact score using the proper scoring algorithm
+        const oldScore = participation.user.impactScore;
+        const newScore = await calculateImpaktrScore(participation.userId);
+        const scoreIncrease = newScore - oldScore;
         
         await prisma.user.update({
           where: { id: participation.userId },
           data: {
-            impactScore: {
-              increment: scoreIncrease
-            }
+            impactScore: newScore
           }
         });
 
-        // Score history tracking removed - model doesn't exist
+        // Create score history entry
+        await prisma.scoreHistory.create({
+          data: {
+            userId: participation.userId,
+            oldScore,
+            newScore,
+            change: scoreIncrease,
+            reason: 'event_completion',
+            hoursComponent: participation.hours || 0,
+            intensityComponent: 1.0, // Will be calculated in the scoring function
+            skillComponent: 1.0, // Will be calculated in the scoring function
+            qualityComponent: 1.0, // Will be calculated in the scoring function
+            verificationComponent: 1.0, // Will be calculated in the scoring function
+            locationComponent: 1.0, // Will be calculated in the scoring function
+            eventId: participation.eventId,
+            participationId: participation.id,
+          }
+        });
       }
 
       // Check and award badges for participants
@@ -321,15 +339,6 @@ export async function GET(
 }
 
 // Helper functions
-function calculateScoreIncrease(participation: Participation): number {
-  const baseScore = (participation.hours || 0) * 10;
-  const intensityMultiplier = 1.0; // event relation not available in Participation model
-  const skillMultiplier = 1.0; // skillMultiplier field not available in Participation model
-  const qualityMultiplier = 1.0; // qualityRating field not available in Participation model
-  
-  return Math.round(baseScore * intensityMultiplier * skillMultiplier * qualityMultiplier);
-}
-
 async function checkAndAwardBadges(userId: string): Promise<void> {
   // Implement your badge checking logic here
   // This should check user's total hours per SDG and award appropriate badges

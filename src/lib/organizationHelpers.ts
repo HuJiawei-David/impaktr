@@ -14,7 +14,14 @@ export async function calculateOrganizationKPIs(orgId: string) {
           },
         },
         activities: true,
-        events: true,
+        events: {
+          include: {
+            participations: {
+              where: { status: 'VERIFIED' },
+              include: { user: true }
+            }
+          }
+        },
       },
     });
 
@@ -29,6 +36,13 @@ export async function calculateOrganizationKPIs(orgId: string) {
     const participationRate = totalMembers > 0
       ? (activeMembers / totalMembers) * 100
       : 0;
+
+    // Calculate total volunteer hours including external volunteers
+    const totalVolunteerHours = organization.events.reduce((sum, event) => {
+      return sum + event.participations.reduce((eventSum, p) => {
+        return eventSum + (p.hours || 0);
+      }, 0);
+    }, 0);
 
     const totalImpactScore = organization.members.reduce(
       (sum, m) => sum + m.user.impactScore,
@@ -45,6 +59,7 @@ export async function calculateOrganizationKPIs(orgId: string) {
         participationRate: Math.round(participationRate * 10) / 10,
         averageImpactScore: Math.round(averageImpactScore),
         eventCount: organization.events.length,
+        volunteerHours: totalVolunteerHours, // Now includes external volunteers
       },
     });
 
@@ -54,7 +69,7 @@ export async function calculateOrganizationKPIs(orgId: string) {
       participationRate,
       averageImpactScore,
       eventCount: organization.events.length,
-      volunteerHours: organization.volunteerHours,
+      volunteerHours: totalVolunteerHours, // Now includes external volunteers
     };
   } catch (error) {
     console.error('Calculate KPIs error:', error);

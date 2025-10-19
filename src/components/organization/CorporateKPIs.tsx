@@ -2,13 +2,17 @@
 'use client';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Users, Clock, Leaf } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Clock, Trophy } from 'lucide-react';
 
 interface KPIData {
   impactScore?: number;
   esgScore?: number;
   volunteerHours?: number;
-  carbonOffset?: number;
+  globalRanking?: {
+    rank: number;
+    total: number;
+    percentile: number;
+  };
 }
 
 interface CorporateKPIsProps {
@@ -66,7 +70,7 @@ export default function CorporateKPIs({ kpis }: CorporateKPIsProps) {
     impactScore: 12.5,
     esgScore: 8.3,
     volunteerHours: 15.7,
-    carbonOffset: 22.1,
+    globalRanking: 3.2, // +3 positions this month
   };
 
   return (
@@ -99,12 +103,12 @@ export default function CorporateKPIs({ kpis }: CorporateKPIsProps) {
       />
 
       <KPICard
-        title="Carbon Offset"
-        value={`${(kpis?.carbonOffset || 0).toLocaleString()} kg`}
-        subtitle="CO₂ reduced this quarter"
-        trend={trends.carbonOffset}
-        icon={<Leaf className="h-6 w-6 text-white" />}
-        iconBgColor="bg-green-600"
+        title="Global Ranking"
+        value={`#${kpis?.globalRanking?.rank || 0} of ${kpis?.globalRanking?.total || 0}`}
+        subtitle={`Top ${kpis?.globalRanking?.percentile || 0}% globally`}
+        trend={trends.globalRanking}
+        icon={<Trophy className="h-6 w-6 text-white" />}
+        iconBgColor="bg-yellow-600"
       />
     </div>
   );
