@@ -666,7 +666,9 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
                 {filterStatus === 'all' && 'Begin your impact journey by joining events.'}
               </p>
               <Link href="/events">
-                <Button>Find Events</Button>
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-4 py-2">
+                  Find Events
+                </Button>
               </Link>
             </div>
           )}

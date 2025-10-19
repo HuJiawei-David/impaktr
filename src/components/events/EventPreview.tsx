@@ -32,6 +32,24 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { formatDate, formatTimeAgo, getInitials, getSDGColor, getSDGName } from '@/lib/utils';
 import Image from 'next/image';
 
+const getVerificationTypeDisplay = (type: string) => {
+  const types: Record<string, string> = {
+    // Official Prisma types
+    'SELF': 'Self Reported',
+    'ORGANIZER': 'Organizer Verified', 
+    'PEER': 'Peer Verified',
+    'GPS': 'Location Verified',
+    
+    // Additional types used in practice
+    'PHOTO': 'Photo Proof',
+    'CHECK_IN': 'On-Site Verified',
+    'ATTENDANCE': 'Attendance Tracking',
+    'AUTOMATIC': 'Automatic'
+  };
+  const displayText = types[type] || 'Organizer Verified';
+  return displayText.charAt(0).toUpperCase() + displayText.slice(1);
+};
+
 interface EventPreviewProps {
   event: {
     id: string;
@@ -375,8 +393,8 @@ export function EventPreview({
                   </div>
                   <div className="flex items-center gap-1">
                     {getVerificationIcon()}
-                    <span className="capitalize">
-                      {event.verificationType.toLowerCase()} Verification
+                    <span>
+                      {getVerificationTypeDisplay(event.verificationType || 'ORGANIZER')}
                     </span>
                   </div>
                 </div>

@@ -301,6 +301,7 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
                   </Button>
                   <Button
                     size="sm"
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-4 py-2"
                     onClick={() => handleEditComment(comment.id)}
                   >
                     Save
@@ -368,6 +369,7 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
                 </Button>
                 <Button
                   size="sm"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-4 py-2"
                   onClick={() => handleSubmitReply(comment.id)}
                   disabled={!replyText.trim()}
                 >
@@ -425,6 +427,7 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
                   <Button 
                     type="submit" 
                     size="sm"
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-4 py-2"
                     disabled={!newComment.trim() || isSubmitting || newComment.length > 500}
                   >
                     <Send className="w-4 h-4 mr-2" />

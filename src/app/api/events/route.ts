@@ -86,6 +86,10 @@ export async function GET(request: NextRequest) {
       where.startDate = { lte: endDate };
     }
 
+    // Get session to check bookmark status
+    const session = await getSession();
+    const userId = session?.user?.id;
+
     const [events, total] = await Promise.all([
       prisma.event.findMany({
         where,
@@ -100,14 +104,28 @@ export async function GET(request: NextRequest) {
                 where: { status: 'VERIFIED' }
               }
             }
-          }
+          },
+          // Include bookmark status if user is logged in
+          ...(userId && {
+            bookmarks: {
+              where: { userId },
+              select: { id: true }
+            }
+          })
         },
       }),
       prisma.event.count({ where }),
     ]);
 
+    // Transform events to include bookmark status
+    const eventsWithBookmarks = events.map(event => ({
+      ...event,
+      isBookmarked: userId ? event.bookmarks && event.bookmarks.length > 0 : false,
+      bookmarks: undefined // Remove the bookmarks array from response
+    }));
+
     return NextResponse.json({
-      events,
+      events: eventsWithBookmarks,
       pagination: {
         page,
         limit,

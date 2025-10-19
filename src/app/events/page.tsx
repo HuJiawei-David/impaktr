@@ -82,6 +82,7 @@ interface Event {
   distance?: number;
   trending?: boolean;
   featured?: boolean;
+  isBookmarked?: boolean;
 }
 
 interface EventFilters {
@@ -193,13 +194,19 @@ function EventsPageContent() {
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
+      console.log('Fetching events...');
       const response = await fetch('/api/events');
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
         throw new Error('Failed to fetch events');
       }
 
       const data = await response.json();
+      console.log('Data received:', data);
       
       // Transform API data to match our Event interface
       const transformedEvents: Event[] = data.events.map((event: any) => {
@@ -250,7 +257,8 @@ function EventsPageContent() {
           isFavorited: false,
           isAttending: false,
           trending: false,
-          featured: false
+          featured: false,
+          isBookmarked: event.isBookmarked || false
         };
       });
       
@@ -258,6 +266,7 @@ function EventsPageContent() {
       filterEventsByTab(transformedEvents, activeTab);
     } catch (error) {
       console.error('Error fetching events:', error);
+      console.error('Error details:', error);
       setEvents([]);
       setFilteredEvents([]);
     } finally {
@@ -296,7 +305,7 @@ function EventsPageContent() {
         filtered = eventList.filter(event => event.isAttending);
         break;
       case 'favorites':
-        filtered = eventList.filter(event => event.isFavorited);
+        filtered = eventList.filter(event => event.isBookmarked);
         break;
       default:
         filtered = eventList;
@@ -357,6 +366,14 @@ function EventsPageContent() {
     setEvents(prev => prev.map(event => 
       event.id === eventId 
         ? { ...event, isFavorited: !event.isFavorited }
+        : event
+    ));
+  };
+
+  const toggleBookmark = (eventId: string) => {
+    setEvents(prev => prev.map(event => 
+      event.id === eventId 
+        ? { ...event, isBookmarked: !event.isBookmarked }
         : event
     ));
   };
@@ -919,7 +936,7 @@ function EventsPageContent() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} onToggleFavorite={toggleFavorite} />
+              <EventCard key={event.id} event={event} onToggleFavorite={toggleFavorite} onToggleBookmark={toggleBookmark} />
             ))}
           </div>
         )}

@@ -20,6 +20,24 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDate, formatTimeAgo, getInitials } from '@/lib/utils';
 
+const getVerificationTypeDisplay = (type: string) => {
+  const types: Record<string, string> = {
+    // Official Prisma types
+    'SELF': 'Self Reported',
+    'ORGANIZER': 'Organizer Verified', 
+    'PEER': 'Peer Verified',
+    'GPS': 'Location Verified',
+    
+    // Additional types used in practice
+    'PHOTO': 'Photo Proof',
+    'CHECK_IN': 'On-Site Verified',
+    'ATTENDANCE': 'Attendance Tracking',
+    'AUTOMATIC': 'Automatic'
+  };
+  const displayText = types[type] || 'Organizer Verified';
+  return displayText.charAt(0).toUpperCase() + displayText.slice(1);
+};
+
 interface Event {
   id: string;
   title: string;
@@ -51,22 +69,38 @@ interface Event {
   };
   createdAt: string;
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  isBookmarked?: boolean;
 }
 
 interface EventCardProps {
   event: Event;
   showActions?: boolean;
+  onToggleBookmark?: (eventId: string) => void;
 }
 
-export function EventCard({ event, showActions = true }: EventCardProps) {
+export function EventCard({ event, showActions = true, onToggleBookmark }: EventCardProps) {
   const isFull = !!event.maxParticipants && event.currentParticipants >= event.maxParticipants;
   const isUpcoming = new Date(event.startDate) > new Date();
   const isToday = new Date(event.startDate).toDateString() === new Date().toDateString();
   
-  const handleSave = (e: React.MouseEvent) => {
+  const handleSave = async (e: React.MouseEvent) => {
     e.preventDefault();
-    // Implement save event functionality
-    console.log('Saving event:', event.id);
+    e.stopPropagation();
+    
+    try {
+      const response = await fetch(`/api/events/${event.id}/bookmark`, {
+        method: event.isBookmarked ? 'DELETE' : 'POST'
+      });
+
+      if (!response.ok) throw new Error('Failed to update bookmark');
+
+      // Update the event in the parent component
+      if (onToggleBookmark) {
+        onToggleBookmark(event.id);
+      }
+    } catch (error) {
+      console.error('Failed to update bookmark:', error);
+    }
   };
 
   const handleShare = (e: React.MouseEvent) => {
@@ -133,10 +167,14 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="h-8 w-8 p-0"
+                  className={`h-8 w-8 p-0 ${
+                    event.isBookmarked 
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0' 
+                      : 'hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white'
+                  }`}
                   onClick={handleSave}
                 >
-                  <Heart className="w-4 h-4" />
+                  <Heart className={`w-4 h-4 ${event.isBookmarked ? 'fill-current' : ''}`} />
                 </Button>
                 <Button
                   size="sm"
@@ -268,7 +306,7 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
             {/* Verification Type */}
             <div className="flex items-center text-xs text-muted-foreground">
               <CheckCircle className="w-3 h-3 mr-1" />
-              <span className="capitalize">{event.verificationType.toLowerCase()} verified</span>
+              <span>{getVerificationTypeDisplay(event.verificationType || 'ORGANIZER')}</span>
             </div>
 
             {/* Time since posted */}

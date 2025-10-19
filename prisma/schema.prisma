@@ -89,6 +89,7 @@ model User {
   vettingRequests          VettingRequest[]
   vettingResponses         VettingResponse[]
   volunteerProfile         VolunteerProfile?
+  eventBookmarks           EventBookmark[]
 
   @@map("users")
 }
@@ -385,11 +386,25 @@ model Event {
   organizationLocation OrganizationLocation? @relation(fields: [locationId], references: [id])
   organization         Organization?         @relation(fields: [organizationId], references: [id])
   participations       Participation[]
+  bookmarks            EventBookmark[]
 
   @@index([startDate])
   @@index([type])
   @@index([isPublic])
   @@map("events")
+}
+
+model EventBookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("event_bookmarks")
 }
 
 model Post {

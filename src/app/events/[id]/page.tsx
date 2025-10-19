@@ -336,7 +336,8 @@ export default function EventDetailPage() {
       'ATTENDANCE': 'Attendance Tracking',
       'AUTOMATIC': 'Automatic'
     };
-    return types[type] || 'Organizer Verified';
+    const displayText = types[type] || 'Organizer Verified';
+    return displayText.charAt(0).toUpperCase() + displayText.slice(1);
   };
 
   const isEventFull = event?.maxParticipants && event.currentParticipants >= event.maxParticipants;
@@ -362,7 +363,9 @@ export default function EventDetailPage() {
           <h2 className="text-2xl font-bold mb-2">Event Not Found</h2>
           <p className="text-muted-foreground mb-4">This event may have been deleted or moved.</p>
           <Link href="/events">
-            <Button>Browse Events</Button>
+            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-4 py-2">
+              Browse Events
+            </Button>
           </Link>
         </div>
       </div>
@@ -390,7 +393,11 @@ export default function EventDetailPage() {
           {/* Overlay with actions */}
           <div className="absolute inset-0 bg-black/20">
             <div className="absolute top-4 right-4 flex space-x-2">
-              <Button size="sm" variant="secondary" onClick={handleShare} className="px-4 py-2">
+              <Button 
+                size="sm" 
+                onClick={handleShare} 
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 px-4 py-2"
+              >
                 <Share2 className="w-4 h-4 mr-2" />
                 Share
               </Button>
@@ -398,9 +405,12 @@ export default function EventDetailPage() {
               {user && (
                 <Button 
                   size="sm" 
-                  variant={isBookmarked ? "default" : "secondary"}
                   onClick={handleBookmark}
-                  className="px-4 py-2"
+                  className={`px-4 py-2 ${
+                    isBookmarked 
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0' 
+                      : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0'
+                  }`}
                 >
                   <Heart className={`w-4 h-4 mr-2 ${isBookmarked ? 'fill-current' : ''}`} />
                   {isBookmarked ? 'Saved' : 'Save'}
@@ -609,7 +619,7 @@ export default function EventDetailPage() {
                         <div>
                           <div className="font-medium">Verification</div>
                           <div className="text-sm text-muted-foreground">
-                            {event.verificationType.toLowerCase()} verified
+                            {getVerificationTypeDisplay(event.verificationType || 'ORGANIZER')}
                           </div>
                         </div>
                       </div>
@@ -960,7 +970,11 @@ export default function EventDetailPage() {
             {/* Report Event */}
             <Card>
               <CardContent className="p-4">
-                <Button variant="ghost" size="sm" className="w-full text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800 py-3">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full text-muted-foreground hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white border-0 py-3"
+                >
                   <Flag className="w-4 h-4 mr-2" />
                   Report Event
                 </Button>
