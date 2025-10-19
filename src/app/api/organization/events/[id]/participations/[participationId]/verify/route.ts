@@ -72,6 +72,7 @@ export async function POST(
     // Create a verification record
     await prisma.verification.create({
       data: {
+        userId: participation.userId,
         participationId,
         type: 'ORGANIZER',
         status: 'APPROVED',
