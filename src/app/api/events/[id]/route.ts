@@ -34,10 +34,6 @@ export async function GET(
   try {
     const { id } = await params;
     
-    // Get session to check bookmark status
-    const session = await getSession();
-    const userId = session?.user?.id;
-    
     const event = await prisma.event.findUnique({
       where: { id },
       include: {
@@ -54,14 +50,7 @@ export async function GET(
               where: { status: 'VERIFIED' }
             }
           }
-        },
-        // Include bookmark status if user is logged in
-        ...(userId && {
-          bookmarks: {
-            where: { userId },
-            select: { id: true }
-          }
-        })
+        }
       },
     });
 
@@ -69,11 +58,28 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
+    // Get session to check bookmark status
+    const session = await getSession();
+    const userId = session?.user?.id;
+
+    // Check if user has bookmarked this event
+    let isBookmarked = false;
+    if (userId) {
+      const bookmark = await prisma.eventBookmark.findUnique({
+        where: {
+          userId_eventId: {
+            userId,
+            eventId: id
+          }
+        }
+      });
+      isBookmarked = !!bookmark;
+    }
+
     // Transform event to include bookmark status
     const eventWithBookmark = {
       ...event,
-      isBookmarked: userId ? event.bookmarks && event.bookmarks.length > 0 : false,
-      bookmarks: undefined // Remove the bookmarks array from response
+      isBookmarked
     };
 
     return NextResponse.json({ event: eventWithBookmark });

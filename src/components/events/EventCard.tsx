@@ -86,6 +86,7 @@ export function EventCard({ event, showActions = true, onToggleBookmark }: Event
   const handleSave = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    e.nativeEvent.stopImmediatePropagation();
     
     try {
       const response = await fetch(`/api/events/${event.id}/bookmark`, {
@@ -98,6 +99,8 @@ export function EventCard({ event, showActions = true, onToggleBookmark }: Event
       if (onToggleBookmark) {
         onToggleBookmark(event.id);
       }
+      
+      console.log(event.isBookmarked ? 'Removed from favorites' : 'Added to favorites');
     } catch (error) {
       console.error('Failed to update bookmark:', error);
     }

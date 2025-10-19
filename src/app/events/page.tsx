@@ -370,8 +370,16 @@ function EventsPageContent() {
     ));
   };
 
-  const toggleBookmark = (eventId: string) => {
+  const toggleBookmark = async (eventId: string) => {
+    // Optimistically update UI
     setEvents(prev => prev.map(event => 
+      event.id === eventId 
+        ? { ...event, isBookmarked: !event.isBookmarked }
+        : event
+    ));
+    
+    // Update filtered events too
+    setFilteredEvents(prev => prev.map(event => 
       event.id === eventId 
         ? { ...event, isBookmarked: !event.isBookmarked }
         : event

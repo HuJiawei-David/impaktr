@@ -139,9 +139,14 @@ export default function EventDetailPage() {
   const fetchEvent = async (eventId: string) => {
     try {
       setIsLoading(true);
+      console.log('Fetching event:', eventId);
       const response = await fetch(`/api/events/${eventId}`);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
         if (response.status === 404) {
           router.push('/events');
           toast.error('Event not found');
@@ -205,7 +210,7 @@ export default function EventDetailPage() {
       };
       
       setEvent(transformedEvent);
-      setIsBookmarked(false);
+      setIsBookmarked(rawEvent.isBookmarked || false);
     } catch (error) {
       console.error('Error fetching event:', error);
       toast.error('Failed to load event details');
