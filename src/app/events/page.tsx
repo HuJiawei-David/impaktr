@@ -305,7 +305,9 @@ function EventsPageContent() {
         filtered = eventList.filter(event => event.isAttending);
         break;
       case 'favorites':
+        console.log('Filtering favorites from', eventList.length, 'events');
         filtered = eventList.filter(event => event.isBookmarked);
+        console.log('Found', filtered.length, 'favorites:', filtered.map(e => ({id: e.id, title: e.title, isBookmarked: e.isBookmarked})));
         break;
       default:
         filtered = eventList;
@@ -371,19 +373,22 @@ function EventsPageContent() {
   };
 
   const toggleBookmark = async (eventId: string) => {
-    // Optimistically update UI
-    setEvents(prev => prev.map(event => 
-      event.id === eventId 
-        ? { ...event, isBookmarked: !event.isBookmarked }
-        : event
-    ));
+    console.log('Toggle bookmark called for:', eventId);
+    console.log('Active tab:', activeTab);
     
-    // Update filtered events too
-    setFilteredEvents(prev => prev.map(event => 
+    // Optimistically update UI
+    const updatedEvents = events.map(event => 
       event.id === eventId 
         ? { ...event, isBookmarked: !event.isBookmarked }
         : event
-    ));
+    );
+    
+    console.log('Updated event bookmarked?', updatedEvents.find(e => e.id === eventId)?.isBookmarked);
+    
+    setEvents(updatedEvents);
+    
+    // Apply the same filter logic to update filtered events
+    filterEventsByTab(updatedEvents, activeTab);
   };
 
   const toggleSDG = (sdgNumber: number) => {
