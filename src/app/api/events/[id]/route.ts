@@ -59,21 +59,32 @@ export async function GET(
     }
 
     // Get session to check bookmark status
-    const session = await getSession();
-    const userId = session?.user?.id;
+    let userId: string | undefined;
+    try {
+      const session = await getSession();
+      userId = session?.user?.id;
+    } catch (error) {
+      // Session error - user not logged in or invalid token
+      userId = undefined;
+    }
 
     // Check if user has bookmarked this event
     let isBookmarked = false;
     if (userId) {
-      const bookmark = await prisma.eventBookmark.findUnique({
-        where: {
-          userId_eventId: {
-            userId,
-            eventId: id
+      try {
+        const bookmark = await prisma.eventBookmark.findUnique({
+          where: {
+            userId_eventId: {
+              userId,
+              eventId: id
+            }
           }
-        }
-      });
-      isBookmarked = !!bookmark;
+        });
+        isBookmarked = !!bookmark;
+      } catch (error) {
+        // Bookmark query failed - default to false
+        isBookmarked = false;
+      }
     }
 
     // Transform event to include bookmark status

@@ -107,17 +107,28 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Get session to check bookmark status
-    const session = await getSession();
-    const userId = session?.user?.id;
+    let userId: string | undefined;
+    try {
+      const session = await getSession();
+      userId = session?.user?.id;
+    } catch (error) {
+      // Session error - user not logged in or invalid token
+      userId = undefined;
+    }
 
     // Get all bookmarks for this user if logged in
     let userBookmarks: string[] = [];
     if (userId) {
-      const bookmarks = await prisma.eventBookmark.findMany({
-        where: { userId },
-        select: { eventId: true }
-      });
-      userBookmarks = bookmarks.map(b => b.eventId);
+      try {
+        const bookmarks = await prisma.eventBookmark.findMany({
+          where: { userId },
+          select: { eventId: true }
+        });
+        userBookmarks = bookmarks.map(b => b.eventId);
+      } catch (error) {
+        // Bookmark query failed - default to empty array
+        userBookmarks = [];
+      }
     }
 
     // Transform events to include bookmark status
