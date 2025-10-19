@@ -18,6 +18,7 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  AlertTriangle,
   UserPlus,
   Mail,
   Phone,
@@ -43,6 +44,7 @@ interface Event {
   description: string;
   startDate: string;
   endDate?: string;
+  registrationDeadline?: string;
   location: string;
   maxParticipants?: number;
   currentParticipants: number;
@@ -456,6 +458,25 @@ export default function EventDetailPage() {
                         <p className="text-sm text-gray-500 dark:text-gray-400">End Date</p>
                         <p className="font-medium text-gray-900 dark:text-white">
                           {new Date(event.endDate).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {event.registrationDeadline && (
+                    <div className="flex items-center space-x-3">
+                      <AlertTriangle className="w-5 h-5 text-orange-500 dark:text-orange-400" />
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Registration Deadline</p>
+                        <p className="font-medium text-orange-600 dark:text-orange-400">
+                          {new Date(event.registrationDeadline).toLocaleDateString('en-US', {
                             weekday: 'long',
                             year: 'numeric',
                             month: 'long',

@@ -42,6 +42,7 @@ interface EventFormData {
   description: string;
   startDate: string;
   endDate?: string;
+  registrationDeadline?: string;
   location: {
     address?: string;
     city: string;
@@ -393,6 +394,19 @@ export default function CreateEventPage() {
                       min={watch('startDate')}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="registrationDeadline">Registration Deadline (Optional)</Label>
+                  <Input
+                    id="registrationDeadline"
+                    type="datetime-local"
+                    {...register('registrationDeadline')}
+                    max={watch('startDate')}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Set a deadline for participants to register. Leave empty for no deadline.
+                  </p>
                 </div>
               </CardContent>
             </Card>

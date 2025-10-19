@@ -356,6 +356,7 @@ model Event {
   organizationId       String?
   startDate            DateTime
   endDate              DateTime
+  registrationDeadline DateTime?
   location             String
   maxParticipants      Int?
   currentParticipants  Int                   @default(0)

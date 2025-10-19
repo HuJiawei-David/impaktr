@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Tabs removed - using pill buttons instead
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -393,24 +393,53 @@ export function ParticipantsList({
         </CardContent>
       </Card>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">
+      {/* Pills Navigation */}
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+              activeTab === 'all' 
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+            }`}
+          >
             All ({statusCounts.all})
-          </TabsTrigger>
-          <TabsTrigger value="verified">
+          </button>
+          <button
+            onClick={() => setActiveTab('verified')}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+              activeTab === 'verified' 
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+            }`}
+          >
             Verified ({statusCounts.verified})
-          </TabsTrigger>
-          <TabsTrigger value="pending">
+          </button>
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+              activeTab === 'pending' 
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+            }`}
+          >
             Pending ({statusCounts.pending})
-          </TabsTrigger>
-          <TabsTrigger value="rejected">
+          </button>
+          <button
+            onClick={() => setActiveTab('rejected')}
+            className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+              activeTab === 'rejected' 
+                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+            }`}
+          >
             Rejected ({statusCounts.rejected})
-          </TabsTrigger>
-        </TabsList>
+          </button>
+        </div>
+      </div>
 
-        <TabsContent value={activeTab} className="space-y-4 mt-6">
+      <div className="space-y-4 mt-6">
           {filteredParticipants.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
@@ -573,8 +602,7 @@ export function ParticipantsList({
               ))}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+      </div>
 
       {/* Verification Dialog */}
       <Dialog open={isVerificationDialogOpen} onOpenChange={setIsVerificationDialogOpen}>

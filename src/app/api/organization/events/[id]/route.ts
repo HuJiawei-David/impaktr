@@ -97,6 +97,7 @@ export async function GET(
       emergencyContact?: Record<string, unknown>;
       requiresApproval?: boolean;
       autoIssueCertificates?: boolean;
+      registrationDeadline?: Date;
     };
     
     return NextResponse.json({
@@ -106,6 +107,7 @@ export async function GET(
         description: event.description,
         startDate: event.startDate.toISOString(),
         endDate: event.endDate?.toISOString(),
+        registrationDeadline: eventWithExtras.registrationDeadline?.toISOString(),
         location: event.location,
         maxParticipants: event.maxParticipants,
         currentParticipants: event.currentParticipants,

@@ -193,68 +193,73 @@ function EventsPageContent() {
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
-      // Mock data for now
-      const mockEvents: Event[] = [
-        {
-          id: '1',
-          title: 'Beach Cleanup Drive',
-          description: 'Join us for a community beach cleanup to protect marine life.',
-          startDate: '2024-01-15T09:00:00Z',
-          location: {
-            city: 'Kuala Lumpur',
-            country: 'Malaysia',
-            isVirtual: false
-          },
-          currentParticipants: 45,
-          interestedCount: 12,
-          sdgTags: [14, 15],
-          skills: ['Environmental Awareness'],
-          intensity: 2,
-          verificationType: 'PHOTO',
-          images: ['/api/placeholder/400/300'],
-          creator: {
-            id: '1',
-            name: 'Green Malaysia',
-            avatar: '/api/placeholder/50/50'
-          },
-          createdAt: '2024-01-01T00:00:00Z',
-          status: 'ACTIVE',
-          distance: 5.2,
-          trending: true
-        },
-        {
-          id: '2',
-          title: 'Food Distribution for Homeless',
-          description: 'Help distribute meals to homeless individuals in the city center.',
-          startDate: '2024-01-20T18:00:00Z',
-          location: {
-            city: 'Selangor',
-            country: 'Malaysia',
-            isVirtual: false
-          },
-          currentParticipants: 23,
-          interestedCount: 8,
-          sdgTags: [1, 2],
-          skills: ['Community Service'],
-          intensity: 1,
-          verificationType: 'CHECK_IN',
-          images: ['/api/placeholder/400/300'],
-          creator: {
-            id: '2',
-            name: 'Hope Foundation',
-            avatar: '/api/placeholder/50/50'
-          },
-          createdAt: '2024-01-02T00:00:00Z',
-          status: 'ACTIVE',
-          distance: 12.8,
-          featured: true
-        }
-      ];
+      const response = await fetch('/api/events');
       
-      setEvents(mockEvents);
-      filterEventsByTab(mockEvents, activeTab);
+      if (!response.ok) {
+        throw new Error('Failed to fetch events');
+      }
+
+      const data = await response.json();
+      
+      // Transform API data to match our Event interface
+      const transformedEvents: Event[] = data.events.map((event: any) => {
+        const locationData = typeof event.location === 'string' 
+          ? JSON.parse(event.location) 
+          : event.location;
+        
+        const sdgData = event.sdg 
+          ? (typeof event.sdg === 'string' ? JSON.parse(event.sdg) : event.sdg)
+          : [];
+
+        return {
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          location: {
+            address: locationData.address,
+            city: locationData.city,
+            country: locationData.country,
+            coordinates: locationData.coordinates,
+            isVirtual: locationData.isVirtual || false
+          },
+          maxParticipants: event.maxParticipants,
+          currentParticipants: event.currentParticipants || 0,
+          interestedCount: 0, // Can be added later
+          sdgTags: Array.isArray(sdgData) ? sdgData : [],
+          skills: event.skills || [],
+          intensity: event.intensity || 1,
+          verificationType: event.verificationType || 'ORGANIZER',
+          images: event.imageUrl ? [event.imageUrl] : [],
+          creator: event.organization ? {
+            id: event.organization.id,
+            name: event.organization.name,
+            avatar: event.organization.logo
+          } : {
+            id: 'unknown',
+            name: 'Unknown',
+          },
+          organization: event.organization ? {
+            id: event.organization.id,
+            name: event.organization.name,
+            logo: event.organization.logo
+          } : undefined,
+          createdAt: event.createdAt,
+          status: event.status,
+          isFavorited: false,
+          isAttending: false,
+          trending: false,
+          featured: false
+        };
+      });
+      
+      setEvents(transformedEvents);
+      filterEventsByTab(transformedEvents, activeTab);
     } catch (error) {
       console.error('Error fetching events:', error);
+      setEvents([]);
+      setFilteredEvents([]);
     } finally {
       setIsLoading(false);
     }
@@ -946,7 +951,8 @@ const EventCard = ({ event, onToggleFavorite }: {
   onToggleFavorite: (id: string) => void;
 }) => {
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+    <Link href={`/events/${event.id}`}>
+      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
       <div className="relative h-48 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
         {event.images && event.images.length > 0 ? (
           <img 
@@ -1042,5 +1048,6 @@ const EventCard = ({ event, onToggleFavorite }: {
         </div>
       </CardContent>
     </Card>
+    </Link>
   );
 };

@@ -50,8 +50,15 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const where: Prisma.EventWhereInput = {
-      status: status || 'ACTIVE', // Using string literal since EventStatus.ACTIVE doesn't exist
+      isPublic: true, // Only show public events
     };
+
+    // Apply status filter if provided, otherwise show UPCOMING and ACTIVE events
+    if (status) {
+      where.status = status;
+    } else {
+      where.status = { in: ['UPCOMING', 'ACTIVE'] };
+    }
 
     if (search) {
       where.OR = [

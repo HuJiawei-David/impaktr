@@ -24,7 +24,10 @@ import {
   Navigation,
   Download,
   ExternalLink,
-  Building2
+  Building2,
+  Target,
+  Zap,
+  X
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -49,6 +52,7 @@ interface Event {
   description: string;
   startDate: string;
   endDate?: string;
+  registrationDeadline?: string;
   location: {
     address?: string;
     city: string;
@@ -79,7 +83,7 @@ interface Event {
   };
   createdAt: string;
   updatedAt: string;
-  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+  status: 'DRAFT' | 'ACTIVE' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
   requiresApproval: boolean;
   customFields?: Array<{
     name: string;
@@ -147,8 +151,61 @@ export default function EventDetailPage() {
       }
 
       const data = await response.json();
-      setEvent(data.event);
-      setIsBookmarked(data.event.isSaved);
+      
+      // Transform the API response to match our Event interface
+      const rawEvent = data.event;
+      const locationData = typeof rawEvent.location === 'string' 
+        ? JSON.parse(rawEvent.location) 
+        : rawEvent.location;
+      
+      const sdgData = rawEvent.sdg 
+        ? (typeof rawEvent.sdg === 'string' ? JSON.parse(rawEvent.sdg) : rawEvent.sdg)
+        : [];
+
+      const transformedEvent: Event = {
+        ...rawEvent,
+        location: {
+          address: locationData.address,
+          city: locationData.city,
+          coordinates: locationData.coordinates,
+          isVirtual: locationData.isVirtual || false
+        },
+        sdgTags: Array.isArray(sdgData) ? sdgData : [],
+        images: rawEvent.imageUrl ? [rawEvent.imageUrl] : [],
+        creator: rawEvent.organization ? {
+          id: rawEvent.organization.id,
+          name: rawEvent.organization.name,
+          avatar: rawEvent.organization.logo || '',
+          profile: {
+            bio: rawEvent.organization.description,
+            organization: rawEvent.organization.name
+          }
+        } : {
+          id: 'unknown',
+          name: 'Unknown',
+          avatar: '',
+          profile: {}
+        },
+        participants: rawEvent.participations?.map((p: any) => ({
+          id: p.id,
+          user: {
+            id: p.user?.id || '',
+            profile: {
+              firstName: p.user?.firstName || p.user?.name?.split(' ')[0] || 'Anonymous',
+              lastName: p.user?.lastName || p.user?.name?.split(' ').slice(1).join(' ') || '',
+              avatar: p.user?.image
+            }
+          },
+          status: p.status,
+          joinedAt: p.joinedAt
+        })) || [],
+        isCreator: user?.id === rawEvent.organizerId,
+        isSaved: false,
+        canEdit: user?.id === rawEvent.organizerId
+      };
+      
+      setEvent(transformedEvent);
+      setIsBookmarked(false);
     } catch (error) {
       console.error('Error fetching event:', error);
       toast.error('Failed to load event details');
@@ -266,7 +323,10 @@ export default function EventDetailPage() {
   };
 
   const isEventFull = event?.maxParticipants && event.currentParticipants >= event.maxParticipants;
-  const canJoin = user && event && !event.userParticipation && !isEventFull && event.status === 'ACTIVE';
+  const isRegistrationClosed = event?.registrationDeadline && new Date(event.registrationDeadline) < new Date();
+  const isEventCompleted = event?.status === 'COMPLETED' || (event?.endDate && new Date(event.endDate) < new Date());
+  const isEventUpcoming = event?.status === 'UPCOMING';
+  const canJoin = user && event && !event.userParticipation && !isEventFull && !isRegistrationClosed && !isEventCompleted && (event.status === 'ACTIVE' || isEventUpcoming);
   const eventStatus = getEventStatus();
   const intensityInfo = event ? getIntensityInfo(event.intensity) : null;
 
@@ -298,7 +358,7 @@ export default function EventDetailPage() {
       <div className="relative">
         {/* Cover Image */}
         <div className="h-64 md:h-80 bg-gradient-to-r from-primary-100 to-primary-200 overflow-hidden">
-          {event.images.length > 0 ? (
+          {event.images && event.images.length > 0 ? (
             <img
               src={event.images[0]}
               alt={event.title}
@@ -313,7 +373,7 @@ export default function EventDetailPage() {
           {/* Overlay with actions */}
           <div className="absolute inset-0 bg-black/20">
             <div className="absolute top-4 right-4 flex space-x-2">
-              <Button size="sm" variant="secondary" onClick={handleShare}>
+              <Button size="sm" variant="secondary" onClick={handleShare} className="px-4 py-2">
                 <Share2 className="w-4 h-4 mr-2" />
                 Share
               </Button>
@@ -323,6 +383,7 @@ export default function EventDetailPage() {
                   size="sm" 
                   variant={isBookmarked ? "default" : "secondary"}
                   onClick={handleBookmark}
+                  className="px-4 py-2"
                 >
                   <Heart className={`w-4 h-4 mr-2 ${isBookmarked ? 'fill-current' : ''}`} />
                   {isBookmarked ? 'Saved' : 'Save'}
@@ -333,7 +394,7 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
@@ -364,31 +425,51 @@ export default function EventDetailPage() {
               <h1 className="text-3xl md:text-4xl font-bold mb-4">{event.title}</h1>
 
               {/* Creator/Organization Info */}
-              <div className="flex items-center space-x-3 mb-6">
-                <Avatar className="w-12 h-12">
-                  <AvatarImage 
-                    src={event.organization?.logo || event.creator.avatar} 
-                    alt={event.organization?.name || event.creator.name}
-                  />
-                  <AvatarFallback>
-                    {getInitials(event.organization?.name || event.creator.name)}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div>
-                  <div className="font-medium">
-                    {event.organization?.name || event.creator.name}
-                  </div>
-                  <div className="text-sm text-muted-foreground flex items-center">
-                    {event.organization ? (
+              {event.organization ? (
+                <Link href={`/organizations/${event.organization.id}`} className="flex items-center space-x-3 mb-6 hover:opacity-80 transition-opacity">
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage 
+                      src={event.organization.logo} 
+                      alt={event.organization.name}
+                    />
+                    <AvatarFallback>
+                      {getInitials(event.organization.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div>
+                    <div className="font-medium text-blue-600 dark:text-blue-400">
+                      {event.organization.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground flex items-center">
                       <Building2 className="w-3 h-3 mr-1" />
-                    ) : (
+                      Organization • Click to view profile
+                    </div>
+                  </div>
+                </Link>
+              ) : (
+                <div className="flex items-center space-x-3 mb-6">
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage 
+                      src={event.creator.avatar} 
+                      alt={event.creator.name}
+                    />
+                    <AvatarFallback>
+                      {getInitials(event.creator.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div>
+                    <div className="font-medium">
+                      {event.creator.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground flex items-center">
                       <UserCheck className="w-3 h-3 mr-1" />
-                    )}
-                    {event.organization ? 'Organization' : 'Individual Organizer'}
+                      Individual Organizer
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* SDG Tags */}
               <div className="flex flex-wrap gap-2 mb-6">
@@ -400,18 +481,54 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* Event Details Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="participants">
+            {/* Event Details Pills Navigation */}
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                    activeTab === 'overview' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                      : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('participants')}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                    activeTab === 'participants' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                      : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                  }`}
+                >
                   Participants ({event.currentParticipants})
-                </TabsTrigger>
-                <TabsTrigger value="comments">Comments</TabsTrigger>
-                <TabsTrigger value="gallery">Gallery</TabsTrigger>
-              </TabsList>
+                </button>
+                <button
+                  onClick={() => setActiveTab('comments')}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                    activeTab === 'comments' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                      : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                  }`}
+                >
+                  Comments
+                </button>
+                <button
+                  onClick={() => setActiveTab('gallery')}
+                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                    activeTab === 'gallery' 
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                      : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                  }`}
+                >
+                  Gallery
+                </button>
+              </div>
+            </div>
 
-              <TabsContent value="overview" className="space-y-6">
+            {activeTab === 'overview' && (
+              <div className="space-y-6">
                 {/* Description */}
                 <Card>
                   <CardHeader>
@@ -522,27 +639,27 @@ export default function EventDetailPage() {
                     />
                   </CardContent>
                 </Card>
-              </TabsContent>
+              </div>
+            )}
 
-              <TabsContent value="participants">
-                <ParticipantsList 
-                  eventId={event.id}
-                  isOrganizer={event.isCreator}
-                  canManageParticipants={event.isCreator}
-                />
-              </TabsContent>
+            {activeTab === 'participants' && (
+              <ParticipantsList 
+                eventId={event.id}
+                isOrganizer={event.isCreator}
+                canManageParticipants={event.isCreator}
+              />
+            )}
 
-              <TabsContent value="comments">
-                <EventComments eventId={event.id} />
-              </TabsContent>
+            {activeTab === 'comments' && (
+              <EventComments eventId={event.id} />
+            )}
 
-              <TabsContent value="gallery">
-                <EventGallery 
-                  eventId={event.id}
-                  canUpload={event.isCreator}
-                />
-              </TabsContent>
-            </Tabs>
+            {activeTab === 'gallery' && (
+              <EventGallery 
+                eventId={event.id}
+                canUpload={event.isCreator}
+              />
+            )}
           </div>
 
           {/* Sidebar */}
@@ -568,27 +685,43 @@ export default function EventDetailPage() {
                         Joined: {formatTimeAgo(event.userParticipation.joinedAt)}
                       </div>
                     </div>
-                  ) : canJoin ? (
-                    <Button 
-                      className="w-full" 
-                      size="lg"
-                      onClick={handleJoinEvent}
-                      disabled={isJoining}
-                    >
-                      {isJoining ? 'Joining...' : 'Join Event'}
-                    </Button>
-                  ) : isEventFull ? (
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                      <div className="font-medium">Event Full</div>
+                  ) : isEventCompleted ? (
+                    <div className="text-center p-4 bg-muted rounded-lg border-2 border-gray-300 dark:border-gray-700">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-500" />
+                      <div className="font-medium text-gray-700 dark:text-gray-300">Event Ended</div>
                       <div className="text-sm text-muted-foreground">
+                        This event has been completed
+                      </div>
+                    </div>
+                  ) : isRegistrationClosed ? (
+                    <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
+                      <X className="w-8 h-8 mx-auto mb-2 text-red-600 dark:text-red-400" />
+                      <div className="font-medium text-red-700 dark:text-red-300">Registration Closed</div>
+                      <div className="text-sm text-red-600 dark:text-red-400">
+                        Registration deadline has passed
+                      </div>
+                    </div>
+                  ) : isEventFull ? (
+                    <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-2 border-yellow-200 dark:border-yellow-800">
+                      <Users className="w-8 h-8 mx-auto mb-2 text-yellow-600 dark:text-yellow-400" />
+                      <div className="font-medium text-yellow-700 dark:text-yellow-300">Event Full</div>
+                      <div className="text-sm text-yellow-600 dark:text-yellow-400">
                         This event has reached capacity
                       </div>
                     </div>
+                  ) : canJoin ? (
+                    <Link href={`/events/${event.id}/register`}>
+                      <Button 
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" 
+                        size="lg"
+                      >
+                        Register for Event
+                      </Button>
+                    </Link>
                   ) : !user ? (
-                    <Link href="/signup">
-                      <Button className="w-full" size="lg">
-                        Sign Up to Join
+                    <Link href={`/signin?callbackUrl=/events/${event.id}/register`}>
+                      <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" size="lg">
+                        Sign In to Register
                       </Button>
                     </Link>
                   ) : null}
@@ -634,6 +767,11 @@ export default function EventDetailPage() {
                         </>
                       )}
                     </div>
+                    {event.registrationDeadline && (
+                      <div className={`text-sm mt-1 font-medium ${isRegistrationClosed ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                        Registration {isRegistrationClosed ? 'closed' : 'deadline'}: {formatDate(event.registrationDeadline)}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -698,10 +836,98 @@ export default function EventDetailPage() {
               </CardContent>
             </Card>
 
+            {/* Impact Scoring Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Target className="w-5 h-5 mr-2" />
+                  Impact Scoring
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Scoring Parameters */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Intensity Multiplier */}
+                  <div className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/10 rounded-lg border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Zap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <p className="text-xs font-medium text-purple-700 dark:text-purple-300">Intensity Multiplier</p>
+                    </div>
+                    <p className="text-xl font-bold text-purple-900 dark:text-purple-100">{event.intensity || 1.0}x</p>
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                      {event.intensity && event.intensity > 1.0 ? 'High Impact' : event.intensity && event.intensity < 1.0 ? 'Standard Impact' : 'Normal Impact'}
+                    </p>
+                  </div>
+
+                  {/* Estimated Hours per Participant */}
+                  <div className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <p className="text-xs font-medium text-blue-700 dark:text-blue-300">Est. Hours/Participant</p>
+                    </div>
+                    <p className="text-xl font-bold text-blue-900 dark:text-blue-100">
+                      {event.type === 'WORKSHOP' ? '2-4' : event.type === 'FUNDRAISER' ? '3-6' : '2-3'} hrs
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Based on event type</p>
+                  </div>
+
+                  {/* Skill Impact Multiplier */}
+                  <div className="p-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <Award className="w-4 h-4 text-green-600 dark:text-green-400" />
+                      <p className="text-xs font-medium text-green-700 dark:text-green-300">Skills Required</p>
+                    </div>
+                    <p className="text-xl font-bold text-green-900 dark:text-green-100">+{((event.skills?.length || 0) * 10).toFixed(0)}%</p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      {event.skills?.length || 0} skill{event.skills?.length !== 1 ? 's' : ''} boost
+                    </p>
+                  </div>
+
+                  {/* Verification Type */}
+                  <div className="p-3 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-900/10 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <CheckCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                      <p className="text-xs font-medium text-orange-700 dark:text-orange-300">Verification Type</p>
+                    </div>
+                    <p className="text-xl font-bold text-orange-900 dark:text-orange-100">
+                      {event.verificationType === 'ORGANIZER' ? '+10%' : '+0%'}
+                    </p>
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">{event.verificationType || 'ORGANIZER'}</p>
+                  </div>
+                </div>
+
+                {/* Potential Impact Score Calculation */}
+                <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg border-2 border-indigo-200 dark:border-indigo-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
+                        Potential Impact Score (per participant)
+                      </p>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400">
+                        Formula: Base Hours × Intensity × Skills × Verification × Location
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                        {(
+                          (event.type === 'WORKSHOP' ? 3 : event.type === 'FUNDRAISER' ? 4 : 2.5) *
+                          (event.intensity || 1.0) *
+                          (1 + (event.skills?.length || 0) * 0.1) *
+                          (event.verificationType === 'ORGANIZER' ? 1.1 : 1.0) *
+                          10
+                        ).toFixed(1)}
+                      </p>
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400">points</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Report Event */}
             <Card>
               <CardContent className="p-4">
-                <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
+                <Button variant="ghost" size="sm" className="w-full text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800 py-3">
                   <Flag className="w-4 h-4 mr-2" />
                   Report Event
                 </Button>

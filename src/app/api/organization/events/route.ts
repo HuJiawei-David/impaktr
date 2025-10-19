@@ -13,6 +13,7 @@ const createEventSchema = z.object({
   description: z.string().min(1).max(2000),
   startDate: z.string().transform((str) => new Date(str)),
   endDate: z.string().transform((str) => new Date(str)).optional(),
+  registrationDeadline: z.string().transform((str) => new Date(str)).optional(),
   location: z.object({
     address: z.string().optional(),
     city: z.string(),
@@ -224,6 +225,7 @@ export async function POST(request: NextRequest) {
         description: validatedData.description,
         startDate: validatedData.startDate,
         endDate: validatedData.endDate || validatedData.startDate,
+        registrationDeadline: validatedData.registrationDeadline,
         location: validatedData.location.city || 'Virtual Event',
         maxParticipants: validatedData.maxParticipants,
         organizerId: user.id,
