@@ -255,10 +255,10 @@ function EventsPageContent() {
           createdAt: event.createdAt,
           status: event.status,
           isFavorited: false,
+          isBookmarked: event.isBookmarked || false,
           isAttending: false,
           trending: false,
-          featured: false,
-          isBookmarked: event.isBookmarked || false
+          featured: false
         };
       });
       

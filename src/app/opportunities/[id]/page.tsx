@@ -1,0 +1,634 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  MapPin, 
+  Calendar, 
+  Users, 
+  Clock,
+  Building,
+  Globe,
+  Briefcase,
+  CheckCircle,
+  Heart,
+  Share2,
+  ArrowLeft,
+  Upload,
+  Loader2,
+  Target,
+  Award
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { sdgs } from '@/constants/sdgs';
+
+interface Opportunity {
+  id: string;
+  title: string;
+  description: string;
+  requirements: string[];
+  spots: number;
+  spotsFilled: number;
+  deadline?: string;
+  location?: string;
+  isRemote: boolean;
+  skills: string[];
+  sdg?: string;
+  status: string;
+  createdAt: string;
+  organization: {
+    id: string;
+    name: string;
+    logo?: string;
+    tier: string;
+  };
+  stats: {
+    totalApplications: number;
+    spotsRemaining: number;
+  };
+  isBookmarked?: boolean;
+  isApplied?: boolean;
+}
+
+export default function OpportunityDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState('');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
+
+  useEffect(() => {
+    fetchOpportunity();
+  }, [params.id]);
+
+  const fetchOpportunity = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/opportunities/${params.id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch opportunity');
+      }
+
+      const data = await response.json();
+      setOpportunity(data);
+      setIsBookmarked(data.isBookmarked || false);
+    } catch (error) {
+      console.error('Error fetching opportunity:', error);
+      toast.error('Failed to load opportunity');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!session) {
+      toast.error('Please sign in to bookmark opportunities');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/opportunities/${params.id}/bookmark`, {
+        method: isBookmarked ? 'DELETE' : 'POST',
+      });
+
+      if (response.ok) {
+        setIsBookmarked(!isBookmarked);
+        toast.success(isBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks');
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to update bookmark');
+      }
+    } catch (error) {
+      console.error('Error bookmarking:', error);
+      toast.error('Failed to bookmark opportunity');
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: opportunity?.title,
+          text: opportunity?.description,
+          url: url,
+        });
+      } catch (error) {
+        // User cancelled share
+      }
+    } else {
+      navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard');
+    }
+  };
+
+  const handleApplyClick = () => {
+    if (!session) {
+      toast.error('Please sign in to apply');
+      router.push('/signin');
+      return;
+    }
+
+    if (opportunity?.status !== 'OPEN') {
+      toast.error('This opportunity is no longer accepting applications');
+      return;
+    }
+
+    if (opportunity?.stats.spotsRemaining <= 0) {
+      toast.error('This opportunity is full');
+      return;
+    }
+
+    setShowApplyModal(true);
+  };
+
+  const handleSubmitApplication = async () => {
+    if (!opportunity) return;
+
+    try {
+      setIsApplying(true);
+
+      let resumeUrl = '';
+      if (resumeFile) {
+        setIsUploadingResume(true);
+        const formData = new FormData();
+        formData.append('file', resumeFile);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          resumeUrl = uploadData.url;
+        }
+        setIsUploadingResume(false);
+      }
+
+      const response = await fetch(`/api/opportunities/${opportunity.id}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: applicationMessage,
+          resumeUrl: resumeUrl,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Application submitted successfully!');
+        setShowApplyModal(false);
+        setApplicationMessage('');
+        setResumeFile(null);
+        fetchOpportunity(); // Refresh to update applied status
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to submit application');
+      }
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      toast.error('Failed to submit application');
+    } finally {
+      setIsApplying(false);
+      setIsUploadingResume(false);
+    }
+  };
+
+  const getBadgeColor = (text: string, type: 'requirement' | 'skill') => {
+    const lowerText = text.toLowerCase();
+    
+    if (type === 'requirement') {
+      if (lowerText.includes('experience') || lowerText.includes('year')) return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300';
+      if (lowerText.includes('education') || lowerText.includes('degree')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300';
+      if (lowerText.includes('language')) return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
+      if (lowerText.includes('availability')) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300';
+      return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    } else {
+      const colors = [
+        'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+        'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
+        'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+        'bg-lime-100 text-lime-700 dark:bg-lime-900 dark:text-lime-300',
+        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+        'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
+        'bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300',
+        'bg-sky-100 text-sky-700 dark:bg-sky-900 dark:text-sky-300',
+        'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300',
+        'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300',
+        'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900 dark:text-fuchsia-300',
+        'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300',
+      ];
+      const hash = text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      return colors[hash % colors.length];
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'OPEN':
+        return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300';
+      case 'CLOSED':
+        return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300';
+      case 'FILLED':
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!opportunity) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-12 text-center">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Opportunity Not Found
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              This opportunity may have been removed or is no longer available.
+            </p>
+            <Button
+              onClick={() => router.push('/opportunities')}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+            >
+              Browse Opportunities
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const sdgInfo = opportunity.sdg ? sdgs.find(s => s.id === parseInt(opportunity.sdg!)) : null;
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          onClick={() => router.push('/opportunities')}
+          className="mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Opportunities
+        </Button>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Header Card */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                        {opportunity.title}
+                      </h1>
+                      <Badge className={getStatusColor(opportunity.status)}>
+                        {opportunity.status}
+                      </Badge>
+                      {opportunity.isRemote && (
+                        <Badge variant="outline">
+                          <Globe className="h-3 w-3 mr-1" />
+                          Remote
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <Link href={`/organizations/${opportunity.organization.id}`}>
+                      <div className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+                        <Avatar className="h-10 w-10">
+                          {opportunity.organization.logo && (
+                            <AvatarImage src={opportunity.organization.logo} alt={opportunity.organization.name} />
+                          )}
+                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold">
+                            {opportunity.organization.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-white">
+                            {opportunity.organization.name}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {opportunity.organization.tier} Tier
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleBookmark}
+                    >
+                      <Heart className={`h-4 w-4 ${isBookmarked ? 'fill-red-500 text-red-500' : ''}`} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleShare}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Quick Info */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                  {opportunity.location && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                      <MapPin className="h-4 w-4" />
+                      <span>{opportunity.location}</span>
+                    </div>
+                  )}
+                  {opportunity.deadline && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                      <Calendar className="h-4 w-4" />
+                      <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Users className="h-4 w-4" />
+                    <span>{opportunity.stats.spotsRemaining} of {opportunity.spots} spots left</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Briefcase className="h-4 w-4" />
+                    <span>{opportunity.stats.totalApplications} applications</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Description */}
+            <Card>
+              <CardHeader>
+                <CardTitle>About This Opportunity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  {opportunity.description}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Requirements */}
+            {opportunity.requirements.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    Requirements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {opportunity.requirements.map((req, index) => (
+                      <li key={index} className="flex items-start space-x-2">
+                        <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700 dark:text-gray-300">{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Skills */}
+            {opportunity.skills.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Award className="h-5 w-5 mr-2" />
+                    Skills You'll Gain
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {opportunity.skills.map((skill, index) => (
+                      <Badge key={index} className={getBadgeColor(skill, 'skill')}>
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Apply Card */}
+            <Card>
+              <CardContent className="p-6">
+                {opportunity.isApplied ? (
+                  <div className="text-center">
+                    <CheckCircle className="h-12 w-12 text-green-600 dark:text-green-400 mx-auto mb-4" />
+                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                      Application Submitted
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                      Your application is being reviewed by the organization.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => router.push('/opportunities?tab=applied')}
+                    >
+                      View My Applications
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      onClick={handleApplyClick}
+                      disabled={opportunity.status !== 'OPEN' || opportunity.stats.spotsRemaining <= 0}
+                      className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white mb-4"
+                      size="lg"
+                    >
+                      {opportunity.status !== 'OPEN' ? 'Closed' : 
+                       opportunity.stats.spotsRemaining <= 0 ? 'Full' : 
+                       'Apply Now'}
+                    </Button>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      You'll be able to include a message and resume
+                    </p>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* SDG Alignment */}
+            {sdgInfo && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center text-sm">
+                    <Target className="h-4 w-4 mr-2" />
+                    SDG Alignment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl">
+                      {sdgInfo.icon}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                        SDG {sdgInfo.id}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {sdgInfo.title}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Organization Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">About the Organization</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Link href={`/organizations/${opportunity.organization.id}`}>
+                  <Button variant="outline" className="w-full">
+                    <Building className="h-4 w-4 mr-2" />
+                    View Organization Profile
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Apply Modal */}
+      <Dialog open={showApplyModal} onOpenChange={setShowApplyModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Apply for {opportunity.title}</DialogTitle>
+            <DialogDescription>
+              Tell the organization why you're interested in this opportunity.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Message (Optional)
+              </label>
+              <Textarea
+                placeholder="Share why you're interested and what you can bring to this opportunity..."
+                value={applicationMessage}
+                onChange={(e) => setApplicationMessage(e.target.value)}
+                rows={5}
+                maxLength={500}
+                className="resize-none"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {applicationMessage.length}/500 characters
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Resume (Optional)
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                  id="resume-upload"
+                />
+                <label
+                  htmlFor="resume-upload"
+                  className="flex-1 flex items-center justify-center px-4 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {resumeFile ? resumeFile.name : 'Upload Resume'}
+                  </span>
+                </label>
+                {resumeFile && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setResumeFile(null)}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                PDF, DOC, or DOCX (max 5MB)
+              </p>
+            </div>
+
+            <div className="flex space-x-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowApplyModal(false)}
+                className="flex-1"
+                disabled={isApplying}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitApplication}
+                disabled={isApplying || isUploadingResume}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+              >
+                {isApplying || isUploadingResume ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {isUploadingResume ? 'Uploading...' : 'Submitting...'}
+                  </>
+                ) : (
+                  'Submit Application'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+

@@ -108,8 +108,7 @@ export async function GET(request: NextRequest) {
           }
         },
         applications: {
-          where: { userId: session.user.id },
-          select: { id: true, status: true }
+          select: { id: true, status: true, userId: true }
         },
         _count: {
           select: {
@@ -145,9 +144,12 @@ export async function GET(request: NextRequest) {
       stats: {
         totalApplications: opp._count.applications,
         spotsRemaining: opp.spots - opp.spotsFilled,
+        appliedCount: opp.applications.filter(app => app.status === 'PENDING').length,
+        acceptedCount: opp.applications.filter(app => app.status === 'APPROVED').length,
+        rejectedCount: opp.applications.filter(app => app.status === 'REJECTED').length,
       },
-      hasApplied: opp.applications.length > 0,
-      applicationStatus: opp.applications[0]?.status || null,
+      hasApplied: opp.applications.some(app => app.userId === session.user.id),
+      applicationStatus: opp.applications.find(app => app.userId === session.user.id)?.status || null,
     }));
 
     return NextResponse.json({ opportunities: formattedOpportunities });

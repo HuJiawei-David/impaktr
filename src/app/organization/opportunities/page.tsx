@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { LocationAutocomplete } from '@/components/ui/location-autocomplete';
 
 interface Opportunity {
   id: string;
@@ -77,6 +78,16 @@ interface Application {
     bio?: string;
     city?: string;
     country?: string;
+    skills?: string[];
+    interests?: string[];
+    impaktrScore?: number;
+    totalHoursVolunteered?: number;
+    totalActivitiesCompleted?: number;
+    recentBadges?: Array<{
+      name: string;
+      type: string;
+      earnedAt: string;
+    }>;
   };
 }
 
@@ -425,11 +436,14 @@ export default function OrganizationOpportunitiesPage() {
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Location
                       </label>
-                      <Input
-                        placeholder="e.g., Central Park, New York"
+                      <LocationAutocomplete
                         value={newOpportunity.location}
-                        onChange={(e) => setNewOpportunity(prev => ({ ...prev, location: e.target.value }))}
+                        onChange={(value) => setNewOpportunity(prev => ({ ...prev, location: value }))}
+                        placeholder="Search or enter location (e.g., California, United States)"
                       />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Type to search from popular locations or enter your own
+                      </p>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -634,7 +648,7 @@ export default function OrganizationOpportunitiesPage() {
                 <>
                   <Card>
                     <CardHeader>
-                      <CardTitle>Applications for "{selectedOpportunity.title}"</CardTitle>
+                      <CardTitle>Applications for &quot;{selectedOpportunity.title}&quot;</CardTitle>
                     </CardHeader>
                   </Card>
 
@@ -677,6 +691,71 @@ export default function OrganizationOpportunitiesPage() {
                                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                                   {application.user.bio}
                                 </p>
+                              )}
+
+                              {/* Volunteer Stats */}
+                              {(application.user.impaktrScore || application.user.totalHoursVolunteered || application.user.totalActivitiesCompleted) && (
+                                <div className="grid grid-cols-3 gap-4 mb-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg">
+                                  {application.user.impaktrScore !== undefined && (
+                                    <div>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">Impaktr Score</p>
+                                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{application.user.impaktrScore}</p>
+                                    </div>
+                                  )}
+                                  {application.user.totalHoursVolunteered !== undefined && (
+                                    <div>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">Hours</p>
+                                      <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{application.user.totalHoursVolunteered}</p>
+                                    </div>
+                                  )}
+                                  {application.user.totalActivitiesCompleted !== undefined && (
+                                    <div>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">Activities</p>
+                                      <p className="text-lg font-bold text-green-600 dark:text-green-400">{application.user.totalActivitiesCompleted}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Skills & Interests */}
+                              {application.user.skills && application.user.skills.length > 0 && (
+                                <div className="mb-3">
+                                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Skills:</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {application.user.skills.map((skill, idx) => (
+                                      <Badge key={idx} className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                                        {skill}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {application.user.interests && application.user.interests.length > 0 && (
+                                <div className="mb-3">
+                                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">SDG Interests:</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {application.user.interests.slice(0, 5).map((interest, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        SDG {interest}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Recent Badges */}
+                              {application.user.recentBadges && application.user.recentBadges.length > 0 && (
+                                <div className="mb-3">
+                                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Recent Badges:</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {application.user.recentBadges.slice(0, 3).map((badge, idx) => (
+                                      <Badge key={idx} className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 text-xs">
+                                        {badge.name}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                               
                               {application.message && (
