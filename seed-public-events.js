@@ -61,6 +61,7 @@ async function main() {
         startDate: new Date('2025-11-15T09:00:00Z'),
         endDate: new Date('2025-11-15T12:00:00Z'),
         registrationDeadline: new Date('2025-11-10T23:59:59Z'),
+        registrationDeadline: new Date('2025-11-10T23:59:59Z'),
         location: JSON.stringify({
           address: 'Pantai Cenang Beach',
           city: 'Langkawi',

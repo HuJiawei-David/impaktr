@@ -322,6 +322,23 @@ export default function EventDetailPage() {
     return { label: 'High', color: 'destructive', description: 'Physically or mentally demanding' };
   };
 
+  const getVerificationTypeDisplay = (type: string) => {
+    const types: Record<string, string> = {
+      // Official Prisma types
+      'SELF': 'Self Reported',
+      'ORGANIZER': 'Organizer Verified', 
+      'PEER': 'Peer Verified',
+      'GPS': 'Location Verified',
+      
+      // Additional types used in practice
+      'PHOTO': 'Photo Proof',
+      'CHECK_IN': 'On-Site Verified',
+      'ATTENDANCE': 'Attendance Tracking',
+      'AUTOMATIC': 'Automatic'
+    };
+    return types[type] || 'Organizer Verified';
+  };
+
   const isEventFull = event?.maxParticipants && event.currentParticipants >= event.maxParticipants;
   const isRegistrationClosed = event?.registrationDeadline && new Date(event.registrationDeadline) < new Date();
   const isEventCompleted = event?.status === 'COMPLETED' || (event?.endDate && new Date(event.endDate) < new Date());
@@ -664,6 +681,23 @@ export default function EventDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Registration Deadline Info */}
+            {event.registrationDeadline && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-start space-x-3">
+                    <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">Register by:</div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {formatDate(event.registrationDeadline)}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Action Card */}
             <Card>
               <CardContent className="p-6">
@@ -710,14 +744,16 @@ export default function EventDetailPage() {
                       </div>
                     </div>
                   ) : canJoin ? (
-                    <Link href={`/events/${event.id}/register`}>
-                      <Button 
-                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" 
-                        size="lg"
-                      >
-                        Register for Event
-                      </Button>
-                    </Link>
+                    <div className="space-y-4">
+                      <Link href={`/events/${event.id}/register`}>
+                        <Button 
+                          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" 
+                          size="lg"
+                        >
+                          Register for Event
+                        </Button>
+                      </Link>
+                    </div>
                   ) : !user ? (
                     <Link href={`/signin?callbackUrl=/events/${event.id}/register`}>
                       <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" size="lg">
@@ -767,11 +803,6 @@ export default function EventDetailPage() {
                         </>
                       )}
                     </div>
-                    {event.registrationDeadline && (
-                      <div className={`text-sm mt-1 font-medium ${isRegistrationClosed ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                        Registration {isRegistrationClosed ? 'closed' : 'deadline'}: {formatDate(event.registrationDeadline)}
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -892,7 +923,9 @@ export default function EventDetailPage() {
                     <p className="text-xl font-bold text-orange-900 dark:text-orange-100">
                       {event.verificationType === 'ORGANIZER' ? '+10%' : '+0%'}
                     </p>
-                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">{event.verificationType || 'ORGANIZER'}</p>
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                      {getVerificationTypeDisplay(event.verificationType || 'ORGANIZER')}
+                    </p>
                   </div>
                 </div>
 
