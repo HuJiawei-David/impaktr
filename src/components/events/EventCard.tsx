@@ -165,14 +165,14 @@ export function EventCard({ event, showActions = true, onToggleBookmark }: Event
 
           {/* Save and Share Actions */}
           {showActions && (
-            <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className={`absolute top-3 left-3 transition-opacity ${event.isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
               <div className="flex space-x-2">
                 <Button
                   size="sm"
                   variant="secondary"
                   className={`h-8 w-8 p-0 ${
                     event.isBookmarked 
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0' 
+                      ? 'bg-red-500 hover:bg-red-600 text-white border-0' 
                       : 'hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white'
                   }`}
                   onClick={handleSave}
