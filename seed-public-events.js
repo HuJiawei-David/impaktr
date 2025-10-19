@@ -167,6 +167,7 @@ async function main() {
         status: 'UPCOMING',
         startDate: new Date('2025-11-25T14:00:00Z'),
         endDate: new Date('2025-11-25T17:00:00Z'),
+        registrationDeadline: new Date('2025-11-22T23:59:59Z'),
         location: JSON.stringify({
           address: 'Jimmy University Community Center',
           city: 'Petaling Jaya',
@@ -201,6 +202,7 @@ async function main() {
         status: 'UPCOMING',
         startDate: new Date('2025-12-10T08:00:00Z'),
         endDate: new Date('2025-12-10T15:00:00Z'),
+        registrationDeadline: new Date('2025-12-05T23:59:59Z'),
         location: JSON.stringify({
           address: 'Taman Paramount Community Space',
           city: 'Petaling Jaya',
@@ -235,6 +237,7 @@ async function main() {
         status: 'UPCOMING',
         startDate: new Date('2025-11-28T19:00:00Z'),
         endDate: new Date('2025-11-28T21:00:00Z'),
+        registrationDeadline: new Date('2025-11-26T23:59:59Z'),
         location: JSON.stringify({
           address: 'Jimmy University Auditorium',
           city: 'Petaling Jaya',
@@ -269,6 +272,7 @@ async function main() {
         status: 'UPCOMING',
         startDate: new Date('2025-12-05T15:00:00Z'),
         endDate: new Date('2025-12-05T18:00:00Z'),
+        registrationDeadline: new Date('2025-12-02T23:59:59Z'),
         location: JSON.stringify({
           address: 'Online via Zoom',
           city: 'Online',
@@ -301,6 +305,7 @@ async function main() {
         status: 'UPCOMING',
         startDate: new Date('2025-12-15T08:00:00Z'),
         endDate: new Date('2025-12-15T13:00:00Z'),
+        registrationDeadline: new Date('2025-12-12T23:59:59Z'),
         location: JSON.stringify({
           address: 'Sungai Klang Riverbank',
           city: 'Kuala Lumpur',

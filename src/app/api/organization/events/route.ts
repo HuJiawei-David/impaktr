@@ -13,7 +13,7 @@ const createEventSchema = z.object({
   description: z.string().min(1).max(2000),
   startDate: z.string().transform((str) => new Date(str)),
   endDate: z.string().transform((str) => new Date(str)).optional(),
-  registrationDeadline: z.string().transform((str) => new Date(str)).optional(),
+  registrationDeadline: z.string().transform((str) => new Date(str)),
   location: z.object({
     address: z.string().optional(),
     city: z.string(),

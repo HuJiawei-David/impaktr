@@ -397,15 +397,18 @@ export default function CreateEventPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="registrationDeadline">Registration Deadline (Optional)</Label>
+                  <Label htmlFor="registrationDeadline">Registration Deadline <span className="text-red-500">*</span></Label>
                   <Input
                     id="registrationDeadline"
                     type="datetime-local"
-                    {...register('registrationDeadline')}
+                    {...register('registrationDeadline', { required: 'Registration deadline is required' })}
                     max={watch('startDate')}
                   />
+                  {errors.registrationDeadline && (
+                    <p className="text-xs text-red-500 mt-1">{errors.registrationDeadline.message}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Set a deadline for participants to register. Leave empty for no deadline.
+                    Set a deadline for participants to register before the event starts.
                   </p>
                 </div>
               </CardContent>
