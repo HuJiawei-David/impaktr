@@ -4,6 +4,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   MapPin, 
   Calendar, 
@@ -133,10 +134,11 @@ export function EventCard({ event, showActions = true, onToggleBookmark }: Event
       <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-200">
         <Link href={`/events/${event.id}`} className="absolute inset-0 z-0">
           {event.images.length > 0 ? (
-            <img
+            <Image
               src={event.images[0]}
               alt={event.title}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
