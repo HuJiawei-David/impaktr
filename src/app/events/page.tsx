@@ -376,6 +376,10 @@ function EventsPageContent() {
     console.log('Toggle bookmark called for:', eventId);
     console.log('Active tab:', activeTab);
     
+    // Find the event to determine current bookmark status
+    const event = events.find(e => e.id === eventId);
+    const currentlyBookmarked = event?.isBookmarked || false;
+    
     // Optimistically update UI
     const updatedEvents = events.map(event => 
       event.id === eventId 
@@ -389,6 +393,25 @@ function EventsPageContent() {
     
     // Apply the same filter logic to update filtered events
     filterEventsByTab(updatedEvents, activeTab);
+    
+    // Make API call to persist the change
+    try {
+      const response = await fetch(`/api/events/${eventId}/bookmark`, {
+        method: currentlyBookmarked ? 'DELETE' : 'POST'
+      });
+
+      if (!response.ok) {
+        // Revert the optimistic update on error
+        setEvents(events);
+        filterEventsByTab(events, activeTab);
+        console.error('Failed to update bookmark');
+      }
+    } catch (error) {
+      // Revert the optimistic update on error
+      setEvents(events);
+      filterEventsByTab(events, activeTab);
+      console.error('Failed to update bookmark:', error);
+    }
   };
 
   const toggleSDG = (sdgNumber: number) => {
@@ -976,9 +999,10 @@ export default function EventsPage() {
 }
 
 // Event Card Component
-const EventCard = ({ event, onToggleFavorite }: { 
+const EventCard = ({ event, onToggleFavorite, onToggleBookmark }: { 
   event: Event; 
   onToggleFavorite: (id: string) => void;
+  onToggleBookmark?: (id: string) => void;
 }) => {
   return (
     <Link href={`/events/${event.id}`}>
@@ -1015,11 +1039,17 @@ const EventCard = ({ event, onToggleFavorite }: {
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-semibold text-lg line-clamp-2">{event.title}</h3>
           <button
-            onClick={() => onToggleFavorite(event.id)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onToggleBookmark) {
+                onToggleBookmark(event.id);
+              }
+            }}
             className="ml-2 mt-1 transition-colors duration-200 group flex-shrink-0"
           >
             <Heart className={`w-4 h-4 transition-colors ${
-              event.isFavorited 
+              event.isBookmarked 
                 ? 'fill-red-500 text-red-500' 
                 : 'text-gray-400 group-hover:text-red-500 group-hover:fill-red-500'
             }`} />

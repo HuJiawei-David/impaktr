@@ -128,10 +128,10 @@ export function EventCard({ event, showActions = true, onToggleBookmark }: Event
   const intensityInfo = getIntensityLabel(event.intensity);
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden">
-      <Link href={`/events/${event.id}`}>
-        {/* Event Image */}
-        <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-200">
+    <Card className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden relative">
+      {/* Event Image - with pointer-events-none on Link, auto on content */}
+      <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-200">
+        <Link href={`/events/${event.id}`} className="absolute inset-0 z-0">
           {event.images.length > 0 ? (
             <img
               src={event.images[0]}
@@ -143,55 +143,59 @@ export function EventCard({ event, showActions = true, onToggleBookmark }: Event
               <Calendar className="w-12 h-12 text-primary-300" />
             </div>
           )}
-          
-          {/* Status Badge */}
-          <div className="absolute top-3 right-3">
-            {isToday && (
-              <Badge className="bg-green-500 hover:bg-green-600">
-                Today
-              </Badge>
-            )}
-            {isFull && (
-              <Badge variant="destructive">
-                Full
-              </Badge>
-            )}
-            {event.location.isVirtual && (
-              <Badge variant="secondary" className="ml-2">
-                Virtual
-              </Badge>
-            )}
-          </div>
-
-          {/* Save and Share Actions */}
-          {showActions && (
-            <div className={`absolute top-3 left-3 transition-opacity ${event.isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-              <div className="flex space-x-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className={`h-8 w-8 p-0 ${
-                    event.isBookmarked 
-                      ? 'bg-red-500 hover:bg-red-600 text-white border-0' 
-                      : 'hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white'
-                  }`}
-                  onClick={handleSave}
-                >
-                  <Heart className={`w-4 h-4 ${event.isBookmarked ? 'fill-current' : ''}`} />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-8 w-8 p-0"
-                  onClick={handleShare}
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
+        </Link>
+        
+        {/* Status Badge */}
+        <div className="absolute top-3 right-3 z-10">
+          {isToday && (
+            <Badge className="bg-green-500 hover:bg-green-600">
+              Today
+            </Badge>
+          )}
+          {isFull && (
+            <Badge variant="destructive">
+              Full
+            </Badge>
+          )}
+          {event.location.isVirtual && (
+            <Badge variant="secondary" className="ml-2">
+              Virtual
+            </Badge>
           )}
         </div>
 
+        {/* Save and Share Actions - at higher z-index */}
+        {showActions && (
+          <div 
+            className={`absolute top-3 left-3 z-20 transition-opacity ${event.isBookmarked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+          >
+            <div className="flex space-x-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                className={`h-8 w-8 p-0 ${
+                  event.isBookmarked 
+                    ? 'bg-red-500 hover:bg-red-600 text-white border-0' 
+                    : 'hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white'
+                }`}
+                onClick={handleSave}
+              >
+                <Heart className={`w-4 h-4 ${event.isBookmarked ? 'fill-current' : ''}`} />
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 w-8 p-0"
+                onClick={handleShare}
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Link href={`/events/${event.id}`}>
         <CardHeader className="pb-3">
           {/* SDG Tags */}
           <div className="flex flex-wrap gap-1 mb-2">

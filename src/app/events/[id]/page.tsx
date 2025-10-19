@@ -427,6 +427,14 @@ export default function EventDetailPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back to Events Button */}
+        <Link href="/events" className="inline-block mb-6">
+          <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
+            <Navigation className="w-4 h-4 mr-2" />
+            Back to Events
+          </Button>
+        </Link>
+
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
