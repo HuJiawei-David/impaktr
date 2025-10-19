@@ -1,5 +1,7 @@
-require('dotenv').config({ path: '.env.local' });
-const { PrismaClient } = require('@prisma/client');
+import dotenv from 'dotenv';
+import { PrismaClient } from '@prisma/client';
+
+dotenv.config({ path: '.env.local' });
 const prisma = new PrismaClient();
 
 async function main() {
@@ -60,7 +62,6 @@ async function main() {
         status: 'UPCOMING',
         startDate: new Date('2025-11-15T09:00:00Z'),
         endDate: new Date('2025-11-15T12:00:00Z'),
-        registrationDeadline: new Date('2025-11-10T23:59:59Z'),
         registrationDeadline: new Date('2025-11-10T23:59:59Z'),
         location: JSON.stringify({
           address: 'Pantai Cenang Beach',
