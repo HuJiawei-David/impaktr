@@ -494,7 +494,7 @@ export default function EventDetailPage() {
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-3">SDG Focus Areas</h3>
                     <div className="flex flex-wrap gap-2">
                       {sdgNumbers.map((sdgNumber) => {
-                        const sdg = sdgs.find(s => s.number === sdgNumber);
+                        const sdg = sdgs.find(s => s.id === sdgNumber);
                         return (
                           <div
                             key={sdgNumber}

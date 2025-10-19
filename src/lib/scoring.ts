@@ -138,7 +138,7 @@ export async function calculateOrganizationScore(organizationId: string): Promis
   // S = Skills impact % (15%) - NOW REWARDS SKILL-BASED PARTICIPATION
   const skilledParticipations = allParticipations.filter(p => {
     // Check if user has skills in volunteer profile
-    return p.user.volunteerProfile?.skills && p.user.volunteerProfile.skills.length > 0;
+    return (p.user as any).volunteerProfile?.skills && (p.user as any).volunteerProfile.skills.length > 0;
   }).length;
   const S = (skilledParticipations / Math.max(allParticipations.length, 1)) * 0.15;
 

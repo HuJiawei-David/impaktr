@@ -76,8 +76,7 @@ export async function POST(
         type: 'ORGANIZER',
         status: 'APPROVED',
         rating: 1.0, // Default rating
-        verifiedBy: user.id,
-        verifiedAt: new Date()
+        reviewerId: user.id
       }
     });
 

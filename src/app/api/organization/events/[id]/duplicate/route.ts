@@ -74,7 +74,7 @@ export async function POST(
         verificationType: originalEvent.verificationType || 'ORGANIZER',
         eventInstructions: originalEvent.eventInstructions,
         materialsNeeded: originalEvent.materialsNeeded || [],
-        emergencyContact: originalEvent.emergencyContact,
+        emergencyContact: originalEvent.emergencyContact as any,
         requiresApproval: originalEvent.requiresApproval || false,
         autoIssueCertificates: originalEvent.autoIssueCertificates !== false
       }
