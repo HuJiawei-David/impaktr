@@ -91,6 +91,9 @@ model User {
   volunteerProfile         VolunteerProfile?
   eventBookmarks           EventBookmark[]
   opportunityBookmarks     OpportunityBookmark[]
+  eventComments            EventComment[]
+  eventCommentLikes        EventCommentLike[]
+  eventImages              EventImage[]
 
   @@map("users")
 }
@@ -388,6 +391,8 @@ model Event {
   organization         Organization?         @relation(fields: [organizationId], references: [id])
   participations       Participation[]
   bookmarks            EventBookmark[]
+  comments             EventComment[]
+  images               EventImage[]
 
   @@index([startDate])
   @@index([type])
@@ -406,6 +411,58 @@ model EventBookmark {
 
   @@unique([userId, eventId])
   @@map("event_bookmarks")
+}
+
+model EventComment {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  content   String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    EventComment?  @relation("EventCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   EventComment[] @relation("EventCommentReplies")
+  likes     EventCommentLike[]
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("event_comments")
+}
+
+model EventCommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment   EventComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@map("event_comment_likes")
+}
+
+model EventImage {
+  id         String   @id @default(cuid())
+  eventId    String
+  userId     String
+  url        String
+  caption    String?
+  category   String?  @default("general")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([userId])
+  @@map("event_images")
 }
 
 model OpportunityBookmark {

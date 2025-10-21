@@ -35,6 +35,21 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { sdgs } from '@/constants/sdgs';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+
+const getOrganizationTypeDisplay = (type?: string) => {
+  if (!type) return 'Organization';
+  
+  const typeMap: Record<string, string> = {
+    'NGO': 'Non-Profit Organization',
+    'COMPANY': 'Company',
+    'CORPORATE': 'Company',
+    'SCHOOL': 'Educational Institution',
+    'HEALTHCARE': 'Healthcare Organization',
+    'REGISTERED': 'Registered',
+  };
+  return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+};
 
 interface Opportunity {
   id: string;
@@ -54,7 +69,7 @@ interface Opportunity {
     id: string;
     name: string;
     logo?: string;
-    tier: string;
+    type?: string;
   };
   stats: {
     totalApplications: number;
@@ -260,11 +275,7 @@ export default function OpportunityDetailPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
+    return <LoadingSpinner fullScreen text="Loading opportunity..." />;
   }
 
   if (!opportunity) {
@@ -297,9 +308,8 @@ export default function OpportunityDetailPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Back Button */}
         <Button
-          variant="ghost"
           onClick={() => router.push('/opportunities')}
-          className="mb-6"
+          className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Opportunities
@@ -343,7 +353,7 @@ export default function OpportunityDetailPage() {
                             {opportunity.organization.name}
                           </p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {opportunity.organization.tier} Tier
+                            {getOrganizationTypeDisplay(opportunity.organization.type)}
                           </p>
                         </div>
                       </div>
@@ -352,16 +362,18 @@ export default function OpportunityDetailPage() {
 
                   <div className="flex space-x-2">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={handleBookmark}
+                      className="hover:bg-transparent"
                     >
                       <Heart className={`h-4 w-4 ${isBookmarked ? 'fill-red-500 text-red-500' : ''}`} />
                     </Button>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={handleShare}
+                      className="hover:bg-transparent"
                     >
                       <Share2 className="h-4 w-4" />
                     </Button>
@@ -369,7 +381,7 @@ export default function OpportunityDetailPage() {
                 </div>
 
                 {/* Quick Info */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                <div className="grid grid-cols-2 gap-4 mt-6">
                   {opportunity.location && (
                     <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                       <MapPin className="h-4 w-4" />
@@ -379,7 +391,11 @@ export default function OpportunityDetailPage() {
                   {opportunity.deadline && (
                     <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
                       <Calendar className="h-4 w-4" />
-                      <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>
+                      <span>Apply By: {new Date(opportunity.deadline).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}</span>
                     </div>
                   )}
                   <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">

@@ -16,7 +16,8 @@ import {
   Globe,
   TrendingUp,
   ChevronDown,
-  Filter
+  Filter,
+  Target
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,7 +150,7 @@ function EventsPageContent() {
 
   useEffect(() => {
     fetchEvents();
-  }, [filters]);
+  }, [filters, activeTab]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -194,8 +195,17 @@ function EventsPageContent() {
   const fetchEvents = async () => {
     setIsLoading(true);
     try {
-      console.log('Fetching events...');
-      const response = await fetch('/api/events');
+      console.log('Fetching events for tab:', activeTab);
+      
+      let response;
+      if (activeTab === 'for-you') {
+        // Fetch recommendations for "For You" tab
+        response = await fetch('/api/recommendations?type=events');
+      } else {
+        // Regular events fetch
+        response = await fetch('/api/events');
+      }
+      
       console.log('Response status:', response.status);
       console.log('Response ok:', response.ok);
       
@@ -209,7 +219,8 @@ function EventsPageContent() {
       console.log('Data received:', data);
       
       // Transform API data to match our Event interface
-      const transformedEvents: Event[] = data.events.map((event: any) => {
+      const sourceEvents = activeTab === 'for-you' ? (data.recommendations || []) : (data.events || []);
+      const transformedEvents: Event[] = sourceEvents.map((event: any) => {
         const locationData = typeof event.location === 'string' 
           ? JSON.parse(event.location) 
           : event.location;
@@ -629,6 +640,17 @@ function EventsPageContent() {
                 Near You
               </button>
               <button
+                onClick={() => handleTabChange('for-you')}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                  activeTab === 'for-you' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                }`}
+              >
+                <Target className="w-4 h-4 mr-2" />
+                For You
+              </button>
+              <button
                 onClick={() => handleTabChange('latest')}
                 className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
                   activeTab === 'latest' 
@@ -1006,7 +1028,7 @@ const EventCard = ({ event, onToggleFavorite, onToggleBookmark }: {
 }) => {
   return (
     <Link href={`/events/${event.id}`}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
       <div className="relative h-48 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
         {event.images && event.images.length > 0 ? (
           <img 
@@ -1035,7 +1057,7 @@ const EventCard = ({ event, onToggleFavorite, onToggleBookmark }: {
         )}
       </div>
       
-      <CardContent className="p-4">
+      <CardContent className="p-4 flex flex-col flex-grow">
         <div className="flex justify-between items-start mb-2">
           <h3 className="font-semibold text-lg line-clamp-2">{event.title}</h3>
           <button
@@ -1091,7 +1113,7 @@ const EventCard = ({ event, onToggleFavorite, onToggleBookmark }: {
         </div>
 
         {/* SDG Tags */}
-        <div className="flex flex-wrap gap-1 mt-3">
+        <div className="flex flex-wrap gap-1 mt-auto pt-3">
           {event.sdgTags.slice(0, 3).map(sdg => {
             const sdgInfo = SDG_DEFINITIONS[sdg as keyof typeof SDG_DEFINITIONS];
             return (

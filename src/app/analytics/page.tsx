@@ -428,7 +428,7 @@ export default function AnalyticsPage() {
                       <Legend 
                         verticalAlign="bottom" 
                         height={36}
-                        formatter={(value, entry: any) => `SDG ${entry.payload.sdg}`}
+                        formatter={(value) => `SDG ${value}`}
                       />
                     </RechartsPieChart>
                   </ResponsiveContainer>

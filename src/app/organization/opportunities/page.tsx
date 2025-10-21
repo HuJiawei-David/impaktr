@@ -36,6 +36,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { LocationAutocomplete } from '@/components/ui/location-autocomplete';
 
+// SDG Definitions
+const SDG_DEFINITIONS = {
+  1: { name: 'No Poverty', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+  2: { name: 'Zero Hunger', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  3: { name: 'Good Health', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  4: { name: 'Quality Education', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+  5: { name: 'Gender Equality', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  6: { name: 'Clean Water', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
+  7: { name: 'Affordable Energy', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+  8: { name: 'Decent Work', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+  9: { name: 'Innovation', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  10: { name: 'Reduced Inequalities', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
+  11: { name: 'Sustainable Cities', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+  12: { name: 'Responsible Consumption', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  13: { name: 'Climate Action', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  14: { name: 'Life Below Water', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  15: { name: 'Life on Land', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  16: { name: 'Peace & Justice', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  17: { name: 'Partnerships', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
+};
+
 interface Opportunity {
   id: string;
   title: string;
@@ -503,6 +524,57 @@ export default function OrganizationOpportunitiesPage() {
                               {skill} ×
                             </Badge>
                           ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        SDG Alignment
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Select the Sustainable Development Goal this opportunity aligns with
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                        {Object.entries(SDG_DEFINITIONS).map(([number, info]) => {
+                          const sdgNumber = parseInt(number);
+                          const isSelected = newOpportunity.sdg === sdgNumber.toString();
+                          return (
+                            <button
+                              key={sdgNumber}
+                              type="button"
+                              onClick={() => setNewOpportunity(prev => ({ 
+                                ...prev, 
+                                sdg: isSelected ? '' : sdgNumber.toString() 
+                              }))}
+                              className={`p-3 rounded-lg border-2 transition-all text-xs font-medium ${
+                                isSelected
+                                  ? 'border-blue-500 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                                  : 'border-gray-200 dark:border-gray-600 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                              }`}
+                            >
+                              <div className="text-center">
+                                <div className="font-bold mb-1">SDG {sdgNumber}</div>
+                                <div className="text-xs leading-tight">{info.name}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {newOpportunity.sdg && (
+                        <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-blue-700 dark:text-blue-300">
+                              Selected: SDG {newOpportunity.sdg} - {SDG_DEFINITIONS[parseInt(newOpportunity.sdg) as keyof typeof SDG_DEFINITIONS]?.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setNewOpportunity(prev => ({ ...prev, sdg: '' }))}
+                              className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200"
+                            >
+                              ×
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

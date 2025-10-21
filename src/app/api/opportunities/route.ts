@@ -23,35 +23,28 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(url.searchParams.get('offset') || '0');
     const search = url.searchParams.get('search') || '';
     const location = url.searchParams.get('location') || '';
-    const skills = url.searchParams.get('skills')?.split(',') || [];
-    const sdg = url.searchParams.get('sdg')?.split(',') || [];
+    const skills = url.searchParams.get('skills')?.split(',').filter(s => s.trim()) || [];
+    const sdg = url.searchParams.get('sdg')?.split(',').filter(s => s.trim()) || [];
     const sort = url.searchParams.get('sort') || 'recent';
 
     const where: any = {
       status: status as any,
     };
 
-    // Build OR conditions for search and SDG
-    const orConditions = [];
-
-    if (search) {
-      orConditions.push(
+    // Build search conditions
+    if (search && search.trim()) {
+      where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } }
-      );
+      ];
     }
 
+    // Build SDG conditions
     if (sdg.length > 0) {
-      orConditions.push(...sdg.map(num => ({
-        sdg: { contains: `SDG ${num}` }
-      })));
+      where.sdg = { in: sdg };
     }
 
-    if (orConditions.length > 0) {
-      where.OR = orConditions;
-    }
-
-    if (location) {
+    if (location && location.trim()) {
       where.location = { contains: location, mode: 'insensitive' };
     }
 
@@ -67,7 +60,7 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             logo: true,
-            tier: true,
+            type: true,
           }
         },
         _count: {
@@ -129,7 +122,7 @@ export async function GET(request: NextRequest) {
         id: opp.organization.id,
         name: opp.organization.name,
         logo: opp.organization.logo,
-        tier: opp.organization.tier,
+        type: opp.organization.type,
       },
       stats: {
         totalApplications: opp._count.applications,

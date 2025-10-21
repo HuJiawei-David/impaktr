@@ -51,7 +51,6 @@ const navigationItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/events', label: 'Events', icon: Calendar },
   { href: '/opportunities', label: 'Opportunities', icon: Briefcase },
-  { href: '/recommendations', label: 'For You', icon: Target },
   { href: '/messages', label: 'Messages', icon: MessageCircle },
   { href: '/leaderboards', label: 'Leaderboards', icon: Trophy },
   { href: '/community', label: 'Community', icon: Users },
@@ -227,27 +226,11 @@ export function Navigation() {
                   );
                 })}
 
-                {/* Analytics with Notification - Only for individual users */}
+                {/* Notification - Only for individual users */}
                 {!isOrganization && (
                   <div className="flex items-center ml-2 pl-2 border-l border-gray-200 dark:border-gray-600">
-                    <Link
-                      href="/analytics"
-                      className={cn(
-                        "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
-                        pathname.startsWith('/analytics')
-                          ? "text-purple-600 bg-purple-50 dark:bg-gray-700 dark:text-purple-400"
-                          : "text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-                      )}
-                    >
-                      <BarChart3 className={cn(
-                        "w-5 h-5 mb-1 transition-all duration-200",
-                        pathname.startsWith('/analytics') ? "scale-110" : "group-hover:scale-110"
-                      )} />
-                      <span className="truncate">Analytics</span>
-                    </Link>
-
-                    {/* Notification beside Analytics */}
-                  <div className="relative ml-2">
+                    {/* Notification Dropdown */}
+                  <div className="relative">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className={cn(
@@ -466,15 +449,37 @@ export function Navigation() {
                     <div className="py-2">
                       {/* Individual Profile - Only for non-organization users */}
                       {!isOrganization && (
-                        <Link href="/profile">
-                          <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
-                            <User className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
-                            <div className="flex flex-col">
-                              <span className="font-medium text-gray-900 dark:text-white">My Profile</span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">View and edit profile</span>
-                            </div>
-                          </DropdownMenuItem>
-                        </Link>
+                        <>
+                          <Link href="/profile">
+                            <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                              <User className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-white">My Profile</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">View and edit profile</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </Link>
+
+                          <Link href="/recommendations">
+                            <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                              <Target className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-white">For You</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Personalized recommendations</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </Link>
+
+                          <Link href="/analytics">
+                            <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                              <BarChart3 className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-white">Analytics</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">View your statistics</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </Link>
+                        </>
                       )}
 
                       <Link href={isOrganization ? "/organization/dashboard" : "/dashboard"}>
@@ -633,23 +638,6 @@ export function Navigation() {
                   );
                 })}
 
-                {/* Analytics - Only for individual users */}
-                {!isOrganization && (
-                  <Link
-                    href="/analytics"
-                    className={cn(
-                      "flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
-                      pathname.startsWith('/analytics')
-                        ? "text-purple-600 bg-purple-50 dark:bg-purple-950/30 dark:text-purple-400"
-                        : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    )}
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <BarChart3 className="w-5 h-5" />
-                    <span>Analytics</span>
-                  </Link>
-                )}
-                
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
                   <Link href="/events/create">
                     <Button 
@@ -691,6 +679,26 @@ export function Navigation() {
                     <User className="w-5 h-5" />
                     <span>My Profile</span>
                   </Link>
+
+                  <Link
+                    href="/recommendations"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <Target className="w-5 h-5" />
+                    <span>For You</span>
+                  </Link>
+
+                  {!isOrganization && (
+                    <Link
+                      href="/analytics"
+                      className="flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <BarChart3 className="w-5 h-5" />
+                      <span>Analytics</span>
+                    </Link>
+                  )}
 
                   <Link
                     href="/settings"
@@ -818,7 +826,7 @@ export function Navigation() {
     {user && (
       <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-2 py-1">
         <div className="flex items-center justify-around">
-          {[...navItems, ...(!isOrganization ? [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }] : [])].map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
 

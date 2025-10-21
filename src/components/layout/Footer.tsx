@@ -130,7 +130,7 @@ export function Footer() {
   };
 
   return (
-    <footer className="bg-gradient-to-b from-white via-white to-blue-50 dark:bg-gray-900">
+    <footer className="bg-gradient-to-b from-white via-white to-blue-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
       {/* Newsletter Section - White Background */}
       <div className="relative py-16 overflow-hidden bg-white dark:bg-gray-900">
         <div className="relative container mx-auto px-8 lg:px-12" style={{marginBottom: '1.5cm'}}>

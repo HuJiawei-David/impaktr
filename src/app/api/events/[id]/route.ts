@@ -87,10 +87,11 @@ export async function GET(
       }
     }
 
-    // Transform event to include bookmark status
+    // Transform event to include bookmark status and current participants
     const eventWithBookmark = {
       ...event,
-      isBookmarked
+      isBookmarked,
+      currentParticipants: event._count.participations
     };
 
     return NextResponse.json({ event: eventWithBookmark });

@@ -43,8 +43,24 @@ import { formatDate, formatTimeAgo, getInitials } from '@/lib/utils';
 import { ParticipationDialog } from '@/components/events/ParticipationDialog';
 import { EventComments } from '@/components/events/EventComments';
 import { ParticipantsList } from '@/components/events/ParticipantsList';
+import { EventParticipants } from '@/components/events/EventParticipants';
 import { EventGallery } from '@/components/events/EventGallery';
 import Link from 'next/link';
+import { sdgs } from '@/constants/sdgs';
+
+const getOrganizationTypeDisplay = (type?: string) => {
+  if (!type) return 'Organization';
+  
+  const typeMap: Record<string, string> = {
+    'NGO': 'Non-Profit Organization',
+    'COMPANY': 'Company',
+    'CORPORATE': 'Company',
+    'SCHOOL': 'Educational Institution',
+    'HEALTHCARE': 'Healthcare Organization',
+    'REGISTERED': 'Registered',
+  };
+  return typeMap[type] || type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+};
 
 interface Event {
   id: string;
@@ -482,9 +498,8 @@ export default function EventDetailPage() {
                     <div className="font-medium text-blue-600 dark:text-blue-400">
                       {event.organization.name}
                     </div>
-                    <div className="text-sm text-muted-foreground flex items-center">
-                      <Building2 className="w-3 h-3 mr-1" />
-                      Organization • Click to view profile
+                    <div className="text-sm text-muted-foreground">
+                      {event.organization.verified && <span className="text-blue-600">✓ Verified</span>}
                     </div>
                   </div>
                 </Link>
@@ -684,11 +699,15 @@ export default function EventDetailPage() {
             )}
 
             {activeTab === 'participants' && (
-              <ParticipantsList 
-                eventId={event.id}
-                isOrganizer={event.isCreator}
-                canManageParticipants={event.isCreator}
-              />
+              event.isCreator ? (
+                <ParticipantsList 
+                  eventId={event.id}
+                  isOrganizer={event.isCreator}
+                  canManageParticipants={event.isCreator}
+                />
+              ) : (
+                <EventParticipants eventId={event.id} />
+              )
             )}
 
             {activeTab === 'comments' && (
@@ -717,6 +736,40 @@ export default function EventDetailPage() {
                         {formatDate(event.registrationDeadline)}
                       </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* SDG Alignment */}
+            {event.sdgTags && event.sdgTags.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center text-sm">
+                    <Target className="h-4 w-4 mr-2" />
+                    SDG Alignment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {event.sdgTags.map((sdgNumber) => {
+                      const sdgInfo = sdgs.find(s => s.id === sdgNumber);
+                      return sdgInfo ? (
+                        <div key={sdgNumber} className="flex items-center space-x-3">
+                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl">
+                            {sdgInfo.icon}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                              SDG {sdgInfo.id}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              {sdgInfo.title}
+                            </p>
+                          </div>
+                        </div>
+                      ) : null;
+                    })}
                   </div>
                 </CardContent>
               </Card>

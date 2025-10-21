@@ -18,7 +18,7 @@ export async function GET(
             id: true,
             name: true,
             logo: true,
-            tier: true,
+            type: true,
           }
         },
         _count: {
@@ -89,7 +89,7 @@ export async function GET(
         id: opportunity.organization.id,
         name: opportunity.organization.name,
         logo: opportunity.organization.logo,
-        tier: opportunity.organization.tier,
+        type: opportunity.organization.type,
       },
       stats: {
         totalApplications: opportunity._count.applications,

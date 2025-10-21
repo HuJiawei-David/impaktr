@@ -19,7 +19,9 @@ import {
   Building,
   GraduationCap,
   Heart,
-  Loader2
+  Loader2,
+  ChevronDown,
+  Target
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'react-hot-toast';
 import { LocationAutocomplete } from '@/components/ui/location-autocomplete';
 import { sdgs } from '@/constants/sdgs';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+
+// SDG Definitions (copied from events page)
+const SDG_DEFINITIONS = {
+  1: { name: 'No Poverty', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+  2: { name: 'Zero Hunger', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  3: { name: 'Good Health', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  4: { name: 'Quality Education', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+  5: { name: 'Gender Equality', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  6: { name: 'Clean Water', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
+  7: { name: 'Affordable Energy', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+  8: { name: 'Decent Work', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+  9: { name: 'Innovation', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  10: { name: 'Reduced Inequalities', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
+  11: { name: 'Sustainable Cities', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+  12: { name: 'Responsible Consumption', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  13: { name: 'Climate Action', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  14: { name: 'Life Below Water', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  15: { name: 'Life on Land', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+  16: { name: 'Peace & Justice', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  17: { name: 'Partnerships', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' }
+};
 
 interface Opportunity {
   id: string;
@@ -48,7 +72,7 @@ interface Opportunity {
     id: string;
     name: string;
     logo?: string;
-    tier: string;
+    type: string;
   };
   stats: {
     totalApplications: number;
@@ -74,30 +98,40 @@ export default function OpportunitiesPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [bookmarkedOpportunities, setBookmarkedOpportunities] = useState<string[]>([]);
   const [appliedOpportunities, setAppliedOpportunities] = useState<string[]>([]);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const fetchOpportunities = useCallback(async () => {
     try {
       setIsLoading(true);
-      const params = new URLSearchParams({
-        status: statusFilter,
-        search: searchTerm,
-        location: locationFilter,
-        sdg: sdgFilter.join(','),
-        sort: sortBy,
-      });
-
-      const response = await fetch(`/api/opportunities?${params}`);
+      
+      let response;
+      if (activeTab === 'for-you') {
+        // Fetch recommendations for "For You" tab
+        response = await fetch('/api/recommendations?type=opportunities');
+      } else {
+        // Regular opportunities fetch
+        const params = new URLSearchParams({
+          status: statusFilter,
+          search: searchTerm,
+          location: locationFilter,
+          sdg: sdgFilter.join(','),
+          sort: sortBy,
+        });
+        response = await fetch(`/api/opportunities?${params}`);
+      }
+      
       if (response.ok) {
         const data = await response.json();
-        setOpportunities(data.opportunities);
+        const oppData = activeTab === 'for-you' ? (data.recommendations || []) : (data.opportunities || []);
+        setOpportunities(oppData);
         
         // Initialize bookmark and application states from API data
-        const bookmarkedIds = data.opportunities
+        const bookmarkedIds = oppData
           .filter((opp: Opportunity) => opp.isBookmarked)
           .map((opp: Opportunity) => opp.id);
         setBookmarkedOpportunities(bookmarkedIds);
         
-        const appliedIds = data.opportunities
+        const appliedIds = oppData
           .filter((opp: Opportunity) => opp.isApplied)
           .map((opp: Opportunity) => opp.id);
         setAppliedOpportunities(appliedIds);
@@ -108,7 +142,7 @@ export default function OpportunitiesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, locationFilter, statusFilter, sdgFilter, sortBy]);
+  }, [activeTab, searchTerm, locationFilter, statusFilter, sdgFilter, sortBy]);
 
   useEffect(() => {
     fetchOpportunities();
@@ -236,11 +270,32 @@ export default function OpportunitiesPage() {
     return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
   };
 
+  const toggleSDG = (sdgNumber: number) => {
+    const currentSDGs = sdgFilter.map(s => parseInt(s));
+    const newSDGs = currentSDGs.includes(sdgNumber)
+      ? currentSDGs.filter(sdg => sdg !== sdgNumber)
+      : [...currentSDGs, sdgNumber];
+    
+    setSdgFilter(newSDGs.map(s => s.toString()));
+  };
+
+  const removeSDG = (sdgNumber: number) => {
+    const newSDGs = sdgFilter.filter(s => parseInt(s) !== sdgNumber);
+    setSdgFilter(newSDGs);
+  };
+
+  const clearAllSDGs = () => {
+    setSdgFilter([]);
+  };
+
   const getFilteredOpportunities = () => {
     let filtered = opportunities;
     
     // Apply tab filtering
     switch (activeTab) {
+      case 'for-you':
+        // Already filtered from API, just return all
+        break;
       case 'bookmarked':
         filtered = filtered.filter(opp => bookmarkedOpportunities.includes(opp.id));
         break;
@@ -256,14 +311,7 @@ export default function OpportunitiesPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span>Loading opportunities...</span>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullScreen text="Loading opportunities..." />;
   }
 
   return (
@@ -296,6 +344,17 @@ export default function OpportunitiesPage() {
               }`}
             >
               All Opportunities
+            </button>
+            <button
+              onClick={() => setActiveTab('for-you')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'for-you'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Target className="w-4 h-4 inline-block mr-2" />
+              For You
             </button>
             <button
               onClick={() => setActiveTab('bookmarked')}
@@ -356,47 +415,99 @@ export default function OpportunitiesPage() {
               </div>
             </div>
 
-            {/* SDG Filter */}
+            {/* Advanced Filters Toggle */}
             <div className="mb-4">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Filter by SDG</h3>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setSdgFilter([])}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                    sdgFilter.length === 0
-                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  All SDGs
-                </button>
-                {sdgs.slice(0, 8).map((sdg) => (
-                  <button
-                    key={sdg.id}
-                    onClick={() => {
-                      if (sdgFilter.includes(sdg.id.toString())) {
-                        setSdgFilter(prev => prev.filter(s => s !== sdg.id.toString()));
-                      } else {
-                        setSdgFilter(prev => [...prev, sdg.id.toString()]);
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors flex items-center space-x-1 ${
-                      sdgFilter.includes(sdg.id.toString())
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                    }`}
-                  >
-                    <span className="text-lg">{sdg.icon}</span>
-                    <span>SDG {sdg.id}</span>
-                  </button>
-                ))}
-                {sdgs.length > 8 && (
-                  <span className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1.5">
-                    +{sdgs.length - 8} more
-                  </span>
-                )}
-              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="w-full justify-between bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+              >
+                <div className="flex items-center">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <span>Advanced Filters</span>
+                  {(sdgFilter && sdgFilter.length > 0) && (
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      {sdgFilter.length} SDG{sdgFilter.length > 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              </Button>
             </div>
+
+            {/* Collapsible Advanced Filters */}
+            {showAdvancedFilters && (
+              <div className="mb-6 space-y-6 animate-in slide-in-from-top-2 duration-200">
+                {/* SDG Filter */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Filter by SDG Categories
+                    </label>
+                    {(sdgFilter && sdgFilter.length > 0) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearAllSDGs}
+                        className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                      >
+                        Clear All
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Selected SDGs Tag Cloud */}
+                  {sdgFilter && sdgFilter.length > 0 && (
+                    <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="flex flex-wrap gap-2">
+                        {sdgFilter.map(sdgString => {
+                          const sdgNumber = parseInt(sdgString);
+                          const sdgInfo = SDG_DEFINITIONS[sdgNumber as keyof typeof SDG_DEFINITIONS];
+                          return (
+                            <div
+                              key={sdgNumber}
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${sdgInfo?.color || 'bg-gray-100 text-gray-800'}`}
+                            >
+                              <span className="mr-2">SDG {sdgNumber}</span>
+                              <button
+                                onClick={() => removeSDG(sdgNumber)}
+                                className="ml-1 hover:bg-black/10 rounded-full w-4 h-4 flex items-center justify-center"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SDG Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {Object.entries(SDG_DEFINITIONS).map(([number, info]) => {
+                      const sdgNumber = parseInt(number);
+                      const isSelected = sdgFilter.includes(sdgNumber.toString());
+                      return (
+                        <button
+                          key={sdgNumber}
+                          onClick={() => toggleSDG(sdgNumber)}
+                          className={`p-3 rounded-lg border-2 transition-all text-xs font-medium ${
+                            isSelected
+                              ? 'border-blue-500 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                              : 'border-gray-200 dark:border-gray-600 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="font-bold mb-1">SDG {sdgNumber}</div>
+                            <div className="text-xs leading-tight">{info.name}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sort Options */}
             <div className="flex items-center justify-between">
@@ -432,6 +543,8 @@ export default function OpportunitiesPage() {
                   ? 'No bookmarked opportunities'
                   : activeTab === 'applied'
                   ? 'No applied opportunities'
+                  : activeTab === 'for-you'
+                  ? 'No recommendations yet'
                   : 'No opportunities found'
                 }
               </h3>
@@ -440,6 +553,8 @@ export default function OpportunitiesPage() {
                   ? 'Bookmark opportunities you\'re interested in to see them here.'
                   : activeTab === 'applied'
                   ? 'Apply to opportunities to track your applications here.'
+                  : activeTab === 'for-you'
+                  ? 'Complete your profile and engage with opportunities to get personalized recommendations.'
                   : 'Try adjusting your search criteria or check back later for new opportunities.'
                 }
               </p>
@@ -537,15 +652,12 @@ export default function OpportunitiesPage() {
                         <div className="mb-4">
                           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">SDG Alignment:</h4>
                           <div className="flex items-center space-x-2">
-                            {(() => {
-                              const sdgInfo = sdgs.find(s => s.id === parseInt(opportunity.sdg!));
-                              return sdgInfo ? (
-                                <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 dark:from-blue-900 dark:to-purple-900 dark:text-blue-200 flex items-center space-x-1">
-                                  <span className="text-lg">{sdgInfo.icon}</span>
-                                  <span>SDG {sdgInfo.id}</span>
-                                </Badge>
-                              ) : null;
-                            })()}
+                            <Badge variant="sdg" sdgNumber={parseInt(opportunity.sdg)} className="text-xs">
+                              SDG {opportunity.sdg}: {(() => {
+                                const sdgInfo = sdgs.find(s => s.id === parseInt(opportunity.sdg!));
+                                return sdgInfo ? sdgInfo.title : 'Unknown';
+                              })()}
+                            </Badge>
                           </div>
                         </div>
                       )}
