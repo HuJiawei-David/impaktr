@@ -2,8 +2,9 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { 
   Calendar,
@@ -48,7 +49,7 @@ import { EventGallery } from '@/components/events/EventGallery';
 import Link from 'next/link';
 import { sdgs } from '@/constants/sdgs';
 
-const getOrganizationTypeDisplay = (type?: string) => {
+const getOrganizationTypeDisplay = (type?: string | null) => {
   if (!type) return 'Organization';
   
   const typeMap: Record<string, string> = {
@@ -95,8 +96,11 @@ interface Event {
   organization?: {
     id: string;
     name: string;
-    logo: string;
-    verified: boolean;
+    logo: string | null;
+    industry?: string | null;
+    type?: string | null;
+    tier?: string;
+    verified?: boolean; // Computed field based on tier
   };
   createdAt: string;
   updatedAt: string;
@@ -146,14 +150,9 @@ export default function EventDetailPage() {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
 
-  useEffect(() => {
-    if (params?.id) {
-      fetchEvent(params.id as string);
-    }
-  }, [params?.id, user]);
-
-  const fetchEvent = async (eventId: string) => {
+  const fetchEvent = useCallback(async (eventId: string) => {
     try {
       setIsLoading(true);
       console.log('Fetching event:', eventId);
@@ -194,6 +193,11 @@ export default function EventDetailPage() {
         },
         sdgTags: Array.isArray(sdgData) ? sdgData : [],
         images: rawEvent.imageUrl ? [rawEvent.imageUrl] : [],
+        organization: rawEvent.organization ? {
+          ...rawEvent.organization,
+          // Compute verified status based on tier (PROFESSIONAL and above are considered verified)
+          verified: rawEvent.organization.tier && ['PROFESSIONAL', 'ENTERPRISE', 'IMPACT_LEADER'].includes(rawEvent.organization.tier)
+        } : undefined,
         creator: rawEvent.organization ? {
           id: rawEvent.organization.id,
           name: rawEvent.organization.name,
@@ -208,7 +212,7 @@ export default function EventDetailPage() {
           avatar: '',
           profile: {}
         },
-        participants: rawEvent.participations?.map((p: any) => ({
+        participants: rawEvent.participations?.map((p: { id: string; user?: { id?: string; name?: string; firstName?: string; lastName?: string; image?: string }; status?: string; hours?: number; createdAt?: string; joinedAt?: string }) => ({
           id: p.id,
           user: {
             id: p.user?.id || '',
@@ -233,6 +237,26 @@ export default function EventDetailPage() {
       toast.error('Failed to load event details');
     } finally {
       setIsLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
+
+  useEffect(() => {
+    if (params?.id) {
+      fetchEvent(params.id as string);
+      fetchCommentCount(params.id as string);
+    }
+  }, [params?.id, fetchEvent]);
+
+  const fetchCommentCount = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}/comments`);
+      if (response.ok) {
+        const data = await response.json();
+        setCommentCount(data.total || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching comment count:', error);
     }
   };
 
@@ -399,12 +423,14 @@ export default function EventDetailPage() {
       {/* Event Header */}
       <div className="relative">
         {/* Cover Image */}
-        <div className="h-64 md:h-80 bg-gradient-to-r from-primary-100 to-primary-200 overflow-hidden">
+        <div className="relative h-64 md:h-80 bg-gradient-to-r from-primary-100 to-primary-200 overflow-hidden">
           {event.images && event.images.length > 0 ? (
-            <img
+            <Image
               src={event.images[0]}
               alt={event.title}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              priority
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -486,7 +512,7 @@ export default function EventDetailPage() {
                 <Link href={`/organizations/${event.organization.id}`} className="flex items-center space-x-3 mb-6 hover:opacity-80 transition-opacity">
                   <Avatar className="w-12 h-12">
                     <AvatarImage 
-                      src={event.organization.logo} 
+                      src={event.organization.logo || undefined} 
                       alt={event.organization.name}
                     />
                     <AvatarFallback>
@@ -499,7 +525,7 @@ export default function EventDetailPage() {
                       {event.organization.name}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {event.organization.verified && <span className="text-blue-600">✓ Verified</span>}
+                      {event.organization.industry || getOrganizationTypeDisplay(event.organization.type)}
                     </div>
                   </div>
                 </Link>
@@ -568,7 +594,7 @@ export default function EventDetailPage() {
                       : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
                   }`}
                 >
-                  Comments
+                  Comments {commentCount > 0 && `(${commentCount})`}
                 </button>
                 <button
                   onClick={() => setActiveTab('gallery')}
@@ -785,7 +811,7 @@ export default function EventDetailPage() {
                       <div className="flex items-center space-x-2 mb-2">
                         <CheckCircle className="w-5 h-5 text-green-600" />
                         <span className="font-medium text-green-800 dark:text-green-200">
-                          You're participating!
+                          You&apos;re participating!
                         </span>
                       </div>
                       <div className="text-sm text-green-700 dark:text-green-300">
