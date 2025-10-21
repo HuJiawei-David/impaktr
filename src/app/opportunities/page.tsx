@@ -227,15 +227,32 @@ export default function OpportunitiesPage() {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  };
+
   const getFilteredOpportunities = () => {
+    let filtered = opportunities;
+    
+    // Apply tab filtering
     switch (activeTab) {
       case 'bookmarked':
-        return opportunities.filter(opp => bookmarkedOpportunities.includes(opp.id));
+        filtered = filtered.filter(opp => bookmarkedOpportunities.includes(opp.id));
+        break;
       case 'applied':
-        return opportunities.filter(opp => appliedOpportunities.includes(opp.id));
+        filtered = filtered.filter(opp => appliedOpportunities.includes(opp.id));
+        break;
       default:
-        return opportunities;
+        // 'all' tab - no additional filtering
+        break;
     }
+    
+    return filtered;
   };
 
   if (isLoading) {
@@ -481,7 +498,7 @@ export default function OpportunitiesPage() {
                         {opportunity.deadline && (
                           <div className="flex items-center space-x-1">
                             <Clock className="h-4 w-4" />
-                            <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>
+                            <span>Deadline: {formatDate(opportunity.deadline)}</span>
                           </div>
                         )}
                       </div>
@@ -516,11 +533,28 @@ export default function OpportunitiesPage() {
                         </div>
                       )}
 
+                      {opportunity.sdg && (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">SDG Alignment:</h4>
+                          <div className="flex items-center space-x-2">
+                            {(() => {
+                              const sdgInfo = sdgs.find(s => s.id === parseInt(opportunity.sdg!));
+                              return sdgInfo ? (
+                                <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 dark:from-blue-900 dark:to-purple-900 dark:text-blue-200 flex items-center space-x-1">
+                                  <span className="text-lg">{sdgInfo.icon}</span>
+                                  <span>SDG {sdgInfo.id}</span>
+                                </Badge>
+                              ) : null;
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           <span>{opportunity.stats.totalApplications} applications</span>
                           <span className="mx-2">•</span>
-                          <span>Posted {new Date(opportunity.createdAt).toLocaleDateString()}</span>
+                          <span>Posted {formatDate(opportunity.createdAt)}</span>
                         </div>
                         
                         <Button
