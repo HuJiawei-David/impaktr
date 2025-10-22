@@ -323,7 +323,11 @@ export default function EventDetailPage() {
     );
   }
 
-  const sdgNumbers = event.sdg ? event.sdg.split(',').map(Number) : [];
+  const sdgNumbers = event.sdg ? event.sdg.split(',').map(sdg => {
+    // Extract number from SDG string (e.g., "SDG3" -> 3)
+    const match = sdg.match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  }).filter(num => num !== null) : [];
   const participationRate = event.maxParticipants ? (event.currentParticipants / event.maxParticipants) * 100 : 0;
 
   return (
@@ -515,6 +519,11 @@ export default function EventDetailPage() {
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-3">SDG Focus Areas</h3>
                     <div className="flex flex-wrap gap-2">
                       {sdgNumbers.map((sdgNumber) => {
+                        // Safety check to ensure sdgNumber is valid
+                        if (!sdgNumber || isNaN(sdgNumber)) {
+                          return null;
+                        }
+                        
                         const sdg = getSDGById(sdgNumber);
                         return (
                           <div

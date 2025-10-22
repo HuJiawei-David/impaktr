@@ -26,7 +26,8 @@ import {
   PieChart,
   FileText,
   Plus,
-  Eye
+  Eye,
+  Lightbulb
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -37,6 +38,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import SuggestionPanel from './suggestion/SuggestionPanel';
 
 interface ESGData {
   organizationId: string;
@@ -422,6 +424,18 @@ export default function OrganizationESGPage() {
               <TrendingUp className="w-4 h-4 mr-2" />
               Analytics
             </Button>
+            <Button
+              variant={activeTab === 'suggestion' ? 'default' : 'outline'}
+              onClick={() => setActiveTab('suggestion')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'suggestion' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Lightbulb className="w-4 h-4 mr-2" />
+              Suggestion
+            </Button>
           </div>
 
           {/* Overview Tab Content */}
@@ -765,6 +779,11 @@ export default function OrganizationESGPage() {
               </CardContent>
             </Card>
             </div>
+          )}
+
+          {/* Suggestion Tab Content */}
+          {activeTab === 'suggestion' && (
+            <SuggestionPanel organizationId={organizationId || ''} />
           )}
         </div>
       </div>

@@ -55,6 +55,42 @@ export async function POST(request: NextRequest) {
     });
     console.log('[Register] User created successfully:', user.id);
 
+    // If user is registering as an organization type, create an organization
+    const organizationTypes = ['CORPORATE', 'NGO', 'SCHOOL', 'HEALTHCARE'];
+    if (userType && organizationTypes.includes(userType)) {
+      console.log('[Register] Creating organization for', userType, 'user...');
+      
+      try {
+        // Create organization
+        const organization = await prisma.organization.create({
+          data: {
+            name: name,
+            type: userType,
+            email: email,
+            tier: 'REGISTERED',
+            subscriptionTier: 'REGISTERED',
+            subscriptionStatus: 'active',
+          },
+        });
+        console.log('[Register] Organization created:', organization.id);
+
+        // Add user as admin member of the organization
+        await prisma.organizationMember.create({
+          data: {
+            organizationId: organization.id,
+            userId: user.id,
+            role: 'admin',
+            status: 'active',
+          },
+        });
+        console.log('[Register] User added as admin member of organization');
+      } catch (orgError) {
+        console.error('[Register] Error creating organization:', orgError);
+        // Don't fail the registration if organization creation fails
+        // User can still sign in and create organization later
+      }
+    }
+
     // Return success (don't include password in response)
     return NextResponse.json(
       {

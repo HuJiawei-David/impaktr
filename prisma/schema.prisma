@@ -1185,6 +1185,88 @@ model RateLimitViolation {
   @@map("rate_limit_violations")
 }
 
+model EventTemplate {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  sdgTags            String[] // e.g., ["SDG3","SDG4"]
+  // Impact factors: calibrated per org. Use conservative estimates.
+  // Units:
+  // - *perParticipant: applied per unique participant in event
+  // - *perHourPerParticipant: applied per hour per participant
+  // - *perEvent: flat impact regardless of size
+  impact_E_perParticipant           Float   @default(0)
+  impact_E_perHourPerParticipant    Float   @default(0)
+  impact_E_perEvent                 Float   @default(0)
+  impact_H_perParticipant           Float   @default(0)
+  impact_H_perHourPerParticipant    Float   @default(0)
+  impact_H_perEvent                 Float   @default(0)
+  impact_Q_perParticipant           Float   @default(0)
+  impact_Q_perHourPerParticipant    Float   @default(0)
+  impact_Q_perEvent                 Float   @default(0)
+  impact_V_perParticipant           Float   @default(0)
+  impact_V_perHourPerParticipant    Float   @default(0)
+  impact_V_perEvent                 Float   @default(0)
+  impact_S_perParticipant           Float   @default(0)
+  impact_S_perHourPerParticipant    Float   @default(0)
+  impact_S_perEvent                 Float   @default(0)
+  impact_C_perParticipant           Float   @default(0)
+  impact_C_perHourPerParticipant    Float   @default(0)
+  impact_C_perEvent                 Float   @default(0)
+
+  gPolicyModifier        Float   @default(0) // e.g., +0.02 if the event enforces a policy that boosts G
+  minParticipants        Int     @default(1)
+  maxParticipants        Int     @default(1000)
+  durationHoursDefault   Int     @default(2)
+  allowDurationScaling   Boolean @default(true)
+  verificationRequired   Boolean @default(false)
+  eligibilityRequirements String[] @default([]) // role tags, certifications, etc.
+  riskLevel              String  @default("low") // "low" | "medium" | "high"
+  leadTimeDays           Int     @default(7)
+  costPerParticipant     Int     @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  eventDrafts            EventDraft[]
+
+  @@map("event_templates")
+}
+
+model EventDraft {
+  id               String   @id @default(cuid())
+  templateId       String
+  template         EventTemplate @relation(fields: [templateId], references: [id])
+  participants     Int
+  durationHours    Int
+  scheduledDate    DateTime?
+  sdgs             String[]
+  notes            String?
+  status           String  @default("draft") // "draft" | "scheduled" | "completed"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("event_drafts")
+}
+
+model OrganizationMetricSnapshot {
+  id             String   @id @default(cuid())
+  capturedAt     DateTime @default(now())
+  totalMembers   Int
+  activeMembers  Int
+  totalHours     Int
+  verifiedEvents Int
+  // Store current component scores for baseline:
+  E              Float
+  H              Float
+  Q              Float
+  V              Float
+  S              Float
+  C              Float
+  G              Float
+  dataQualityScore Float @default(1.0) // 0..1 overall DQS, used for conservative discounting
+
+  @@map("organization_metric_snapshots")
+}
+
 model Community {
   id            String               @id @default(cuid())
   name          String
