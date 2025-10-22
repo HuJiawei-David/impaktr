@@ -37,7 +37,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { sdgs } from '@/constants/sdgs';
+import { getSDGById } from '@/constants/sdgs';
 import { countries } from '@/constants/countries';
 
 interface UserRanking {
@@ -503,11 +503,14 @@ function LeaderboardsPageContent() {
                     avoidCollisions={false}
                   >
                     <SelectItem value="all">All SDGs</SelectItem>
-                    {sdgs.map((s) => (
-                      <SelectItem key={s.id} value={String(s.id)}>
-                        {s.id}. {s.shortTitle}
-                      </SelectItem>
-                    ))}
+                    {Array.from({ length: 17 }, (_, i) => i + 1).map((sdgId) => {
+                      const sdg = getSDGById(sdgId);
+                      return sdg ? (
+                        <SelectItem key={sdgId} value={String(sdgId)}>
+                          {sdgId}. {sdg.title}
+                        </SelectItem>
+                      ) : null;
+                    })}
                   </SelectContent>
                 </Select>
               </div>

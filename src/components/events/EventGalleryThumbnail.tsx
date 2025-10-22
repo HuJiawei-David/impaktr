@@ -74,10 +74,11 @@ export function EventGalleryThumbnail({
   return (
     <div className={`grid gap-4 ${gridCols[columns as keyof typeof gridCols] || gridCols[4]}`}>
       {displayImages.map((image, index) => (
-        <div key={image.id} className="relative group">
+        <div key={image.id} className="relative group bg-card border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200">
           {/* Main Image */}
           <div 
-            className="aspect-square relative overflow-hidden rounded-lg cursor-pointer bg-muted"
+            className="aspect-square relative overflow-hidden cursor-pointer bg-muted w-full"
+            style={{ minHeight: '200px' }}
             onClick={() => onImageClick(image)}
           >
             <Image
@@ -86,6 +87,7 @@ export function EventGalleryThumbnail({
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-200"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              unoptimized
             />
             
             {/* Hover Overlay */}
@@ -144,23 +146,22 @@ export function EventGalleryThumbnail({
             )}
           </div>
 
-          {/* Metadata */}
+          {/* Metadata - Now in a card footer */}
           {showMetadata && (
-            <div className="mt-2 space-y-1">
+            <div className="p-3 space-y-2">
               {image.caption && (
-                <p className="text-sm text-foreground line-clamp-2">
+                <p className="text-sm text-foreground line-clamp-2 font-medium">
                   {image.caption}
                 </p>
               )}
               
-              <div className="flex items-center text-xs text-muted-foreground space-x-2">
-                <div className="flex items-center space-x-1">
-                  <User className="w-3 h-3" />
+              <div className="flex flex-col space-y-1.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <User className="w-3.5 h-3.5 flex-shrink-0" />
                   <span>{image.uploadedBy.name}</span>
                 </div>
-                <span>•</span>
-                <div className="flex items-center space-x-1">
-                  <Calendar className="w-3 h-3" />
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                   <span>{formatDate(image.uploadedAt)}</span>
                 </div>
               </div>

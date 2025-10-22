@@ -18,12 +18,25 @@ import {
   Grid3X3,
   List
 } from 'lucide-react';
-import { sdgs, getSDGById } from '@/constants/sdgs';
+import { getSDGById } from '@/constants/sdgs';
 import { SDGCredentialCard } from './SDGCredentialCard';
 import Link from 'next/link';
 
 // SDG Badge tier definitions with themed names
-const SDG_BADGE_DEFINITIONS = {
+interface SDGTier {
+  level: number;
+  name: string;
+  icon: string;
+  minHours: number;
+  minActivities: number;
+  color: string;
+}
+
+interface SDGBadgeDefinition {
+  tiers: SDGTier[];
+}
+
+const SDG_BADGE_DEFINITIONS: Record<number, SDGBadgeDefinition> = {
   1: { // No Poverty
     tiers: [
       { level: 1, name: 'Supporter', icon: '🤝', minHours: 5, minActivities: 1, color: 'from-red-400 to-red-600' },
@@ -352,8 +365,8 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
     return colorMap[colorClass] || 'linear-gradient(to right, #3b82f6, #1d4ed8)'; // Default blue gradient
   };
 
-  const getSDGBadgeDefinition = (sdgNumber: number) => {
-    return (SDG_BADGE_DEFINITIONS as any)[sdgNumber] || {
+  const getSDGBadgeDefinition = (sdgNumber: number): SDGBadgeDefinition => {
+    return SDG_BADGE_DEFINITIONS[sdgNumber] || {
       tiers: [
         { level: 1, name: 'Supporter', icon: '⭐', minHours: 5, minActivities: 1, color: 'from-blue-500 to-blue-700' },
         { level: 2, name: 'Builder', icon: '🔨', minHours: 20, minActivities: 3, color: 'from-purple-500 to-purple-700' },
@@ -363,14 +376,14 @@ export function SDGBadgeCollection({ compact = false, onShare }: SDGBadgeCollect
     };
   };
 
-  const getCurrentTierInfo = (sdgNumber: number, tierLevel: number) => {
+  const getCurrentTierInfo = (sdgNumber: number, tierLevel: number): SDGTier => {
     const definition = getSDGBadgeDefinition(sdgNumber);
-    return definition.tiers.find((t: any) => t.level === tierLevel) || definition.tiers[0];
+    return definition.tiers.find((t) => t.level === tierLevel) || definition.tiers[0];
   };
 
-  const getNextTierInfo = (sdgNumber: number, currentTier: number) => {
+  const getNextTierInfo = (sdgNumber: number, currentTier: number): SDGTier | undefined => {
     const definition = getSDGBadgeDefinition(sdgNumber);
-    return definition.tiers.find((t: any) => t.level === currentTier + 1);
+    return definition.tiers.find((t) => t.level === currentTier + 1);
   };
 
   const calculateTierProgress = (badge: UserSDGBadge) => {

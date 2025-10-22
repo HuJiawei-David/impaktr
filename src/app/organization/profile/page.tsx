@@ -45,7 +45,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'react-hot-toast';
 import { formatTimeAgo, getInitials } from '@/lib/utils';
-import { sdgs, getSDGColor as getSDGColorHelper } from '@/constants/sdgs';
+import { getSDGById, getSDGColor as getSDGColorHelper } from '@/constants/sdgs';
 
 interface OrganizationProfile {
   id: string;
@@ -206,8 +206,8 @@ export default function OrganizationProfilePage() {
   };
 
   const getSDGTitle = (sdgNumber: number) => {
-    const sdg = sdgs.find(s => s.id === sdgNumber);
-    return sdg?.shortTitle || `SDG ${sdgNumber}`;
+    const sdg = getSDGById(sdgNumber);
+    return sdg?.title || `SDG ${sdgNumber}`;
   };
 
   if (isLoading || isLoadingProfile) {

@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { sdgs } from '@/constants/sdgs';
+import { getSDGById } from '@/constants/sdgs';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 const getOrganizationTypeDisplay = (type?: string) => {
@@ -70,6 +70,7 @@ interface Opportunity {
     name: string;
     logo?: string;
     type?: string;
+    description?: string;
   };
   stats: {
     totalApplications: number;
@@ -301,7 +302,7 @@ export default function OpportunityDetailPage() {
     );
   }
 
-  const sdgInfo = opportunity.sdg ? sdgs.find(s => s.id === parseInt(opportunity.sdg!)) : null;
+  const sdgInfo = opportunity.sdg ? getSDGById(parseInt(opportunity.sdg!)) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -468,6 +469,69 @@ export default function OpportunityDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Organization Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">About the Organization</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {opportunity.organization.description && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-4 mb-4">
+                    {opportunity.organization.description}
+                  </p>
+                )}
+                <Link href={`/organizations/${opportunity.organization.id}`}>
+                  <Button variant="outline" className="w-full">
+                    <Building className="h-4 w-4 mr-2" />
+                    View Organization Profile
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* SDG Alignment */}
+            {sdgInfo && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center text-sm">
+                    <Target className="h-4 w-4 mr-2" />
+                    SDG Alignment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800" style={{ borderColor: sdgInfo.color }}>
+                    <div className="w-16 h-16 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                      <img 
+                        src={sdgInfo.image} 
+                        alt={`SDG ${sdgInfo.id}: ${sdgInfo.title}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          if (target.parentElement) {
+                            target.parentElement.style.backgroundColor = sdgInfo.color;
+                            target.parentElement.innerHTML = `
+                              <div class="w-full h-full flex items-center justify-center text-white font-bold text-2xl">
+                                ${sdgInfo.id}
+                              </div>
+                            `;
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                        SDG {sdgInfo.id}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {sdgInfo.title}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Apply Card */}
             <Card>
               <CardContent className="p-6">
@@ -505,48 +569,6 @@ export default function OpportunityDetailPage() {
                     </p>
                   </>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* SDG Alignment */}
-            {sdgInfo && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center text-sm">
-                    <Target className="h-4 w-4 mr-2" />
-                    SDG Alignment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl">
-                      {sdgInfo.icon}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm text-gray-900 dark:text-white">
-                        SDG {sdgInfo.id}
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        {sdgInfo.title}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Organization Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">About the Organization</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Link href={`/organizations/${opportunity.organization.id}`}>
-                  <Button variant="outline" className="w-full">
-                    <Building className="h-4 w-4 mr-2" />
-                    View Organization Profile
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
           </div>

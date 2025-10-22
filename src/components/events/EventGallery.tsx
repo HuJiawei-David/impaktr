@@ -2,9 +2,10 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   Plus, 
   X, 
@@ -70,21 +71,27 @@ export function EventGallery({
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('newest');
 
-  useEffect(() => {
-    fetchImages();
-  }, [eventId]);
-
-  const fetchImages = async () => {
+  const fetchImages = useCallback(async () => {
     try {
+      console.log('Fetching gallery images for event:', eventId);
       const response = await fetch(`/api/events/${eventId}/gallery`);
+      console.log('Gallery API response status:', response.status);
       if (response.ok) {
         const data = await response.json();
+        console.log('Gallery images received:', data.images?.length || 0, 'images');
+        console.log('Sample image:', data.images?.[0]);
         setImages(data.images || []);
+      } else {
+        console.error('Failed to fetch gallery images:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching images:', error);
     }
-  };
+  }, [eventId]);
+
+  useEffect(() => {
+    fetchImages();
+  }, [fetchImages]);
 
   const onDrop = (acceptedFiles: File[]) => {
     setUploadFiles(acceptedFiles.slice(0, 5)); // Limit to 5 files
@@ -176,6 +183,15 @@ export function EventGallery({
   const displayImages = isPreview && maxPreviewImages ? 
     filteredImages.slice(0, maxPreviewImages) : filteredImages;
 
+  console.log('EventGallery render:', {
+    eventId,
+    imagesCount: images.length,
+    filteredCount: filteredImages.length,
+    displayCount: displayImages.length,
+    isPreview,
+    maxPreviewImages
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -241,9 +257,11 @@ export function EventGallery({
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {uploadFiles.map((file, index) => (
                           <div key={index} className="relative group">
-                            <img
+                            <Image
                               src={URL.createObjectURL(file)}
                               alt={`Upload ${index + 1}`}
+                              width={200}
+                              height={96}
                               className="w-full h-24 object-cover rounded-lg"
                             />
                             <button

@@ -36,7 +36,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'react-hot-toast';
-import { sdgs, getSDGColor } from '@/constants/sdgs';
+import { getSDGById, getSDGColor } from '@/constants/sdgs';
 
 interface Event {
   id: string;
@@ -515,7 +515,7 @@ export default function EventDetailPage() {
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-3">SDG Focus Areas</h3>
                     <div className="flex flex-wrap gap-2">
                       {sdgNumbers.map((sdgNumber) => {
-                        const sdg = sdgs.find(s => s.id === sdgNumber);
+                        const sdg = getSDGById(sdgNumber);
                         return (
                           <div
                             key={sdgNumber}

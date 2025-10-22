@@ -47,7 +47,7 @@ import { ParticipantsList } from '@/components/events/ParticipantsList';
 import { EventParticipants } from '@/components/events/EventParticipants';
 import { EventGallery } from '@/components/events/EventGallery';
 import Link from 'next/link';
-import { sdgs } from '@/constants/sdgs';
+import { getSDGById } from '@/constants/sdgs';
 
 const getOrganizationTypeDisplay = (type?: string | null) => {
   if (!type) return 'Organization';
@@ -103,7 +103,6 @@ interface Event {
     verified?: boolean; // Computed field based on tier
   };
   createdAt: string;
-  updatedAt: string;
   status: 'DRAFT' | 'ACTIVE' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
   requiresApproval: boolean;
   customFields?: Array<{
@@ -635,11 +634,25 @@ export default function EventDetailPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="flex flex-wrap gap-2">
-                        {event.skills.map((skill) => (
-                          <Badge key={skill} variant="outline">
-                            {skill}
-                          </Badge>
-                        ))}
+                        {event.skills.map((skill, index) => {
+                          const colors = [
+                            'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800',
+                            'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800',
+                            'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800',
+                            'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 dark:border-orange-800',
+                            'bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/20 dark:text-pink-300 dark:border-pink-800',
+                            'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 dark:border-indigo-800',
+                            'bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800',
+                            'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800',
+                          ];
+                          const colorClass = colors[index % colors.length];
+                          
+                          return (
+                            <Badge key={skill} variant="outline" className={colorClass}>
+                              {skill}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -750,133 +763,6 @@ export default function EventDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Registration Deadline Info */}
-            {event.registrationDeadline && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-start space-x-3">
-                    <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
-                    <div>
-                      <div className="text-sm text-muted-foreground">Register by:</div>
-                      <div className="font-medium text-gray-900 dark:text-white">
-                        {formatDate(event.registrationDeadline)}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* SDG Alignment */}
-            {event.sdgTags && event.sdgTags.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center text-sm">
-                    <Target className="h-4 w-4 mr-2" />
-                    SDG Alignment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {event.sdgTags.map((sdgNumber) => {
-                      const sdgInfo = sdgs.find(s => s.id === sdgNumber);
-                      return sdgInfo ? (
-                        <div key={sdgNumber} className="flex items-center space-x-3">
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xl">
-                            {sdgInfo.icon}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm text-gray-900 dark:text-white">
-                              SDG {sdgInfo.id}
-                            </p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
-                              {sdgInfo.title}
-                            </p>
-                          </div>
-                        </div>
-                      ) : null;
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Action Card */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {/* Participation Status */}
-                  {event.userParticipation ? (
-                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                        <span className="font-medium text-green-800 dark:text-green-200">
-                          You&apos;re participating!
-                        </span>
-                      </div>
-                      <div className="text-sm text-green-700 dark:text-green-300">
-                        Status: {event.userParticipation.status}
-                        <br />
-                        Committed: {event.userParticipation.hoursCommitted} hours
-                        <br />
-                        Joined: {formatTimeAgo(event.userParticipation.joinedAt)}
-                      </div>
-                    </div>
-                  ) : isEventCompleted ? (
-                    <div className="text-center p-4 bg-muted rounded-lg border-2 border-gray-300 dark:border-gray-700">
-                      <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-500" />
-                      <div className="font-medium text-gray-700 dark:text-gray-300">Event Ended</div>
-                      <div className="text-sm text-muted-foreground">
-                        This event has been completed
-                      </div>
-                    </div>
-                  ) : isRegistrationClosed ? (
-                    <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
-                      <X className="w-8 h-8 mx-auto mb-2 text-red-600 dark:text-red-400" />
-                      <div className="font-medium text-red-700 dark:text-red-300">Registration Closed</div>
-                      <div className="text-sm text-red-600 dark:text-red-400">
-                        Registration deadline has passed
-                      </div>
-                    </div>
-                  ) : isEventFull ? (
-                    <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-2 border-yellow-200 dark:border-yellow-800">
-                      <Users className="w-8 h-8 mx-auto mb-2 text-yellow-600 dark:text-yellow-400" />
-                      <div className="font-medium text-yellow-700 dark:text-yellow-300">Event Full</div>
-                      <div className="text-sm text-yellow-600 dark:text-yellow-400">
-                        This event has reached capacity
-                      </div>
-                    </div>
-                  ) : canJoin ? (
-                    <div className="space-y-4">
-                      <Link href={`/events/${event.id}/register`}>
-                        <Button 
-                          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" 
-                          size="lg"
-                        >
-                          Register for Event
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : !user ? (
-                    <Link href={`/signin?callbackUrl=/events/${event.id}/register`}>
-                      <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" size="lg">
-                        Sign In to Register
-                      </Button>
-                    </Link>
-                  ) : null}
-
-                  {/* Edit Button for Creators */}
-                  {event.canEdit && (
-                    <Link href={`/events/${event.id}/edit`}>
-                      <Button variant="outline" className="w-full">
-                        <Edit3 className="w-4 h-4 mr-2" />
-                        Edit Event
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Event Details Card */}
             <Card>
@@ -955,20 +841,79 @@ export default function EventDetailPage() {
                   </div>
                 </div>
 
+                {/* Registration Deadline */}
+                {event.registrationDeadline && (
+                  <div className="flex items-start space-x-3">
+                    <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5" />
+                    <div>
+                      <div className="text-sm text-muted-foreground">Register by:</div>
+                      <div className="font-medium text-gray-900 dark:text-white">
+                        {formatDate(event.registrationDeadline)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <Separator />
 
                 {/* Created */}
                 <div className="text-sm text-muted-foreground">
                   Created {formatTimeAgo(event.createdAt)}
-                  {event.updatedAt !== event.createdAt && (
-                    <>
-                      <br />
-                      Updated {formatTimeAgo(event.updatedAt)}
-                    </>
-                  )}
                 </div>
               </CardContent>
             </Card>
+
+            {/* SDG Alignment */}
+            {event.sdgTags && event.sdgTags.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center text-sm">
+                    <Target className="h-4 w-4 mr-2" />
+                    SDG Alignment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {event.sdgTags.map((sdgNumber) => {
+                      const sdgData = getSDGById(sdgNumber);
+                      return sdgData ? (
+                        <div key={sdgNumber} className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800" style={{ borderColor: sdgData.color }}>
+                          <div className="w-12 h-12 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                            <Image 
+                              src={sdgData.image} 
+                              alt={`SDG ${sdgData.id}: ${sdgData.title}`}
+                              width={48}
+                              height={48}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                if (target.parentElement) {
+                                  target.parentElement.style.backgroundColor = sdgData.color;
+                                  target.parentElement.innerHTML = `
+                                    <div class="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                                      ${sdgData.id}
+                                    </div>
+                                  `;
+                                }
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                              SDG {sdgData.id}
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              {sdgData.title}
+                            </p>
+                          </div>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Impact Scoring Card */}
             <Card>
@@ -1056,6 +1001,83 @@ export default function EventDetailPage() {
                       <p className="text-xs text-indigo-600 dark:text-indigo-400">points</p>
                     </div>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Card */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {/* Participation Status */}
+                  {event.userParticipation ? (
+                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="font-medium text-green-800 dark:text-green-200">
+                          You&apos;re participating!
+                        </span>
+                      </div>
+                      <div className="text-sm text-green-700 dark:text-green-300">
+                        Status: {event.userParticipation.status}
+                        <br />
+                        Committed: {event.userParticipation.hoursCommitted} hours
+                        <br />
+                        Joined: {formatTimeAgo(event.userParticipation.joinedAt)}
+                      </div>
+                    </div>
+                  ) : isEventCompleted ? (
+                    <div className="text-center p-4 bg-muted rounded-lg border-2 border-gray-300 dark:border-gray-700">
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-500" />
+                      <div className="font-medium text-gray-700 dark:text-gray-300">Event Ended</div>
+                      <div className="text-sm text-muted-foreground">
+                        This event has been completed
+                      </div>
+                    </div>
+                  ) : isRegistrationClosed ? (
+                    <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-2 border-red-200 dark:border-red-800">
+                      <X className="w-8 h-8 mx-auto mb-2 text-red-600 dark:text-red-400" />
+                      <div className="font-medium text-red-700 dark:text-red-300">Registration Closed</div>
+                      <div className="text-sm text-red-600 dark:text-red-400">
+                        Registration deadline has passed
+                      </div>
+                    </div>
+                  ) : isEventFull ? (
+                    <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-2 border-yellow-200 dark:border-yellow-800">
+                      <Users className="w-8 h-8 mx-auto mb-2 text-yellow-600 dark:text-yellow-400" />
+                      <div className="font-medium text-yellow-700 dark:text-yellow-300">Event Full</div>
+                      <div className="text-sm text-yellow-600 dark:text-yellow-400">
+                        This event has reached capacity
+                      </div>
+                    </div>
+                  ) : canJoin ? (
+                    <div className="space-y-4">
+                      <Link href={`/events/${event.id}/register`}>
+                        <Button 
+                          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" 
+                          size="lg"
+                        >
+                          Register for Event
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : !user ? (
+                    <Link href={`/signin?callbackUrl=/events/${event.id}/register`}>
+                      <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0" size="lg">
+                        Sign In to Register
+                      </Button>
+                    </Link>
+                  ) : null}
+
+                  {/* Edit Button for Creators */}
+                  {event.canEdit && (
+                    <Link href={`/events/${event.id}/edit`}>
+                      <Button variant="outline" className="w-full">
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        Edit Event
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </CardContent>
             </Card>

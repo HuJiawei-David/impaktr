@@ -40,6 +40,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
+import Image from 'next/image';
 import { getSDGById } from '@/constants/sdgs';
 
 // Mock user data
@@ -294,7 +295,15 @@ export default function DemoDashboardPage() {
                     key={sdgId}
                     className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                   >
-                    <span className="text-2xl">{sdg.icon}</span>
+                    <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                      <Image 
+                        src={sdg.image} 
+                        alt={`SDG ${sdg.id}: ${sdg.title}`}
+                        width={32}
+                        height={32}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-medium text-gray-900 dark:text-white">
@@ -306,8 +315,8 @@ export default function DemoDashboardPage() {
                         ></div>
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                        {sdg.shortTitle}
-          </p>
+                        {sdg.title}
+                      </p>
         </div>
                   </div>
                 );

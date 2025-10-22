@@ -131,10 +131,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Transform events to include bookmark status
+    // Transform events to include bookmark status and correct participant count
     const eventsWithBookmarks = events.map(event => ({
       ...event,
-      isBookmarked: userBookmarks.includes(event.id)
+      isBookmarked: userBookmarks.includes(event.id),
+      currentParticipants: event._count.participations // Use the count of VERIFIED participations
     }));
 
     return NextResponse.json({

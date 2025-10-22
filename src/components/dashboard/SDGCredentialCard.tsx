@@ -69,7 +69,7 @@ export function SDGCredentialCard({ credential, onShare, onViewDetails, compact 
   const currentTierInfo = SDG_TIER_INFO[credential.currentTier as keyof typeof SDG_TIER_INFO] || SDG_TIER_INFO[1];
   const isEarned = credential.earnedTiers.includes(credential.currentTier);
   const specificNames = SDG_SPECIFIC_NAMES[credential.sdgNumber as keyof typeof SDG_SPECIFIC_NAMES];
-  const badgeName = specificNames ? specificNames[credential.currentTier - 1] : `${sdg.shortTitle} ${currentTierInfo.name}`;
+  const badgeName = specificNames ? specificNames[credential.currentTier - 1] : `${sdg.title} ${currentTierInfo.name}`;
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return null;
@@ -268,7 +268,7 @@ export function SDGCredentialCard({ credential, onShare, onViewDetails, compact 
             {credential.currentTier < 4 && (
               <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
                 <div className="text-xs text-green-700 dark:text-green-300 mb-1">
-                  Next Goal: {specificNames ? specificNames[credential.currentTier] : `${sdg.shortTitle} ${SDG_TIER_INFO[credential.currentTier + 1 as keyof typeof SDG_TIER_INFO]?.name}`}
+                  Next Goal: {specificNames ? specificNames[credential.currentTier] : `${sdg.title} ${SDG_TIER_INFO[credential.currentTier + 1 as keyof typeof SDG_TIER_INFO]?.name}`}
                 </div>
                 <div className="text-xs text-green-600 dark:text-green-400">
                   Need {credential.nextMilestone?.hoursNeeded || 0} more hours, {credential.nextMilestone?.activitiesNeeded || 0} more activities

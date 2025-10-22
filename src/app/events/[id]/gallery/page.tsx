@@ -113,38 +113,41 @@ export default function EventGalleryPage({ params }: EventGalleryPageProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/events/${event.id}`}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Event
-              </Link>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back to Event Button and Share Button */}
+        <div className="flex items-center justify-between mb-6">
+          <Link href={`/events/${event.id}`} className="inline-block">
+            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Event
             </Button>
-            
-            <div>
-              <h1 className="text-3xl font-bold">{event.title}</h1>
-              <p className="text-muted-foreground">Event Gallery</p>
-            </div>
-          </div>
-
+          </Link>
+          
           <Button variant="outline" onClick={handleShare}>
             <Share2 className="w-4 h-4 mr-2" />
             Share Gallery
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Gallery */}
-          <div className="lg:col-span-3">
-            <EventGallery 
-              eventId={eventId || ''}
-              canUpload={event.isCreator}
-              isPreview={false}
-              showFullGalleryLink={false}
-            />
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Event Title */}
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-4">{event.title}</h1>
+            </div>
+
+            {/* Gallery */}
+            <Card>
+              <CardContent className="pt-6">
+                <EventGallery 
+                  eventId={eventId || ''}
+                  canUpload={event.isCreator}
+                  isPreview={false}
+                  showFullGalleryLink={false}
+                />
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
@@ -214,7 +217,7 @@ export default function EventGalleryPage({ params }: EventGalleryPageProps) {
               <CardContent>
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                    {event.creator.avatar ? (
+                    {event.creator?.avatar ? (
                       <img 
                         src={event.creator.avatar} 
                         alt={event.creator.name}
@@ -222,12 +225,12 @@ export default function EventGalleryPage({ params }: EventGalleryPageProps) {
                       />
                     ) : (
                       <span className="text-sm font-medium">
-                        {event.creator.name.split(' ').map(n => n[0]).join('')}
+                        {event.creator?.name?.split(' ').map(n => n[0]).join('') || 'E'}
                       </span>
                     )}
                   </div>
                   <div>
-                    <div className="font-medium">{event.creator.name}</div>
+                    <div className="font-medium">{event.creator?.name || 'Event Organizer'}</div>
                     {event.organization && (
                       <div className="text-sm text-muted-foreground">
                         {event.organization.name}

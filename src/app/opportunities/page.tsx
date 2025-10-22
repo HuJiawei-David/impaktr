@@ -30,7 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'react-hot-toast';
 import { LocationAutocomplete } from '@/components/ui/location-autocomplete';
-import { sdgs } from '@/constants/sdgs';
+import { getSDGById } from '@/constants/sdgs';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 // SDG Definitions (copied from events page)
@@ -654,7 +654,7 @@ export default function OpportunitiesPage() {
                           <div className="flex items-center space-x-2">
                             <Badge variant="sdg" sdgNumber={parseInt(opportunity.sdg)} className="text-xs">
                               SDG {opportunity.sdg}: {(() => {
-                                const sdgInfo = sdgs.find(s => s.id === parseInt(opportunity.sdg!));
+                                const sdgInfo = getSDGById(parseInt(opportunity.sdg!));
                                 return sdgInfo ? sdgInfo.title : 'Unknown';
                               })()}
                             </Badge>

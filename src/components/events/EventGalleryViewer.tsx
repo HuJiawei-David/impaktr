@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { 
   X, 
@@ -21,7 +21,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogPortal, DialogOverlay } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { createPortal } from 'react-dom';
 import { formatDate, getInitials } from '@/lib/utils';
 
 interface EventImage {
@@ -69,6 +71,16 @@ export function EventGalleryViewer({
     setCurrentIndex(initialIndex);
   }, [initialIndex]);
 
+  const goToPrevious = useCallback(() => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+    setIsZoomed(false);
+  }, [images.length]);
+
+  const goToNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+    setIsZoomed(false);
+  }, [images.length]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
@@ -88,17 +100,7 @@ export function EventGalleryViewer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentIndex]);
-
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
-    setIsZoomed(false);
-  };
-
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
-    setIsZoomed(false);
-  };
+  }, [isOpen, goToPrevious, goToNext, onClose]);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -109,7 +111,7 @@ export function EventGalleryViewer({
           url: currentImage.url,
         });
       } catch (error) {
-        console.log('Share cancelled');
+        // Share cancelled
       }
     } else {
       // Fallback: copy to clipboard
@@ -126,76 +128,68 @@ export function EventGalleryViewer({
     }
   };
 
-  if (!currentImage) return null;
+  if (!currentImage || !isOpen) return null;
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl w-full h-[90vh] p-0 bg-black">
-        {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/50 to-transparent p-4">
-          <div className="flex items-center justify-between text-white">
-            <div className="flex items-center space-x-4">
-              <Avatar className="w-8 h-8">
-                <AvatarImage src={currentImage.uploadedBy.avatar} alt={currentImage.uploadedBy.name} />
-                <AvatarFallback className="text-xs">
-                  {getInitials(currentImage.uploadedBy.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium">{currentImage.uploadedBy.name}</p>
-                <p className="text-sm text-white/70">{formatDate(currentImage.uploadedAt)}</p>
-              </div>
-              {currentImage.category && (
-                <Badge variant="secondary" className={`${getCategoryColor(currentImage.category)}`}>
-                  {currentImage.category}
-                </Badge>
-              )}
-            </div>
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)', backdropFilter: 'blur(8px)' }}
+      onClick={onClose}
+    >
+      <div 
+        className="relative w-[90vw] max-w-5xl rounded-xl shadow-2xl flex flex-col overflow-hidden"
+        style={{ backgroundColor: '#1a1a1a' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="absolute top-4 right-4 w-10 h-10 p-0 rounded-full z-50"
+          style={{ color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
+          title="Close"
+        >
+          <X className="w-5 h-5" />
+        </Button>
 
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-white/70">
-                {currentIndex + 1} of {images.length}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsZoomed(!isZoomed)}
-                className="text-white hover:bg-white/10"
-              >
-                {isZoomed ? <ZoomOut className="w-4 h-4" /> : <ZoomIn className="w-4 h-4" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                className="text-white hover:bg-white/10"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Image */}
-        <div className="relative w-full h-full flex items-center justify-center">
+        {/* Main Image Area */}
+        <div className="relative flex items-center justify-center" style={{ backgroundColor: '#000', minHeight: '500px', maxHeight: '70vh' }}>
           <Image
             src={currentImage.url}
             alt={currentImage.caption || 'Event photo'}
-            fill
-            className={`object-contain transition-transform duration-200 ${
-              isZoomed ? 'scale-150 cursor-grab' : 'cursor-zoom-in'
-            }`}
-            onClick={() => setIsZoomed(!isZoomed)}
-            priority
+            width={800}
+            height={600}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '70vh',
+              width: 'auto',
+              height: 'auto',
+              objectFit: 'contain'
+            }}
+            unoptimized
           />
-
-          {/* Navigation */}
+          
+          {/* Navigation Arrows */}
           {images.length > 1 && (
             <>
               <Button
                 variant="ghost"
                 size="lg"
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/10 rounded-full w-12 h-12 p-0"
+                className="rounded-full w-12 h-12 p-0"
+                style={{ 
+                  color: 'white', 
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  position: 'absolute',
+                  left: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 100
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
                 onClick={goToPrevious}
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -203,7 +197,18 @@ export function EventGalleryViewer({
               <Button
                 variant="ghost"
                 size="lg"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/10 rounded-full w-12 h-12 p-0"
+                className="rounded-full w-12 h-12 p-0"
+                style={{ 
+                  color: 'white', 
+                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                  position: 'absolute',
+                  right: '16px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  zIndex: 100
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
                 onClick={goToNext}
               >
                 <ChevronRight className="w-6 h-6" />
@@ -212,89 +217,34 @@ export function EventGalleryViewer({
           )}
         </div>
 
-        {/* Bottom Info & Actions */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/50 to-transparent p-4">
-          <div className="max-w-4xl mx-auto">
-            {currentImage.caption && (
-              <p className="text-white mb-4 text-center">{currentImage.caption}</p>
-            )}
-            
-            <div className="flex items-center justify-between">
-              {/* Engagement */}
-              <div className="flex items-center space-x-4">
-                {onLike && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onLike(currentImage.id)}
-                    className="text-white hover:bg-white/10 flex items-center space-x-1"
-                  >
-                    <Heart className="w-4 h-4" />
-                    {currentImage.likes && <span>{currentImage.likes}</span>}
-                  </Button>
-                )}
-                
-                {onComment && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onComment(currentImage.id)}
-                    className="text-white hover:bg-white/10 flex items-center space-x-1"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    {currentImage.comments && <span>{currentImage.comments}</span>}
-                  </Button>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleShare}
-                  className="text-white hover:bg-white/10"
-                >
-                  <Share2 className="w-4 h-4" />
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open(currentImage.url, '_blank')}
-                  className="text-white hover:bg-white/10"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-
-                {onDelete && canDelete?.(currentImage) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDelete(currentImage.id)}
-                    className="text-white hover:bg-red-600/20"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
+        {/* Info Section */}
+        <div className="p-6 space-y-4" style={{ backgroundColor: '#1a1a1a' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-lg" style={{ color: 'white' }}>{currentImage.uploadedBy.name}</p>
+              {currentImage.caption && (
+                <p className="text-sm mt-1" style={{ color: '#a0a0a0' }}>{currentImage.caption}</p>
+              )}
             </div>
+            {images.length > 1 && (
+              <span className="text-sm" style={{ color: '#666' }}>{currentIndex + 1} / {images.length}</span>
+            )}
           </div>
-        </div>
-
-        {/* Thumbnail Strip */}
-        {images.length > 1 && (
-          <div className="absolute bottom-20 left-0 right-0 z-10">
-            <div className="flex justify-center space-x-2 px-4 max-w-4xl mx-auto overflow-x-auto">
+          
+          {/* Thumbnail Strip */}
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto overflow-y-hidden scrollbar-hide pb-2">
               {images.map((image, index) => (
                 <button
                   key={image.id}
                   onClick={() => setCurrentIndex(index)}
-                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                    index === currentIndex 
-                      ? 'border-white' 
-                      : 'border-transparent hover:border-white/50'
-                  }`}
+                  className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden transition-all"
+                  style={{
+                    border: index === currentIndex ? '2px solid #9333ea' : '1px solid #404040',
+                    opacity: index === currentIndex ? 1 : 0.5
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = index === currentIndex ? '1' : '0.5'}
                 >
                   <Image
                     src={image.url}
@@ -302,13 +252,15 @@ export function EventGalleryViewer({
                     width={64}
                     height={64}
                     className="w-full h-full object-cover"
+                    unoptimized
                   />
                 </button>
               ))}
             </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
