@@ -476,7 +476,7 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {profile.recentActivity.slice(0, 3).map((activity) => (
+                  {profile.recentActivity?.slice(0, 3).map((activity) => (
                     <div key={activity.id} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors">
                       <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
                         <TrendingUp className="w-4 h-4 text-white" />
@@ -492,7 +492,12 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )) || (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No recent activity</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
