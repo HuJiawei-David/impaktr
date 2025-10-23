@@ -809,15 +809,15 @@ export default function EventDetailPage() {
                     )}
                     {event.location.coordinates && (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="p-0 h-auto mt-1"
+                        className="mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
                         onClick={() => {
                           const { lat, lng } = event.location.coordinates!;
                           window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
                         }}
                       >
-                        <Navigation className="w-3 h-3 mr-1" />
+                        <Navigation className="w-4 h-4 mr-2" />
                         Get Directions
                       </Button>
                     )}

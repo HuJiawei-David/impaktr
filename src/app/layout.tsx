@@ -105,7 +105,7 @@ export default function RootLayout({
             <QueryProvider>
               <SocketProvider>
                 <Navigation />
-                <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0" style={{ paddingTop: '70px' }}>
+                <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0" style={{ paddingTop: '64px' }}>
                   {children}
                 </div>
                 <Toaster
