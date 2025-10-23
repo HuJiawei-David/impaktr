@@ -73,8 +73,6 @@ export function CommunityDiscovery({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSdg, setSelectedSdg] = useState<string>('all');
   const [selectedTab, setSelectedTab] = useState<'my' | 'discover' | 'recommended'>('discover');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   
   // New Meetup-style state
   const [userLocation, setUserLocation] = useState<{city: string, country: string} | null>(null);
@@ -82,10 +80,6 @@ export function CommunityDiscovery({
   const [selectedSDGCategory, setSelectedSDGCategory] = useState<string>('all');
   const [locationSearch, setLocationSearch] = useState<string>('');
 
-  // Fetch communities from API
-  useEffect(() => {
-    fetchCommunities();
-  }, [selectedCategory, selectedSdg, searchQuery]);
 
   // Detect user location
   useEffect(() => {
@@ -116,29 +110,6 @@ export function CommunityDiscovery({
     }
   }, []);
 
-  const fetchCommunities = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const params = new URLSearchParams();
-      if (selectedCategory !== 'all') params.append('category', selectedCategory);
-      if (selectedSdg !== 'all') params.append('sdg', selectedSdg);
-      if (searchQuery.trim()) params.append('search', searchQuery);
-      
-      const response = await fetch(`/api/communities?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch communities');
-      }
-      
-      const data = await response.json();
-      setFetchedCommunities(data.communities || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Mock data - in real app, this would come from props or API
   const mockCommunities: Community[] = [
@@ -288,7 +259,7 @@ export function CommunityDiscovery({
       sdgFocus: [13, 11, 12],
       primarySDG: 13,
       location: { city: 'Singapore', country: 'Singapore' },
-      distance: null, // No distance for international communities
+      distance: undefined, // No distance for international communities
       rating: 4.7,
       memberAvatars: [
         'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
@@ -310,7 +281,7 @@ export function CommunityDiscovery({
       sdgFocus: [9, 8, 4],
       primarySDG: 9,
       location: { city: 'Tokyo', country: 'Japan' },
-      distance: null,
+      distance: undefined,
       rating: 4.8,
       memberAvatars: [
         'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
