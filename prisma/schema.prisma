@@ -61,6 +61,10 @@ model User {
   communityResources       CommunityResource[]      @relation("CommunityResources")
   donations                Donation[]
   emailTemplates           EmailTemplate[]
+  eventBookmarks           EventBookmark[]
+  eventCommentLikes        EventCommentLike[]
+  eventComments            EventComment[]
+  eventImages              EventImage[]
   following                Follow[]                 @relation("Followers")
   followers                Follow[]                 @relation("Following")
   likes                    Like[]
@@ -68,6 +72,7 @@ model User {
   sentMessages             Message[]                @relation("SentMessages")
   notificationTemplates    NotificationTemplate[]
   notifications            Notification[]
+  opportunityBookmarks     OpportunityBookmark[]
   sentInvitations          OrganizationInvitation[]
   organizationMemberships  OrganizationMember[]
   participations           Participation[]
@@ -89,11 +94,6 @@ model User {
   vettingRequests          VettingRequest[]
   vettingResponses         VettingResponse[]
   volunteerProfile         VolunteerProfile?
-  eventBookmarks           EventBookmark[]
-  opportunityBookmarks     OpportunityBookmark[]
-  eventComments            EventComment[]
-  eventCommentLikes        EventCommentLike[]
-  eventImages              EventImage[]
 
   @@map("users")
 }
@@ -355,44 +355,41 @@ model ChallengeParticipant {
 }
 
 model Event {
-  id                   String                @id @default(cuid())
-  title                String
-  description          String
-  organizationId       String?
-  startDate            DateTime
-  endDate              DateTime
-  registrationDeadline DateTime?
-  location             String
-  maxParticipants      Int?
-  currentParticipants  Int                   @default(0)
-  createdAt            DateTime              @default(now())
-  imageUrl             String?
-  organizerId          String?
-  sdg                  String?
-  campaignId           String?
-  isPublic             Boolean               @default(true)
-  locationId           String?
-  type                 EventCategory
-  status               EventStatus           @default(UPCOMING)
-  
-  // Scoring-related fields
-  skills               String[]              @default([])
-  intensity            Float                 @default(1.0)
-  verificationType     String                @default("ORGANIZER")
-  eventInstructions    String?
-  materialsNeeded      String[]              @default([])
-  emergencyContact     Json?
-  requiresApproval     Boolean               @default(false)
-  autoIssueCertificates Boolean              @default(true)
-  
-  broadcasts           Broadcast[]
-  campaign             Campaign?             @relation(fields: [campaignId], references: [id])
-  organizationLocation OrganizationLocation? @relation(fields: [locationId], references: [id])
-  organization         Organization?         @relation(fields: [organizationId], references: [id])
-  participations       Participation[]
-  bookmarks            EventBookmark[]
-  comments             EventComment[]
-  images               EventImage[]
+  id                    String                @id @default(cuid())
+  title                 String
+  description           String
+  organizationId        String?
+  startDate             DateTime
+  endDate               DateTime
+  location              String
+  maxParticipants       Int?
+  currentParticipants   Int                   @default(0)
+  createdAt             DateTime              @default(now())
+  imageUrl              String?
+  organizerId           String?
+  sdg                   String?
+  campaignId            String?
+  isPublic              Boolean               @default(true)
+  locationId            String?
+  type                  EventCategory
+  status                EventStatus           @default(UPCOMING)
+  skills                String[]              @default([])
+  intensity             Float                 @default(1.0)
+  verificationType      String                @default("ORGANIZER")
+  eventInstructions     String?
+  materialsNeeded       String[]              @default([])
+  emergencyContact      Json?
+  requiresApproval      Boolean               @default(false)
+  autoIssueCertificates Boolean               @default(true)
+  registrationDeadline  DateTime?
+  broadcasts            Broadcast[]
+  bookmarks             EventBookmark[]
+  comments              EventComment[]
+  images                EventImage[]
+  campaign              Campaign?             @relation(fields: [campaignId], references: [id])
+  organizationLocation  OrganizationLocation? @relation(fields: [locationId], references: [id])
+  organization          Organization?         @relation(fields: [organizationId], references: [id])
+  participations        Participation[]
 
   @@index([startDate])
   @@index([type])
@@ -405,28 +402,26 @@ model EventBookmark {
   userId    String
   eventId   String
   createdAt DateTime @default(now())
-
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
   @@map("event_bookmarks")
 }
 
 model EventComment {
-  id        String   @id @default(cuid())
+  id        String             @id @default(cuid())
   eventId   String
   userId    String
   content   String
   parentId  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  event     Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    EventComment?  @relation("EventCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   EventComment[] @relation("EventCommentReplies")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
   likes     EventCommentLike[]
+  event     Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  parent    EventComment?      @relation("EventCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   EventComment[]     @relation("EventCommentReplies")
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([userId])
@@ -435,11 +430,10 @@ model EventComment {
 }
 
 model EventCommentLike {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   commentId String
   userId    String
-  createdAt DateTime @default(now())
-
+  createdAt DateTime     @default(now())
   comment   EventComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -448,17 +442,16 @@ model EventCommentLike {
 }
 
 model EventImage {
-  id         String   @id @default(cuid())
-  eventId    String
-  userId     String
-  url        String
-  caption    String?
-  category   String?  @default("general")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  url       String
+  caption   String?
+  category  String?  @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([userId])
@@ -466,13 +459,12 @@ model EventImage {
 }
 
 model OpportunityBookmark {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   userId        String
   opportunityId String
-  createdAt     DateTime   @default(now())
-
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
   opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, opportunityId])
   @@map("opportunity_bookmarks")
@@ -593,25 +585,25 @@ model Report {
 }
 
 model Opportunity {
-  id             String            @id @default(cuid())
+  id             String                @id @default(cuid())
   organizationId String
   title          String
   description    String
   requirements   String[]
   spots          Int
-  spotsFilled    Int               @default(0)
+  spotsFilled    Int                   @default(0)
   deadline       DateTime?
   applyUrl       String?
   location       String?
-  isRemote       Boolean           @default(false)
-  skills         String[]          @default([])
+  isRemote       Boolean               @default(false)
+  skills         String[]              @default([])
   sdg            String?
-  status         OpportunityStatus @default(OPEN)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  status         OpportunityStatus     @default(OPEN)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
   applications   Application[]
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bookmarks      OpportunityBookmark[]
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([status])
@@ -1186,115 +1178,125 @@ model RateLimitViolation {
 }
 
 model EventTemplate {
-  id                 String   @id @default(cuid())
-  name               String
-  description        String?
-  sdgTags            String[] // e.g., ["SDG3","SDG4"]
-  // Impact factors: calibrated per org. Use conservative estimates.
-  // Units:
-  // - *perParticipant: applied per unique participant in event
-  // - *perHourPerParticipant: applied per hour per participant
-  // - *perEvent: flat impact regardless of size
-  impact_E_perParticipant           Float   @default(0)
-  impact_E_perHourPerParticipant    Float   @default(0)
-  impact_E_perEvent                 Float   @default(0)
-  impact_H_perParticipant           Float   @default(0)
-  impact_H_perHourPerParticipant    Float   @default(0)
-  impact_H_perEvent                 Float   @default(0)
-  impact_Q_perParticipant           Float   @default(0)
-  impact_Q_perHourPerParticipant    Float   @default(0)
-  impact_Q_perEvent                 Float   @default(0)
-  impact_V_perParticipant           Float   @default(0)
-  impact_V_perHourPerParticipant    Float   @default(0)
-  impact_V_perEvent                 Float   @default(0)
-  impact_S_perParticipant           Float   @default(0)
-  impact_S_perHourPerParticipant    Float   @default(0)
-  impact_S_perEvent                 Float   @default(0)
-  impact_C_perParticipant           Float   @default(0)
-  impact_C_perHourPerParticipant    Float   @default(0)
-  impact_C_perEvent                 Float   @default(0)
-
-  gPolicyModifier        Float   @default(0) // e.g., +0.02 if the event enforces a policy that boosts G
-  minParticipants        Int     @default(1)
-  maxParticipants        Int     @default(1000)
-  durationHoursDefault   Int     @default(2)
-  allowDurationScaling   Boolean @default(true)
-  verificationRequired   Boolean @default(false)
-  eligibilityRequirements String[] @default([]) // role tags, certifications, etc.
-  riskLevel              String  @default("low") // "low" | "medium" | "high"
-  leadTimeDays           Int     @default(7)
-  costPerParticipant     Int     @default(0)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  eventDrafts            EventDraft[]
+  id                             String       @id @default(cuid())
+  name                           String
+  description                    String?
+  sdgTags                        String[]
+  impact_E_perParticipant        Float        @default(0)
+  impact_E_perHourPerParticipant Float        @default(0)
+  impact_E_perEvent              Float        @default(0)
+  impact_H_perParticipant        Float        @default(0)
+  impact_H_perHourPerParticipant Float        @default(0)
+  impact_H_perEvent              Float        @default(0)
+  impact_Q_perParticipant        Float        @default(0)
+  impact_Q_perHourPerParticipant Float        @default(0)
+  impact_Q_perEvent              Float        @default(0)
+  impact_V_perParticipant        Float        @default(0)
+  impact_V_perHourPerParticipant Float        @default(0)
+  impact_V_perEvent              Float        @default(0)
+  impact_S_perParticipant        Float        @default(0)
+  impact_S_perHourPerParticipant Float        @default(0)
+  impact_S_perEvent              Float        @default(0)
+  impact_C_perParticipant        Float        @default(0)
+  impact_C_perHourPerParticipant Float        @default(0)
+  impact_C_perEvent              Float        @default(0)
+  gPolicyModifier                Float        @default(0)
+  minParticipants                Int          @default(1)
+  maxParticipants                Int          @default(1000)
+  durationHoursDefault           Int          @default(2)
+  allowDurationScaling           Boolean      @default(true)
+  verificationRequired           Boolean      @default(false)
+  eligibilityRequirements        String[]     @default([])
+  riskLevel                      String       @default("low")
+  leadTimeDays                   Int          @default(7)
+  costPerParticipant             Int          @default(0)
+  createdAt                      DateTime     @default(now())
+  updatedAt                      DateTime     @updatedAt
+  eventDrafts                    EventDraft[]
 
   @@map("event_templates")
 }
 
 model EventDraft {
-  id               String   @id @default(cuid())
-  templateId       String
-  template         EventTemplate @relation(fields: [templateId], references: [id])
-  participants     Int
-  durationHours    Int
-  scheduledDate    DateTime?
-  sdgs             String[]
-  notes            String?
-  status           String  @default("draft") // "draft" | "scheduled" | "completed"
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id            String        @id @default(cuid())
+  templateId    String
+  participants  Int
+  durationHours Int
+  scheduledDate DateTime?
+  sdgs          String[]
+  notes         String?
+  status        String        @default("draft")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  template      EventTemplate @relation(fields: [templateId], references: [id])
 
   @@map("event_drafts")
 }
 
 model OrganizationMetricSnapshot {
-  id             String   @id @default(cuid())
-  capturedAt     DateTime @default(now())
-  totalMembers   Int
-  activeMembers  Int
-  totalHours     Int
-  verifiedEvents Int
-  // Store current component scores for baseline:
-  E              Float
-  H              Float
-  Q              Float
-  V              Float
-  S              Float
-  C              Float
-  G              Float
-  dataQualityScore Float @default(1.0) // 0..1 overall DQS, used for conservative discounting
+  id               String   @id @default(cuid())
+  capturedAt       DateTime @default(now())
+  totalMembers     Int
+  activeMembers    Int
+  totalHours       Int
+  verifiedEvents   Int
+  E                Float
+  H                Float
+  Q                Float
+  V                Float
+  S                Float
+  C                Float
+  G                Float
+  dataQualityScore Float    @default(1.0)
 
   @@map("organization_metric_snapshots")
 }
 
+model UserFavoriteEvent {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  templateId     String
+  eventName      String
+  sdgs           String[]
+  participants   Int
+  durationHours  Int
+  predictedDelta Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  notes          String?
+
+  @@unique([userId, organizationId, templateId])
+  @@index([userId])
+  @@index([organizationId])
+  @@map("user_favorite_events")
+}
+
 model Community {
-  id            String               @id @default(cuid())
+  id            String                @id @default(cuid())
   name          String
   description   String
   category      String
-  sdgFocus      Int[]                @default([])
-  privacy       CommunityPrivacy     @default(PUBLIC)
-  isPublic      Boolean              @default(true)
+  sdgFocus      Int[]                 @default([])
+  privacy       CommunityPrivacy      @default(PUBLIC)
+  isPublic      Boolean               @default(true)
   bannerImage   String?
   avatar        String?
-  tags          String[]             @default([])
-  rules         String[]             @default([])
+  tags          String[]              @default([])
+  rules         String[]              @default([])
   location      String?
   language      String?
-  memberCount   Int                  @default(0)
-  postCount     Int                  @default(0)
+  memberCount   Int                   @default(0)
+  postCount     Int                   @default(0)
   createdBy     String
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  
-  // New Meetup-style fields
-  locationData  Json?                // {city: string, country: string, coordinates?: {lat: number, lng: number}}
-  coordinates   Unsupported("point")? // PostGIS point for distance calculations
-  primarySDG    Int?                 // Primary SDG focus
-  rating        Decimal?             @db.Decimal(2,1) // Community rating (0.0-5.0)
-  memberAvatars String[]             @default([]) // URLs of member profile pictures
-  
-  createdByUser User                 @relation("CreatedCommunities", fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  coordinates   Unsupported("point")?
+  locationData  Json?
+  memberAvatars String[]              @default([])
+  primarySDG    Int?
+  rating        Decimal?              @db.Decimal(2, 1)
+  createdByUser User                  @relation("CreatedCommunities", fields: [createdBy], references: [id], onDelete: Cascade)
   members       CommunityMember[]
   moderators    CommunityModerator[]
   posts         CommunityPost[]

@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, MapPin, Users, Plus, Clock } from 'lucide-react';
+import { Calendar, MapPin, Users, Plus, Clock, Trash2, Eye } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface Event {
   id: string;
@@ -23,9 +24,10 @@ interface Event {
 interface EventManagerProps {
   events: Event[];
   organizationId: string;
+  onEventDeleted?: () => void;
 }
 
-export default function EventManager({ events, organizationId }: EventManagerProps) {
+export default function EventManager({ events, organizationId, onEventDeleted }: EventManagerProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -66,10 +68,34 @@ export default function EventManager({ events, organizationId }: EventManagerPro
       });
       setShowCreateDialog(false);
 
-      alert('Event created successfully!');
+      toast.success('Event created successfully!');
     } catch (error) {
       console.error('Create event error:', error);
-      alert('Failed to create event. Please try again.');
+      toast.error('Failed to create event. Please try again.');
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete event');
+      }
+
+      toast.success('Event deleted successfully');
+      if (onEventDeleted) {
+        onEventDeleted();
+      }
+    } catch (error) {
+      console.error('Delete event error:', error);
+      toast.error('Failed to delete event. Please try again.');
     }
   };
 
@@ -250,9 +276,21 @@ export default function EventManager({ events, organizationId }: EventManagerPro
                       </div>
                     </div>
                   </div>
-                  <Button size="sm" variant="outline">
-                    View Details
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    <Button size="sm" variant="outline">
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Details
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleDeleteEvent(event.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
