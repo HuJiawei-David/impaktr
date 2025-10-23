@@ -110,7 +110,10 @@ export default function CommunityPage() {
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-4">Error Loading Communities</h2>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Button onClick={fetchCommunities}>
+          <Button 
+            onClick={fetchCommunities}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+          >
             Try Again
           </Button>
         </div>
