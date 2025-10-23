@@ -129,17 +129,36 @@ export async function GET(request: NextRequest) {
       userMemberships.map(m => [m.communityId, m.role])
     );
 
-    const communitiesWithMembership = communities.map(community => ({
-      ...community,
-      memberCount: community._count.members,
-      postCount: community._count.posts,
-      recentActivity: community.posts.length > 0 
-        ? `Last post ${new Date(community.posts[0].createdAt).toLocaleDateString()}`
-        : `Created ${new Date(community.createdAt).toLocaleDateString()}`,
-      isJoined: membershipMap.has(community.id),
-      userRole: membershipMap.get(community.id) || null,
-      _count: undefined,
-    }));
+    const communitiesWithMembership = communities.map(community => {
+      // Parse locationData if it exists
+      const locationData = community.locationData as any;
+      const location = locationData ? {
+        city: locationData.city,
+        country: locationData.country,
+        coordinates: locationData.coordinates
+      } : undefined;
+
+      // Get member avatars from the first few members
+      const memberAvatars = community.memberAvatars?.length > 0 
+        ? community.memberAvatars 
+        : community.members.slice(0, 3).map(m => m.user.image).filter(Boolean) as string[];
+
+      return {
+        ...community,
+        memberCount: community._count.members,
+        postCount: community._count.posts,
+        recentActivity: community.posts.length > 0 
+          ? `Last post ${new Date(community.posts[0].createdAt).toLocaleDateString()}`
+          : `Created ${new Date(community.createdAt).toLocaleDateString()}`,
+        isJoined: membershipMap.has(community.id),
+        userRole: membershipMap.get(community.id) || null,
+        location,
+        memberAvatars,
+        _count: undefined,
+        posts: undefined,
+        coordinates: undefined,
+      };
+    });
 
     return NextResponse.json({
       communities: communitiesWithMembership,

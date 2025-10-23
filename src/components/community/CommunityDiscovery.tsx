@@ -61,18 +61,20 @@ interface CommunityDiscoveryProps {
 
 export function CommunityDiscovery({ 
   communities = [], 
-  onJoin, 
-  onView, 
+  onJoin,
+  onView,
   onShare,
-  onCreateCommunity 
+  onCreateCommunity
 }: CommunityDiscoveryProps) {
+  // Debug: Log communities received as prop
+  console.log('CommunityDiscovery received communities:', communities);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSdg, setSelectedSdg] = useState<string>('all');
   const [selectedTab, setSelectedTab] = useState<'my' | 'discover' | 'recommended'>('discover');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fetchedCommunities, setFetchedCommunities] = useState<Community[]>([]);
   
   // New Meetup-style state
   const [userLocation, setUserLocation] = useState<{city: string, country: string} | null>(null);
@@ -340,7 +342,9 @@ export function CommunityDiscovery({
     }
   ];
 
-  const displayCommunities = mockCommunities;
+  // Use communities prop if available, otherwise use mock data
+  const displayCommunities = communities.length > 0 ? communities : mockCommunities;
+  console.log('displayCommunities:', displayCommunities.length, displayCommunities);
 
   const categories = ['all', 'Environment', 'Education', 'Healthcare', 'Social', 'Technology', 'Business'];
   const sdgOptions = [
@@ -645,15 +649,27 @@ export function CommunityDiscovery({
               <Users className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              No communities found
+              {selectedTab === 'my' 
+                ? "You haven't joined any communities yet"
+                : 'No communities found'
+              }
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {searchQuery.trim() 
-                ? 'Try adjusting your search terms or filters'
-                : 'No communities match your current filters'
+              {selectedTab === 'my'
+                ? 'Explore communities in the Discover tab and join ones that match your interests'
+                : searchQuery.trim() 
+                  ? 'Try adjusting your search terms or filters'
+                  : 'No communities match your current filters'
               }
             </p>
-            {searchQuery.trim() && (
+            {selectedTab === 'my' ? (
+              <Button 
+                onClick={() => setSelectedTab('discover')}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+              >
+                Discover Communities
+              </Button>
+            ) : searchQuery.trim() && (
               <Button 
                 variant="outline" 
                 onClick={() => setSearchQuery('')}

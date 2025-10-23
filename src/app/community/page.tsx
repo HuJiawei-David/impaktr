@@ -55,6 +55,7 @@ export default function CommunityPage() {
         throw new Error('Failed to fetch communities');
       }
       const data = await response.json();
+      console.log('Fetched communities from API:', data.communities);
       setCommunities(data.communities || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
