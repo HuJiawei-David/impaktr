@@ -78,6 +78,7 @@ export function CommunityDiscovery({
   const [userLocation, setUserLocation] = useState<{city: string, country: string} | null>(null);
   const [distanceFilter, setDistanceFilter] = useState<string>('50');
   const [selectedSDGCategory, setSelectedSDGCategory] = useState<string>('all');
+  const [locationSearch, setLocationSearch] = useState<string>('');
 
   // Fetch communities from API
   useEffect(() => {
@@ -270,6 +271,72 @@ export function CommunityDiscovery({
         'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
         'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
       ]
+    },
+    {
+      id: '7',
+      name: 'Singapore Green Warriors',
+      description: 'Leading environmental initiatives and sustainable living practices in Singapore.',
+      category: 'Environment',
+      memberCount: 3421,
+      postCount: 189,
+      recentActivity: '1 hour ago',
+      isPublic: true,
+      isJoined: false,
+      tags: ['Environment', 'Singapore', 'Sustainability'],
+      sdgFocus: [13, 11, 12],
+      primarySDG: 13,
+      location: { city: 'Singapore', country: 'Singapore' },
+      distance: null, // No distance for international communities
+      rating: 4.7,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
+    },
+    {
+      id: '8',
+      name: 'Tokyo Tech for Good',
+      description: 'Japanese tech professionals using innovation to solve social challenges.',
+      category: 'Technology',
+      memberCount: 1892,
+      postCount: 67,
+      recentActivity: '3 hours ago',
+      isPublic: true,
+      isJoined: false,
+      tags: ['Technology', 'Japan', 'Innovation'],
+      sdgFocus: [9, 8, 4],
+      primarySDG: 9,
+      location: { city: 'Tokyo', country: 'Japan' },
+      distance: null,
+      rating: 4.8,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
+    },
+    {
+      id: '9',
+      name: 'Elite Impact Leaders',
+      description: 'An exclusive network for verified C-suite executives and social impact leaders.',
+      category: 'Business',
+      memberCount: 243,
+      postCount: 89,
+      recentActivity: '30 minutes ago',
+      isPublic: false,
+      isJoined: false,
+      tags: ['Leadership', 'Executive', 'Private'],
+      sdgFocus: [8, 9, 17],
+      primarySDG: 17,
+      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
+      distance: 2.1,
+      rating: 4.9,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
     }
   ];
 
@@ -338,8 +405,17 @@ export function CommunityDiscovery({
       );
     }
 
+    // Filter by location search
+    if (locationSearch.trim()) {
+      const locationQuery = locationSearch.toLowerCase();
+      filtered = filtered.filter(community =>
+        community.location?.city.toLowerCase().includes(locationQuery) ||
+        community.location?.country.toLowerCase().includes(locationQuery)
+      );
+    }
+
     return filtered;
-  }, [displayCommunities, selectedTab, selectedSDGCategory, distanceFilter, searchQuery]);
+  }, [displayCommunities, selectedTab, selectedSDGCategory, distanceFilter, searchQuery, locationSearch]);
 
   const getTabStats = () => {
     const myCommunities = displayCommunities.filter(c => c.isJoined).length;
@@ -358,10 +434,20 @@ export function CommunityDiscovery({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Communities near {userLocation ? `${userLocation.city}, ${userLocation.country}` : 'Your Location'}
+              Communities {locationSearch.trim() ? (
+                <>
+                  in <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">{locationSearch}</span>
+                </>
+              ) : distanceFilter === 'global' ? 'around the world' : (
+                <>
+                  near <span className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
+                    {userLocation ? `${userLocation.city}, ${userLocation.country}` : 'Your Location'}
+                  </span>
+                </>
+              )}
             </h1>
-            <p className="text-gray-600 mt-1">
-              Join communities focused on {selectedSDGCategory !== 'all' ? `SDG ${selectedSDGCategory}` : 'social impact'} in your area
+            <p className="text-gray-600 dark:text-gray-300 mt-1">
+              Join communities focused on {selectedSDGCategory !== 'all' ? `SDG ${selectedSDGCategory}` : 'social impact'} {locationSearch.trim() ? `in ${locationSearch}` : distanceFilter === 'global' ? 'anywhere' : 'in your area'}
             </p>
           </div>
           <Button 
@@ -373,27 +459,79 @@ export function CommunityDiscovery({
           </Button>
         </div>
 
-        {/* Location & Distance Filter */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-600">
-              {filteredCommunities.length} communities found
-            </span>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Communities Count */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 text-center">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent font-bold text-3xl mb-1">
+              {filteredCommunities.length}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+              Communities
+            </div>
           </div>
-          <Select value={distanceFilter} onValueChange={setDistanceFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Distance" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">Within 5 km</SelectItem>
-              <SelectItem value="10">Within 10 km</SelectItem>
-              <SelectItem value="25">Within 25 km</SelectItem>
-              <SelectItem value="50">Within 50 km</SelectItem>
-              <SelectItem value="100">Within 100 km</SelectItem>
-              <SelectItem value="global">Anywhere</SelectItem>
-            </SelectContent>
-          </Select>
+
+          {/* Total Members */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 text-center">
+            <div className="bg-gradient-to-r from-green-500 to-teal-600 bg-clip-text text-transparent font-bold text-3xl mb-1">
+              {filteredCommunities.reduce((sum, community) => sum + community.memberCount, 0).toLocaleString()}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+              Total Members
+            </div>
+          </div>
+
+          {/* Active Communities */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 text-center">
+            <div className="bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent font-bold text-3xl mb-1">
+              {filteredCommunities.filter(c => c.postCount > 0).length}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+              Active Communities
+            </div>
+          </div>
+
+          {/* SDG Coverage */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 text-center">
+            <div className="bg-gradient-to-r from-purple-500 to-pink-600 bg-clip-text text-transparent font-bold text-3xl mb-1">
+              {new Set(filteredCommunities.flatMap(c => c.sdgFocus || [])).size}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+              SDGs Covered
+            </div>
+          </div>
+        </div>
+
+        {/* Location & Distance Filter */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Location Search */}
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search by city or country..."
+                value={locationSearch}
+                onChange={(e) => setLocationSearch(e.target.value)}
+                className="pl-10 w-64"
+              />
+            </div>
+            
+            {/* Distance Filter */}
+            <Select value={distanceFilter} onValueChange={setDistanceFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Distance" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">Within 5 km</SelectItem>
+                <SelectItem value="10">Within 10 km</SelectItem>
+                <SelectItem value="25">Within 25 km</SelectItem>
+                <SelectItem value="50">Within 50 km</SelectItem>
+                <SelectItem value="100">Within 100 km</SelectItem>
+                <SelectItem value="global">Anywhere in the world</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -402,7 +540,11 @@ export function CommunityDiscovery({
         <Button
           variant={selectedSDGCategory === 'all' ? 'default' : 'outline'}
           onClick={() => setSelectedSDGCategory('all')}
-          className="whitespace-nowrap rounded-full"
+          className={`whitespace-nowrap rounded-full ${
+            selectedSDGCategory === 'all' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
         >
           All Communities
         </Button>
@@ -414,7 +556,11 @@ export function CommunityDiscovery({
               key={sdgId}
               variant={selectedSDGCategory === sdgId.toString() ? 'default' : 'outline'}
               onClick={() => setSelectedSDGCategory(sdgId.toString())}
-              className="whitespace-nowrap rounded-full flex items-center gap-2"
+              className={`whitespace-nowrap rounded-full flex items-center gap-2 ${
+                selectedSDGCategory === sdgId.toString() 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
             >
               <img src={sdg.image} alt={sdg.title} className="w-4 h-4" />
               {sdg.title}
@@ -424,59 +570,22 @@ export function CommunityDiscovery({
         <ChevronRight className="w-4 h-4 text-gray-400" />
       </div>
 
-      {/* Search and Filters */}
+      {/* Unified Search */}
       <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search communities..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* Category Filter */}
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-gray-400" />
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category === 'all' ? 'All Categories' : category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* SDG Filter */}
-            <div className="flex items-center space-x-2">
-              <Star className="w-4 h-4 text-gray-400" />
-              <Select value={selectedSdg} onValueChange={setSelectedSdg}>
-                <SelectTrigger className="w-64">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {sdgOptions.map(sdg => (
-                    <SelectItem key={sdg.value} value={sdg.value}>
-                      {sdg.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search communities by name, description, or tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Pill Buttons */}
+      {/* Tab Pills */}
       <div className="flex flex-wrap gap-2">
         <Button
           variant={selectedTab === 'my' ? 'default' : 'outline'}

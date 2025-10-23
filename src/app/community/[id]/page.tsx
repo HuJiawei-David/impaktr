@@ -31,6 +31,7 @@ interface Community {
   category: string;
   sdgFocus: number[];
   privacy: string;
+  isPublic: boolean;
   bannerImage?: string;
   avatar?: string;
   tags: string[];
@@ -147,21 +148,41 @@ export default function CommunityPage() {
     
     try {
       setJoining(true);
-      const response = await fetch('/api/communities/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ communityId: community.id })
-      });
+      
+      // Check if community is private
+      if (!community.isPublic || community.privacy === 'PRIVATE' || community.privacy === 'INVITE_ONLY') {
+        // Send join request for private communities
+        const response = await fetch('/api/communities/request-join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ communityId: community.id })
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to join community');
+        if (!response.ok) {
+          throw new Error('Failed to send join request');
+        }
+
+        alert('Join request sent! The community admin will review your request.');
+      } else {
+        // Join public community directly
+        const response = await fetch('/api/communities/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ communityId: community.id })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to join community');
+        }
+
+        alert('Successfully joined the community!');
       }
 
       // Refresh community data
       await fetchCommunity();
     } catch (err) {
       console.error('Error joining community:', err);
-      alert('Failed to join community');
+      alert(err instanceof Error ? err.message : 'Failed to join community');
     } finally {
       setJoining(false);
     }
@@ -356,8 +377,17 @@ export default function CommunityPage() {
                         disabled={joining}
                         className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
                       >
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        {joining ? 'Joining...' : 'Join Community'}
+                        {community.isPublic ? (
+                          <>
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            {joining ? 'Joining...' : 'Join Community'}
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-4 h-4 mr-2" />
+                            {joining ? 'Requesting...' : 'Request to Join'}
+                          </>
+                        )}
                       </Button>
                     )}
                   </div>
@@ -437,6 +467,26 @@ export default function CommunityPage() {
         {/* Tab Content */}
         <div className="space-y-6">
           {activeTab === 'feed' && (
+            <>
+              {!community.isJoined && !community.isPublic ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Lock className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-xl font-semibold mb-2">Private Community</h3>
+                    <p className="text-muted-foreground mb-6">
+                      This is a private community. You need to be a member to view the feed.
+                    </p>
+                    <Button 
+                      onClick={handleJoin}
+                      disabled={joining}
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      {joining ? 'Requesting...' : 'Request to Join'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
             <div className="space-y-6">
               {/* Post Composer */}
               {community.isJoined && (
@@ -533,9 +583,31 @@ export default function CommunityPage() {
                 ))}
               </div>
             </div>
+              )}
+            </>
           )}
 
           {activeTab === 'members' && (
+            <>
+              {!community.isJoined && !community.isPublic ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Users className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-xl font-semibold mb-2">Private Community</h3>
+                    <p className="text-muted-foreground mb-6">
+                      This is a private community. You need to be a member to view members.
+                    </p>
+                    <Button 
+                      onClick={handleJoin}
+                      disabled={joining}
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                    >
+                      <Lock className="w-4 h-4 mr-2" />
+                      {joining ? 'Requesting...' : 'Request to Join'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {community.members.map((member) => (
                 <Card key={member.id} className="hover:shadow-md transition-shadow">
@@ -566,6 +638,8 @@ export default function CommunityPage() {
                 </Card>
               ))}
             </div>
+              )}
+            </>
           )}
 
           {activeTab === 'about' && (
