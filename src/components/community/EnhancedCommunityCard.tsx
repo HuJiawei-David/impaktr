@@ -129,7 +129,10 @@ export function EnhancedCommunityCard({
           </div>
 
             {/* Community Name */}
-            <h3 className="font-semibold text-lg mb-2 group-hover:text-blue-600 transition-colors">
+            <h3 
+              className="font-semibold text-lg mb-2 group-hover:text-blue-600 transition-colors cursor-pointer"
+              onClick={() => onView?.(community.id)}
+            >
               {community.name}
             </h3>
 
@@ -176,7 +179,7 @@ export function EnhancedCommunityCard({
             </div>
 
             {/* SDG Tags */}
-            <div className="flex flex-wrap gap-1 mb-3">
+            <div className="flex flex-wrap gap-1 mb-2">
               {sdgTags.slice(0, 3).map((sdg) => (
                 <Badge 
                   key={sdg?.id} 
@@ -194,6 +197,26 @@ export function EnhancedCommunityCard({
                 </Badge>
               )}
             </div>
+
+            {/* Hashtags */}
+            {community.tags && community.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-3">
+                {community.tags.slice(0, 3).map((tag, index) => (
+                  <Badge 
+                    key={index} 
+                    variant="secondary" 
+                    className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                  >
+                    #{tag}
+                  </Badge>
+                ))}
+                {community.tags.length > 3 && (
+                  <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                    +{community.tags.length - 3} more
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons - Pushed to bottom */}
