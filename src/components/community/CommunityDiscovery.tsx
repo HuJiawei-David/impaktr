@@ -16,9 +16,12 @@ import {
   Globe,
   Lock,
   Calendar,
-  MessageCircle
+  MessageCircle,
+  MapPin,
+  ChevronRight
 } from 'lucide-react';
-import { CommunityCard } from './CommunityCard';
+import { EnhancedCommunityCard } from './EnhancedCommunityCard';
+import { getSDGById } from '@/constants/sdgs';
 
 interface Community {
   id: string;
@@ -34,6 +37,18 @@ interface Community {
   bannerImage?: string;
   avatar?: string;
   tags?: string[];
+  location?: {
+    city: string;
+    country: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+  };
+  distance?: number;
+  rating?: number;
+  memberAvatars?: string[];
+  primarySDG?: number;
 }
 
 interface CommunityDiscoveryProps {
@@ -58,11 +73,45 @@ export function CommunityDiscovery({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedCommunities, setFetchedCommunities] = useState<Community[]>([]);
+  
+  // New Meetup-style state
+  const [userLocation, setUserLocation] = useState<{city: string, country: string} | null>(null);
+  const [distanceFilter, setDistanceFilter] = useState<string>('50');
+  const [selectedSDGCategory, setSelectedSDGCategory] = useState<string>('all');
 
   // Fetch communities from API
   useEffect(() => {
     fetchCommunities();
   }, [selectedCategory, selectedSdg, searchQuery]);
+
+  // Detect user location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // For demo purposes, set Kuala Lumpur as default location
+          setUserLocation({
+            city: 'Kuala Lumpur',
+            country: 'Malaysia'
+          });
+        },
+        (error) => {
+          console.log('Geolocation error:', error);
+          // Fallback to default location
+          setUserLocation({
+            city: 'Kuala Lumpur',
+            country: 'Malaysia'
+          });
+        }
+      );
+    } else {
+      // Fallback to default location
+      setUserLocation({
+        city: 'Kuala Lumpur',
+        country: 'Malaysia'
+      });
+    }
+  }, []);
 
   const fetchCommunities = async () => {
     try {
@@ -100,7 +149,17 @@ export function CommunityDiscovery({
       recentActivity: '2 hours ago',
       isPublic: true,
       isJoined: false,
-      tags: ['Climate', 'Sustainability', 'Environment']
+      tags: ['Climate', 'Sustainability', 'Environment'],
+      sdgFocus: [13, 15, 12],
+      primarySDG: 13,
+      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
+      distance: 5.2,
+      rating: 4.8,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
     },
     {
       id: '2',
@@ -112,7 +171,17 @@ export function CommunityDiscovery({
       recentActivity: '5 hours ago',
       isPublic: true,
       isJoined: true,
-      tags: ['Education', 'Children', 'Learning']
+      tags: ['Education', 'Children', 'Learning'],
+      sdgFocus: [4, 10, 1],
+      primarySDG: 4,
+      location: { city: 'Petaling Jaya', country: 'Malaysia' },
+      distance: 12.5,
+      rating: 4.9,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
     },
     {
       id: '3',
@@ -124,7 +193,17 @@ export function CommunityDiscovery({
       recentActivity: '1 day ago',
       isPublic: true,
       isJoined: false,
-      tags: ['Health', 'Wellness', 'Healthcare']
+      tags: ['Health', 'Wellness', 'Healthcare'],
+      sdgFocus: [3, 6, 11],
+      primarySDG: 3,
+      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
+      distance: 8.7,
+      rating: 4.6,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
     },
     {
       id: '4',
@@ -136,7 +215,17 @@ export function CommunityDiscovery({
       recentActivity: '3 hours ago',
       isPublic: true,
       isJoined: true,
-      tags: ['Technology', 'Innovation', 'Social Impact']
+      tags: ['Technology', 'Innovation', 'Social Impact'],
+      sdgFocus: [9, 8, 4],
+      primarySDG: 9,
+      location: { city: 'Cyberjaya', country: 'Malaysia' },
+      distance: 25.3,
+      rating: 4.7,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
     },
     {
       id: '5',
@@ -148,7 +237,17 @@ export function CommunityDiscovery({
       recentActivity: '6 hours ago',
       isPublic: true,
       isJoined: false,
-      tags: ['Women', 'Empowerment', 'Gender Equality']
+      tags: ['Women', 'Empowerment', 'Gender Equality'],
+      sdgFocus: [5, 8, 10],
+      primarySDG: 5,
+      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
+      distance: 3.1,
+      rating: 4.9,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
     },
     {
       id: '6',
@@ -160,11 +259,21 @@ export function CommunityDiscovery({
       recentActivity: '4 hours ago',
       isPublic: true,
       isJoined: false,
-      tags: ['Youth', 'Leadership', 'Community']
+      tags: ['Youth', 'Leadership', 'Community'],
+      sdgFocus: [4, 16, 17],
+      primarySDG: 4,
+      location: { city: 'Shah Alam', country: 'Malaysia' },
+      distance: 18.9,
+      rating: 4.5,
+      memberAvatars: [
+        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
+      ]
     }
   ];
 
-  const displayCommunities = fetchedCommunities;
+  const displayCommunities = mockCommunities;
 
   const categories = ['all', 'Environment', 'Education', 'Healthcare', 'Social', 'Technology', 'Business'];
   const sdgOptions = [
@@ -202,8 +311,35 @@ export function CommunityDiscovery({
         .slice(0, 6);
     }
 
+    // Filter by SDG category
+    if (selectedSDGCategory !== 'all') {
+      const sdgId = parseInt(selectedSDGCategory);
+      filtered = filtered.filter(community => 
+        community.sdgFocus?.includes(sdgId) || community.primarySDG === sdgId
+      );
+    }
+
+    // Filter by distance
+    if (distanceFilter !== 'global') {
+      const maxDistance = parseInt(distanceFilter);
+      filtered = filtered.filter(community => 
+        !community.distance || community.distance <= maxDistance
+      );
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(community =>
+        community.name.toLowerCase().includes(query) ||
+        community.description.toLowerCase().includes(query) ||
+        community.tags?.some(tag => tag.toLowerCase().includes(query)) ||
+        community.location?.city.toLowerCase().includes(query)
+      );
+    }
+
     return filtered;
-  }, [displayCommunities, selectedTab]);
+  }, [displayCommunities, selectedTab, selectedSDGCategory, distanceFilter, searchQuery]);
 
   const getTabStats = () => {
     const myCommunities = displayCommunities.filter(c => c.isJoined).length;
@@ -217,21 +353,75 @@ export function CommunityDiscovery({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Communities</h1>
-          <p className="text-muted-foreground mt-2">
-            Discover and join communities that align with your values and interests.
-          </p>
+      {/* Meetup-style Header */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Communities near {userLocation ? `${userLocation.city}, ${userLocation.country}` : 'Your Location'}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Join communities focused on {selectedSDGCategory !== 'all' ? `SDG ${selectedSDGCategory}` : 'social impact'} in your area
+            </p>
+          </div>
+          <Button 
+            onClick={onCreateCommunity}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Community
+          </Button>
         </div>
-        <Button 
-          onClick={onCreateCommunity}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+
+        {/* Location & Distance Filter */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600">
+              {filteredCommunities.length} communities found
+            </span>
+          </div>
+          <Select value={distanceFilter} onValueChange={setDistanceFilter}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Distance" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">Within 5 km</SelectItem>
+              <SelectItem value="10">Within 10 km</SelectItem>
+              <SelectItem value="25">Within 25 km</SelectItem>
+              <SelectItem value="50">Within 50 km</SelectItem>
+              <SelectItem value="100">Within 100 km</SelectItem>
+              <SelectItem value="global">Anywhere</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* SDG Category Pills (Meetup-style) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        <Button
+          variant={selectedSDGCategory === 'all' ? 'default' : 'outline'}
+          onClick={() => setSelectedSDGCategory('all')}
+          className="whitespace-nowrap rounded-full"
         >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Community
+          All Communities
         </Button>
+        {Array.from({ length: 17 }, (_, i) => i + 1).map((sdgId) => {
+          const sdg = getSDGById(sdgId);
+          if (!sdg) return null;
+          return (
+            <Button
+              key={sdgId}
+              variant={selectedSDGCategory === sdgId.toString() ? 'default' : 'outline'}
+              onClick={() => setSelectedSDGCategory(sdgId.toString())}
+              className="whitespace-nowrap rounded-full flex items-center gap-2"
+            >
+              <img src={sdg.image} alt={sdg.title} className="w-4 h-4" />
+              {sdg.title}
+            </Button>
+          );
+        })}
+        <ChevronRight className="w-4 h-4 text-gray-400" />
       </div>
 
       {/* Search and Filters */}
@@ -330,7 +520,7 @@ export function CommunityDiscovery({
       {filteredCommunities.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCommunities.map((community) => (
-            <CommunityCard
+            <EnhancedCommunityCard
               key={community.id}
               community={community}
               onJoin={onJoin}

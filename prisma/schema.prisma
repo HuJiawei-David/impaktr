@@ -1286,6 +1286,14 @@ model Community {
   createdBy     String
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
+  
+  // New Meetup-style fields
+  locationData  Json?                // {city: string, country: string, coordinates?: {lat: number, lng: number}}
+  coordinates   Unsupported("point")? // PostGIS point for distance calculations
+  primarySDG    Int?                 // Primary SDG focus
+  rating        Decimal?             @db.Decimal(2,1) // Community rating (0.0-5.0)
+  memberAvatars String[]             @default([]) // URLs of member profile pictures
+  
   createdByUser User                 @relation("CreatedCommunities", fields: [createdBy], references: [id], onDelete: Cascade)
   members       CommunityMember[]
   moderators    CommunityModerator[]
@@ -1297,6 +1305,8 @@ model Community {
   @@index([isPublic])
   @@index([createdAt])
   @@index([sdgFocus])
+  @@index([primarySDG])
+  @@index([rating])
   @@map("communities")
 }
 
