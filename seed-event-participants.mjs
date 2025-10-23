@@ -159,8 +159,7 @@ async function main() {
               }
             },
             occupation: getRandomOccupation(),
-            city: getRandomCity(),
-            country: getRandomCountry()
+            ...getRandomLocation()
           },
           include: {
             volunteerProfile: true
@@ -283,35 +282,25 @@ function getRandomOccupation() {
   return occupations[Math.floor(Math.random() * occupations.length)];
 }
 
-function getRandomCity() {
-  const cities = [
-    'San Francisco',
-    'New York',
-    'London',
-    'Singapore',
-    'Toronto',
-    'Sydney',
-    'Berlin',
-    'Tokyo',
-    'Mumbai',
-    'São Paulo'
+function getRandomLocation() {
+  const locations = [
+    { city: 'San Francisco', country: 'United States' },
+    { city: 'New York', country: 'United States' },
+    { city: 'London', country: 'United Kingdom' },
+    { city: 'Singapore', country: 'Singapore' },
+    { city: 'Toronto', country: 'Canada' },
+    { city: 'Sydney', country: 'Australia' },
+    { city: 'Melbourne', country: 'Australia' },
+    { city: 'Berlin', country: 'Germany' },
+    { city: 'Tokyo', country: 'Japan' },
+    { city: 'Mumbai', country: 'India' },
+    { city: 'São Paulo', country: 'Brazil' },
+    { city: 'Kuala Lumpur', country: 'Malaysia' },
+    { city: 'Bangkok', country: 'Thailand' },
+    { city: 'Seoul', country: 'South Korea' },
+    { city: 'Hong Kong', country: 'Hong Kong' }
   ];
-  return cities[Math.floor(Math.random() * cities.length)];
-}
-
-function getRandomCountry() {
-  const countries = [
-    'United States',
-    'United Kingdom',
-    'Singapore',
-    'Canada',
-    'Australia',
-    'Germany',
-    'Japan',
-    'India',
-    'Brazil'
-  ];
-  return countries[Math.floor(Math.random() * countries.length)];
+  return locations[Math.floor(Math.random() * locations.length)];
 }
 
 function getRandomSkills() {
