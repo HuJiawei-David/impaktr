@@ -155,7 +155,11 @@ export function computeC(_: number): number {
  * @returns Overall score
  */
 export function computeOrgScore(E: number, H: number, Q: number, V: number, S: number, C: number, G: number): number {
-  return (E + H + Q + V + S + C) * G * 100;
+  // Ensure governance has a minimum baseline to prevent zero-multiplier effect
+  // This allows new organizations to get credit for environmental and social activities
+  // even before they establish governance practices
+  const governanceMultiplier = Math.max(G, 0.1); // Minimum governance baseline of 0.1
+  return (E + H + Q + V + S + C) * governanceMultiplier * 100;
 }
 
 /**

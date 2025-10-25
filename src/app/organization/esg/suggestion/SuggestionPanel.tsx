@@ -44,7 +44,7 @@ const ESG_ATTRIBUTES = {
   S: { name: 'ΔS - Social Impact', description: 'Social benefits delivered including community engagement, education, and welfare' },
   C: { name: 'ΔC - Cause Impact', description: 'Alignment with specific causes and SDGs, measuring thematic impact' },
   G: { name: 'ΔG - Governance Impact', description: 'Governance quality including transparency, accountability, and ethical practices' },
-  overall: { name: 'Overall Δ - Total Impact Score', description: 'Combined impact score calculated as: (ΔE + ΔH + ΔQ + ΔV + ΔS + ΔC) × (G_current + ΔG) × 100, where ΔG comes from governance improvements in suggested events' }
+  overall: { name: 'Overall Δ - Total Impact Score', description: 'Combined impact score calculated as: (ΔE + ΔH + ΔQ + ΔV + ΔS + ΔC) × Math.max(G_current + ΔG, 0.1) × 100. The minimum governance baseline of 0.1 ensures new organizations get credit for environmental and social activities.' }
 };
 
 // Helper to determine primary ESG band from SDGs
@@ -788,7 +788,7 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                         <div className="grid grid-cols-1 gap-2 text-xs leading-relaxed">
                           <div className="flex items-start">
                             <span className="font-medium mr-2">•</span>
-                            <span><strong>G<sub>new</sub></strong> = G<sub>current</sub> + ΔG</span>
+                            <span><strong>G<sub>new</sub></strong> = Math.max(G<sub>current</sub> + ΔG, 0.1)</span>
                           </div>
                           <div className="flex items-start">
                             <span className="font-medium mr-2">•</span>
@@ -799,8 +799,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                             <span>Each event contributes ΔG through policy and transparency enhancements</span>
                           </div>
                           <div className="flex items-start pt-1 border-t border-blue-200 dark:border-blue-700">
-                            <span className="font-medium mr-2">📝</span>
-                            <span><strong>Note:</strong> If G<sub>current</sub> = 0, the formula becomes (components) × ΔG × 100</span>
+                            <span className="font-medium mr-2">✅</span>
+                            <span><strong>Protection:</strong> Minimum governance baseline of 0.1 prevents zero-score issues for new organizations</span>
                           </div>
                         </div>
                       </div>
