@@ -799,7 +799,7 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                             <span>Each event contributes ΔG through policy and transparency enhancements</span>
                           </div>
                           <div className="flex items-start pt-1 border-t border-blue-200 dark:border-blue-700">
-                            <span className="font-medium mr-2">✅</span>
+                            <span className="font-medium mr-2">•</span>
                             <span><strong>Protection:</strong> Minimum governance baseline of 0.1 prevents zero-score issues for new organizations</span>
                           </div>
                         </div>
