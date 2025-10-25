@@ -328,11 +328,11 @@ export default function OpportunityDetailPage() {
                       <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                         {opportunity.title}
                       </h1>
-                      <Badge className={getStatusColor(opportunity.status)}>
+                      <Badge className={`px-3 py-1 ${getStatusColor(opportunity.status)}`}>
                         {opportunity.status}
                       </Badge>
                       {opportunity.isRemote && (
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="px-3 py-1">
                           <Globe className="h-3 w-3 mr-1" />
                           Remote
                         </Badge>
@@ -457,7 +457,7 @@ export default function OpportunityDetailPage() {
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {opportunity.skills.map((skill, index) => (
-                      <Badge key={index} className={getBadgeColor(skill, 'skill')}>
+                      <Badge key={index} className={`px-3 py-1 ${getBadgeColor(skill, 'skill')}`}>
                         {skill}
                       </Badge>
                     ))}

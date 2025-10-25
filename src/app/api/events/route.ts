@@ -39,13 +39,14 @@ const querySchema = z.object({
   startDate: z.string().transform((str) => new Date(str)).optional(),
   endDate: z.string().transform((str) => new Date(str)).optional(),
   status: z.nativeEnum(EventStatus).optional(),
+  organizationId: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const params = Object.fromEntries(url.searchParams);
-    const { page, limit, search, sdg, location, startDate, endDate, status } = querySchema.parse(params);
+    const { page, limit, search, sdg, location, startDate, endDate, status, organizationId } = querySchema.parse(params);
 
     const skip = (page - 1) * limit;
 
@@ -76,6 +77,10 @@ export async function GET(request: NextRequest) {
         contains: location,
         mode: 'insensitive'
       };
+    }
+
+    if (organizationId) {
+      where.organizationId = organizationId;
     }
 
     if (startDate) {

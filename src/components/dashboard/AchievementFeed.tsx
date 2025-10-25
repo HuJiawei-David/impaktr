@@ -638,28 +638,28 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                   
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Link href={`/profile/${post.userId}`}>
-                          <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
-                            {post.userName}
-                          </h4>
-                        </Link>
-                        {post.userTitle && (
-                          <Badge className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                            {post.userTitle}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        {getAchievementIcon(post.type)}
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          className="h-7 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                        >
-                          <UserPlus className="w-3 h-3 mr-1" />
-                          Follow
-                        </Button>
+                    <div className="flex items-center space-x-2">
+                      <Link href={`/profile/${post.userId}`}>
+                        <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                          {post.userName}
+                        </h4>
+                      </Link>
+                      {post.userTitle && (
+                        <Badge className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                          {post.userTitle}
+                        </Badge>
+                      )}
+                    </div>
+                  <div className="flex items-center space-x-1">
+                    {getAchievementIcon(post.type)}
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      className="h-7 px-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                    >
+                      <UserPlus className="w-3 h-3 mr-1" />
+                      Follow
+                    </Button>
                       </div>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -794,7 +794,7 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                               <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center space-x-2">
                                   <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                                    {comment.userName}
+                                  {comment.userName}
                                   </h4>
                                   <Badge className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                                     Contributor
@@ -828,7 +828,7 @@ export function AchievementFeed({ compact = false, maxItems = 10 }: AchievementF
                                     Reply
                                   </button>
                                 </div>
-                              </div>
+                            </div>
                             </div>
                           </div>
                           

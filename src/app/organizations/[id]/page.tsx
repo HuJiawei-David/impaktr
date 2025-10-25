@@ -26,7 +26,9 @@ import {
   Share2,
   ChevronRight,
   Star,
-  Trophy
+  Trophy,
+  ArrowRight,
+  Briefcase
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,8 +38,126 @@ import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { UnifiedFeed } from '@/components/dashboard/UnifiedFeed';
 import { EventCard } from '@/components/events/EventCard';
+import { getSDGById } from '@/constants/sdgs';
+
+// Type definitions
+interface Opportunity {
+  id: string;
+  title: string;
+  description: string;
+  location?: string;
+  spots: number;
+  spotsFilled: number;
+  deadline?: string;
+  status: string;
+  sdg?: string;
+  skills: string[];
+  requirements: string[];
+  isRemote: boolean;
+  createdAt: string;
+}
+
+interface Member {
+  id: string;
+  userId: string;
+  role: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image?: string;
+  };
+}
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate?: string;
+  location: string | object;
+  status: string;
+  imageUrl?: string;
+}
+
+interface Volunteer {
+  id: string;
+  name: string;
+  image?: string;
+  avatar?: string;
+  impactScore: number;
+  totalHours: number;
+  hours: number;
+}
+
+interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string;
+}
+
+interface OrganizationWithOpportunities {
+  id: string;
+  name: string;
+  description?: string;
+  logo?: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  tier: string;
+  isFollowing?: boolean;
+  members?: Member[];
+  events?: Event[];
+  opportunities?: Opportunity[];
+  recentEvents?: Event[];
+  topVolunteers?: Volunteer[];
+  badges?: Badge[];
+  sdgs?: number[];
+  memberCount?: number;
+  eventCount?: number;
+  totalHours?: number;
+  impactScore?: number;
+  _count?: {
+    members: number;
+    events: number;
+    opportunities: number;
+  };
+}
 
 // Utility functions for event formatting
+const getBadgeColor = (text: string, type: 'requirement' | 'skill') => {
+  const lowerText = text.toLowerCase();
+  
+  if (type === 'requirement') {
+    if (lowerText.includes('experience') || lowerText.includes('years')) {
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    } else if (lowerText.includes('skill') || lowerText.includes('ability')) {
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    } else if (lowerText.includes('available') || lowerText.includes('time')) {
+      return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+    } else {
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+  } else {
+    if (lowerText.includes('leadership') || lowerText.includes('management')) {
+      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+    } else if (lowerText.includes('communication') || lowerText.includes('writing')) {
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    } else if (lowerText.includes('technical') || lowerText.includes('programming')) {
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+    } else if (lowerText.includes('creative') || lowerText.includes('design')) {
+      return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+    } else {
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+  }
+};
+
 const formatEventDate = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', { 
@@ -222,20 +342,20 @@ export default function OrganizationProfilePage() {
   const params = useParams();
   const orgId = params.id as string;
 
-  const [organization, setOrganization] = useState<Organization | null>(null);
+  const [organization, setOrganization] = useState<OrganizationWithOpportunities | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'feed' | 'about' | 'events' | 'impact'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'about' | 'events' | 'opportunities' | 'impact'>('feed');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
 
   const fetchOrganization = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/organizations/profile?id=${orgId}`);
+      const response = await fetch(`/api/organizations/${orgId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch organization');
@@ -549,7 +669,7 @@ export default function OrganizationProfilePage() {
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Hours</p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-                    {organization.totalHours.toLocaleString()}
+                    {organization.totalHours?.toLocaleString() || '0'}
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -565,7 +685,7 @@ export default function OrganizationProfilePage() {
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Events</p>
                   <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-                    {organization.eventCount}
+                    {organization.eventCount || '0'}
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
@@ -615,6 +735,17 @@ export default function OrganizationProfilePage() {
                 }`}
               >
                 Events
+              </Button>
+              <Button
+                variant={activeTab === 'opportunities' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('opportunities')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'opportunities' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Opportunities
               </Button>
               <Button
                 variant={activeTab === 'impact' ? 'default' : 'outline'}
@@ -701,25 +832,25 @@ export default function OrganizationProfilePage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                   <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {organization.totalHours.toLocaleString()}
+                      {organization.totalHours?.toLocaleString() || '0'}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Hours Donated</div>
                   </div>
                   <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                     <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {organization.memberCount.toLocaleString()}
+                      {organization.memberCount?.toLocaleString() || '0'}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Active Volunteers</div>
                   </div>
                   <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                     <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                      {organization.eventCount}
+                      {organization.eventCount || '0'}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Events Completed</div>
                   </div>
                   <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                     <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                      {organization.impactScore.toLocaleString()}
+                      {organization.impactScore?.toLocaleString() || '0'}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Lives Impacted</div>
                   </div>
@@ -766,7 +897,7 @@ export default function OrganizationProfilePage() {
                       <Badge 
                         key={sdg}
                         variant="outline" 
-                        className="px-3 py-1.5 text-sm border-blue-200 dark:border-blue-800"
+                        className="px-3 py-1 text-sm border-blue-200 dark:border-blue-800"
                       >
                         <Leaf className="w-3 h-3 mr-1" />
                         SDG {sdg}
@@ -1020,7 +1151,7 @@ export default function OrganizationProfilePage() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                            {organization.eventCount}
+                            {organization.eventCount || '0'}
                           </div>
                           <div className="text-sm text-gray-600 dark:text-gray-400">Total Events</div>
                         </div>
@@ -1038,13 +1169,142 @@ export default function OrganizationProfilePage() {
                         </div>
                         <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                            {organization.totalHours.toLocaleString()}
+                            {organization.totalHours?.toLocaleString() || '0'}
                           </div>
                           <div className="text-sm text-gray-600 dark:text-gray-400">Total Hours</div>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+              )}
+
+              {activeTab === 'opportunities' && (
+                <div className="space-y-6">
+                  {/* Opportunities Header */}
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      Opportunities
+                    </h2>
+                    <Link href={`/opportunities?org=${orgId}`}>
+                      <Button variant="outline" size="sm">
+                        View All
+                        <ArrowRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
+
+                  {/* Opportunities List */}
+                  <div className="grid gap-4">
+                    {organization?.opportunities && organization.opportunities.length > 0 ? (
+                      organization.opportunities.map((opportunity) => (
+                        <Card key={opportunity.id} className="hover:shadow-lg transition-shadow">
+                          <CardContent className="p-6">
+                            <Link href={`/opportunities/${opportunity.id}`}>
+                              <div className="cursor-pointer">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center space-x-3">
+                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                      {opportunity.title}
+                                    </h3>
+                                    <Badge className={`px-3 py-1 ${
+                                      opportunity.status === 'OPEN' 
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                                        : opportunity.status === 'CLOSED'
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                    }`}>
+                                      {opportunity.status}
+                                    </Badge>
+                                    {opportunity.isRemote && (
+                                      <Badge variant="outline" className="px-3 py-1">Remote</Badge>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
+                                  {opportunity.description}
+                                </p>
+                                
+                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                                  <div className="flex items-center space-x-1">
+                                    <MapPin className="w-4 h-4" />
+                                    <span>{opportunity.location}</span>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <Users className="w-4 h-4" />
+                                    <span>{opportunity.spotsFilled || 0}/{opportunity.spots || 0} spots filled</span>
+                                  </div>
+                                  {opportunity.deadline && (
+                                    <div className="flex items-center space-x-1">
+                                      <Calendar className="w-4 h-4" />
+                                      <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {opportunity.requirements && opportunity.requirements.length > 0 && (
+                                  <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Requirements:</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {opportunity.requirements.map((req, index) => (
+                                        <Badge key={index} className={`text-xs px-3 py-1 ${getBadgeColor(req, 'requirement')}`}>
+                                          {req}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {opportunity.skills && opportunity.skills.length > 0 && (
+                                  <div className="mb-4">
+                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Skills:</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {opportunity.skills.map((skill, index) => (
+                                        <Badge key={index} className={`text-xs px-3 py-1 ${getBadgeColor(skill, 'skill')}`}>
+                                          {skill}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {opportunity.sdg && (
+                                  <div className="flex flex-wrap gap-2 mt-4">
+                                    {(() => {
+                                      const sdg = getSDGById(parseInt(opportunity.sdg));
+                                      return sdg ? (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs px-3 py-1"
+                                          style={{ borderColor: sdg.color }}
+                                        >
+                                          <Image src={sdg.image} alt="" width={12} height={12} className="w-3 h-3 mr-1" />
+                                          SDG {sdg.id}
+                                        </Badge>
+                                      ) : null;
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
+                          </CardContent>
+                        </Card>
+                      ))
+                    ) : (
+                      <Card className="border-0 shadow-sm">
+                        <CardContent className="p-12 text-center">
+                          <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                          <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+                            No opportunities yet
+                          </h3>
+                          <p className="text-gray-600 dark:text-gray-400">
+                            This organization hasn&apos;t posted any opportunities yet.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
                 </div>
               )}
               
@@ -1065,7 +1325,7 @@ export default function OrganizationProfilePage() {
                             <TrendingUp className="w-8 h-8 text-white" />
                           </div>
                           <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
-                            {organization.impactScore.toLocaleString()}
+                            {organization.impactScore?.toLocaleString() || '0'}
                           </div>
                           <div className="text-sm font-medium text-green-700 dark:text-green-300 mb-1">
                             Total Impact Score
@@ -1080,7 +1340,7 @@ export default function OrganizationProfilePage() {
                             <Clock className="w-8 h-8 text-white" />
                           </div>
                           <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                            {organization.totalHours.toLocaleString()}
+                            {organization.totalHours?.toLocaleString() || '0'}
                           </div>
                           <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">
                             Volunteer Hours
@@ -1095,7 +1355,7 @@ export default function OrganizationProfilePage() {
                             <Users className="w-8 h-8 text-white" />
                           </div>
                           <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-                            {organization.memberCount.toLocaleString()}
+                            {organization.memberCount?.toLocaleString() || '0'}
                           </div>
                           <div className="text-sm font-medium text-purple-700 dark:text-purple-300 mb-1">
                             Active Members
@@ -1169,25 +1429,25 @@ export default function OrganizationProfilePage() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                           <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                              {Math.floor(organization.impactScore / 100)}
+                              {Math.floor((organization.impactScore || 0) / 100)}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">Lives Impacted</div>
                           </div>
                           <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                              {organization.eventCount}
+                              {organization.eventCount || '0'}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">Events Completed</div>
                           </div>
                           <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                              {Math.floor(organization.totalHours / 10)}
+                              {Math.floor((organization.totalHours || 0) / 10)}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">Communities Served</div>
                           </div>
                           <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                              {Math.floor(organization.impactScore / 50)}
+                              {Math.floor((organization.impactScore || 0) / 50)}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">Projects Completed</div>
                           </div>
@@ -1554,17 +1814,17 @@ export default function OrganizationProfilePage() {
                 <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Global Rank</p>
-                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-3 py-1.5">
+                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-3 py-1">
                       {organization.tier.replace(/_/g, ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                     </Badge>
-                  </div>
+          </div>
                   <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
                     #12
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     out of 1,247 organizations
                   </p>
-                </div>
+        </div>
 
                 {/* Local Rank */}
                 <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800">

@@ -171,28 +171,28 @@ export const EventCard = ({
           
           {/* Status Badges */}
           {event.status === 'UPCOMING' && (
-            <Badge className="absolute top-2 left-2 bg-green-500 text-white border border-white dark:border-transparent px-3 py-1.5">
+            <Badge className="absolute top-2 left-2 bg-green-500 text-white border border-white dark:border-transparent px-3 py-1">
               <Calendar className="w-3 h-3 mr-1" />
               Upcoming
             </Badge>
           )}
           
           {event.status === 'COMPLETED' && (
-            <Badge className="absolute top-2 left-2 bg-gray-500 text-white border border-white dark:border-transparent px-3 py-1.5">
+            <Badge className="absolute top-2 left-2 bg-gray-500 text-white border border-white dark:border-transparent px-3 py-1">
               <Clock className="w-3 h-3 mr-1" />
               Completed
             </Badge>
           )}
           
           {event.trending && (
-            <Badge className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1.5">
+            <Badge className="absolute top-2 right-2 bg-red-500 text-white px-3 py-1">
               <TrendingUp className="w-3 h-3 mr-1" />
               Trending
             </Badge>
           )}
           
           {event.featured && (
-            <Badge className="absolute top-2 right-2 bg-yellow-500 text-white px-3 py-1.5">
+            <Badge className="absolute top-2 right-2 bg-yellow-500 text-white px-3 py-1">
               <Star className="w-3 h-3 mr-1" />
               Featured
             </Badge>
@@ -284,13 +284,13 @@ export const EventCard = ({
               {sdgData.slice(0, 3).map((sdg: number) => {
                 const sdgInfo = SDG_DEFINITIONS[sdg as keyof typeof SDG_DEFINITIONS];
                 return (
-                  <Badge key={sdg} className={`text-xs px-3 py-1.5 whitespace-nowrap ${sdgInfo?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
+                  <Badge key={sdg} className={`text-xs px-3 py-1 whitespace-nowrap ${sdgInfo?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
                     SDG {sdg}
                   </Badge>
                 );
               })}
               {sdgData.length > 3 && (
-                <Badge className="text-xs px-3 py-1.5 whitespace-nowrap bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                <Badge className="text-xs px-3 py-1 whitespace-nowrap bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
                   +{sdgData.length - 3}
                 </Badge>
               )}

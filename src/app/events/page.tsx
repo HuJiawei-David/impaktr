@@ -108,6 +108,7 @@ function EventsPageContent() {
   const user = session?.user;
   const searchParams = useSearchParams();
   const category = searchParams.get('category');
+  const orgId = searchParams.get('org');
   
   // Event notification store - clear notifications when visiting events page
   const { clearCount } = useEventNotificationStore();
@@ -195,11 +196,22 @@ function EventsPageContent() {
         // Fetch recommendations for "For You" tab
         response = await fetch('/api/recommendations?type=events');
       } else {
-        // Regular events fetch - include status parameter for past events
+        // Regular events fetch - include status parameter for past events and organization filter
         let apiUrl = '/api/events';
+        const params = new URLSearchParams();
+        
         if (activeTab === 'past') {
-          apiUrl += '?status=COMPLETED';
+          params.append('status', 'COMPLETED');
         }
+        
+        if (orgId) {
+          params.append('organizationId', orgId);
+        }
+        
+        if (params.toString()) {
+          apiUrl += '?' + params.toString();
+        }
+        
         response = await fetch(apiUrl);
       }
       

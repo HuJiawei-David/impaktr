@@ -78,7 +78,7 @@ export function EnhancedCommunityCard({
           {primarySDG && (
             <div className="absolute top-2 right-2">
               <Badge 
-                className="text-white font-semibold px-2 py-1"
+                className="text-white font-semibold px-3 py-1"
                 style={{ 
                   backgroundColor: primarySDG.color,
                   borderColor: primarySDG.color
@@ -108,7 +108,7 @@ export function EnhancedCommunityCard({
             {/* Privacy Badge */}
             <Badge 
               variant="outline" 
-              className={`text-xs ${
+              className={`text-xs px-3 py-1 ${
                 community.isPublic 
                   ? 'border-green-200 dark:border-green-600 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20' 
                   : 'border-orange-200 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20'
@@ -184,7 +184,7 @@ export function EnhancedCommunityCard({
                 <Badge 
                   key={sdg?.id} 
                   variant="outline" 
-                  className="text-xs"
+                  className="text-xs px-3 py-1"
                   style={{ borderColor: sdg?.color }}
                 >
                   <img src={sdg?.image} alt="" className="w-3 h-3 mr-1" />
@@ -192,7 +192,7 @@ export function EnhancedCommunityCard({
                 </Badge>
               ))}
               {sdgTags.length > 3 && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs px-3 py-1">
                   +{sdgTags.length - 3} more
                 </Badge>
               )}
@@ -205,13 +205,13 @@ export function EnhancedCommunityCard({
                   <Badge 
                     key={index} 
                     variant="secondary" 
-                    className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                   >
                     #{tag}
                   </Badge>
                 ))}
                 {community.tags.length > 3 && (
-                  <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  <Badge variant="secondary" className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                     +{community.tags.length - 3} more
                   </Badge>
                 )}

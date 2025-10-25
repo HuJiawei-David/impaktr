@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const skills = url.searchParams.get('skills')?.split(',').filter(s => s.trim()) || [];
     const sdg = url.searchParams.get('sdg')?.split(',').filter(s => s.trim()) || [];
     const sort = url.searchParams.get('sort') || 'recent';
+    const organizationId = url.searchParams.get('organizationId');
 
     const where: any = {
       status: status as any,
@@ -50,6 +51,10 @@ export async function GET(request: NextRequest) {
 
     if (skills.length > 0) {
       where.skills = { hasSome: skills };
+    }
+
+    if (organizationId) {
+      where.organizationId = organizationId;
     }
 
     const opportunities = await prisma.opportunity.findMany({

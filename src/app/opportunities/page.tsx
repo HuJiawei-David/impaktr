@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Search,
@@ -85,8 +86,10 @@ interface Opportunity {
   isApplied?: boolean;
 }
 
-export default function OpportunitiesPage() {
+function OpportunitiesPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('org');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,6 +102,7 @@ export default function OpportunitiesPage() {
   const [bookmarkedOpportunities, setBookmarkedOpportunities] = useState<string[]>([]);
   const [appliedOpportunities, setAppliedOpportunities] = useState<string[]>([]);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [organizationName, setOrganizationName] = useState<string | null>(null);
 
   const fetchOpportunities = useCallback(async () => {
     try {
@@ -117,6 +121,11 @@ export default function OpportunitiesPage() {
           sdg: sdgFilter.join(','),
           sort: sortBy,
         });
+        
+        if (orgId) {
+          params.append('organizationId', orgId);
+        }
+        
         response = await fetch(`/api/opportunities?${params}`);
       }
       
@@ -135,6 +144,13 @@ export default function OpportunitiesPage() {
           .filter((opp: Opportunity) => opp.isApplied)
           .map((opp: Opportunity) => opp.id);
         setAppliedOpportunities(appliedIds);
+        
+        // Extract organization name if filtering by organization
+        if (orgId && oppData.length > 0 && oppData[0].organization) {
+          setOrganizationName(oppData[0].organization.name);
+        } else {
+          setOrganizationName(null);
+        }
       }
     } catch (error) {
       console.error('Error fetching opportunities:', error);
@@ -142,11 +158,18 @@ export default function OpportunitiesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, searchTerm, locationFilter, statusFilter, sdgFilter, sortBy]);
+  }, [activeTab, searchTerm, locationFilter, statusFilter, sdgFilter, sortBy, orgId]);
 
   useEffect(() => {
     fetchOpportunities();
   }, [fetchOpportunities]);
+
+  // Reset organization name when orgId changes
+  useEffect(() => {
+    if (!orgId) {
+      setOrganizationName(null);
+    }
+  }, [orgId]);
 
   const handleApply = async (opportunityId: string) => {
     if (!session) {
@@ -318,23 +341,26 @@ export default function OpportunitiesPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
-              <Briefcase className="w-6 h-6 text-white" />
+        <Card className="hover:shadow-lg transition-shadow mb-8">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                <Briefcase className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
+                  Opportunities
+                </h1>
+                <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
+                  Find meaningful opportunities to make an impact. Apply to positions that match your skills and interests.
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
-                Opportunities
-              </h1>
-              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl">
-                Find meaningful opportunities to make an impact. Apply to positions that match your skills and interests.
-              </p>
-            </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Tabs */}
-          <div className="flex space-x-1 mb-6">
+        {/* Tabs */}
+        <div className="flex space-x-1 mb-8">
             <button
               onClick={() => setActiveTab('all')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -379,7 +405,7 @@ export default function OpportunitiesPage() {
           </div>
 
           {/* Search and Filters */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mt-8">
             {/* Main Filters Row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
               <div className="md:col-span-2">
@@ -426,7 +452,7 @@ export default function OpportunitiesPage() {
                   <Filter className="w-4 h-4 mr-2" />
                   <span>Advanced Filters</span>
                   {(sdgFilter && sdgFilter.length > 0) && (
-                    <Badge variant="secondary" className="ml-2 text-xs">
+                    <Badge variant="secondary" className="ml-2 text-xs px-3 py-1">
                       {sdgFilter.length} SDG{sdgFilter.length > 1 ? 's' : ''}
                     </Badge>
                   )}
@@ -526,15 +552,29 @@ export default function OpportunitiesPage() {
                 </Select>
               </div>
               
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                {getFilteredOpportunities().length} opportunities found
-              </div>
             </div>
           </div>
-        </div>
+
+        {/* Results Header */}
+        {organizationName && (
+          <Card className="hover:shadow-lg transition-shadow mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {getFilteredOpportunities().length} opportunities from <Link href={`/organizations/${orgId}`} className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent hover:from-blue-600 hover:to-purple-700 transition-all duration-200">{organizationName}</Link>
+                </h2>
+                <Link href="/opportunities">
+                  <Button variant="outline" size="sm">
+                    Clear Filter
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Opportunities List */}
-        <div className="space-y-6">
+        <div className="space-y-6 mt-8">
           {getFilteredOpportunities().length === 0 ? (
             <div className="text-center py-12">
               <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -570,11 +610,11 @@ export default function OpportunitiesPage() {
                           <h3 className="text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                             {opportunity.title}
                           </h3>
-                        <Badge className={getStatusColor(opportunity.status)}>
+                        <Badge className={`px-3 py-1 ${getStatusColor(opportunity.status)}`}>
                           {opportunity.status}
                         </Badge>
                         {opportunity.isRemote && (
-                          <Badge variant="outline">Remote</Badge>
+                          <Badge variant="outline" className="px-3 py-1">Remote</Badge>
                         )}
                       </div>
                       <button
@@ -627,7 +667,7 @@ export default function OpportunitiesPage() {
                           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Requirements:</h4>
                           <div className="flex flex-wrap gap-2">
                             {opportunity.requirements.map((req, index) => (
-                              <Badge key={index} className={`text-xs ${getBadgeColor(req, 'requirement')}`}>
+                              <Badge key={index} className={`text-xs px-3 py-1 ${getBadgeColor(req, 'requirement')}`}>
                                 {req}
                               </Badge>
                             ))}
@@ -640,7 +680,7 @@ export default function OpportunitiesPage() {
                           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Skills:</h4>
                           <div className="flex flex-wrap gap-2">
                             {opportunity.skills.map((skill, index) => (
-                              <Badge key={index} className={`text-xs ${getBadgeColor(skill, 'skill')}`}>
+                              <Badge key={index} className={`text-xs px-3 py-1 ${getBadgeColor(skill, 'skill')}`}>
                                 {skill}
                               </Badge>
                             ))}
@@ -652,7 +692,7 @@ export default function OpportunitiesPage() {
                         <div className="mb-4">
                           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">SDG Alignment:</h4>
                           <div className="flex items-center space-x-2">
-                            <Badge variant="sdg" sdgNumber={parseInt(opportunity.sdg)} className="text-xs">
+                            <Badge variant="sdg" sdgNumber={parseInt(opportunity.sdg)} className="text-xs px-3 py-1">
                               SDG {opportunity.sdg}: {(() => {
                                 const sdgInfo = getSDGById(parseInt(opportunity.sdg!));
                                 return sdgInfo ? sdgInfo.title : 'Unknown';
@@ -708,3 +748,13 @@ export default function OpportunitiesPage() {
     </div>
   );
 }
+
+function OpportunitiesPageWithSuspense() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <OpportunitiesPage />
+    </Suspense>
+  );
+}
+
+export default OpportunitiesPageWithSuspense;

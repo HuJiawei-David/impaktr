@@ -525,21 +525,21 @@ export default function EventDetailPage() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 {eventStatus && (
-                  <Badge variant={eventStatus.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="flex items-center px-3 py-1.5">
+                  <Badge variant={eventStatus.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="flex items-center px-3 py-1">
                     <eventStatus.icon className="w-3 h-3 mr-1" />
                     {eventStatus.label}
                   </Badge>
                 )}
                 
                 {event.organization?.verified && (
-                  <Badge variant="secondary" className="flex items-center px-3 py-1.5">
+                  <Badge variant="secondary" className="flex items-center px-3 py-1">
                     <CheckCircle className="w-3 h-3 mr-1" />
                     Verified Org
                   </Badge>
                 )}
                 
                 {intensityInfo && (
-                  <Badge variant={intensityInfo.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="px-3 py-1.5">
+                  <Badge variant={intensityInfo.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="px-3 py-1">
                     {intensityInfo.label} Intensity
                   </Badge>
                 )}
@@ -689,7 +689,7 @@ export default function EventDetailPage() {
                           const colorClass = colors[index % colors.length];
                           
                           return (
-                            <Badge key={skill} variant="outline" className={`${colorClass} px-3 py-1.5`}>
+                            <Badge key={skill} variant="outline" className={`${colorClass} px-3 py-1`}>
                               {skill}
                             </Badge>
                           );
