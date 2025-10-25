@@ -5,6 +5,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Heart, 
   MessageCircle, 
@@ -19,7 +25,10 @@ import {
   TrendingUp,
   Building2,
   UserPlus,
-  MoreHorizontal
+  MoreHorizontal,
+  Flag,
+  Bookmark,
+  Copy
 } from 'lucide-react';
 import { getSDGById } from '@/constants/sdgs';
 import Image from 'next/image';
@@ -212,6 +221,34 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
     }
   };
 
+  const handleCopyLink = async (postId: string) => {
+    try {
+      const postUrl = `${window.location.origin}/organizations/posts/${postId}`;
+      await navigator.clipboard.writeText(postUrl);
+      alert('Post link copied to clipboard!');
+    } catch (error) {
+      console.error('Error copying link:', error);
+    }
+  };
+
+  const handleBookmark = async (postId: string) => {
+    try {
+      // TODO: Implement bookmark functionality
+      alert('Bookmark functionality coming soon!');
+    } catch (error) {
+      console.error('Error bookmarking post:', error);
+    }
+  };
+
+  const handleReport = async (postId: string) => {
+    try {
+      // TODO: Implement report functionality
+      alert('Report functionality coming soon!');
+    } catch (error) {
+      console.error('Error reporting post:', error);
+    }
+  };
+
   const formatTimeAgo = (timestamp: string) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -333,9 +370,27 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleCopyLink(item.id)}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBookmark(item.id)}>
+                        <Bookmark className="w-4 h-4 mr-2" />
+                        Save Post
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleReport(item.id)} className="text-red-600">
+                        <Flag className="w-4 h-4 mr-2" />
+                        Report Post
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Post Content */}
@@ -526,6 +581,27 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                       </p>
                     </div>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleCopyLink(item.id)}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBookmark(item.id)}>
+                        <Bookmark className="w-4 h-4 mr-2" />
+                        Save Post
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleReport(item.id)} className="text-red-600">
+                        <Flag className="w-4 h-4 mr-2" />
+                        Report Post
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Achievement Content */}

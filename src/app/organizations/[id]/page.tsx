@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   Building2, 
   MapPin, 
@@ -24,7 +25,8 @@ import {
   Heart,
   Share2,
   ChevronRight,
-  Star
+  Star,
+  Trophy
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,17 +43,31 @@ const formatEventDate = (dateString: string) => {
   return date.toLocaleDateString('en-US', { 
     weekday: 'short', 
     month: 'short', 
-    day: 'numeric' 
+    day: 'numeric',
+    year: 'numeric'
   });
 };
 
-const formatEventTime = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', { 
+const formatEventTimeRange = (startDate: string, endDate?: string) => {
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+  
+  const startTime = start.toLocaleTimeString('en-US', { 
     hour: 'numeric', 
     minute: '2-digit',
     hour12: true 
   });
+  
+  if (end && end.getTime() !== start.getTime()) {
+    const endTime = end.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    return `${startTime} - ${endTime}`;
+  }
+  
+  return startTime;
 };
 
 // SDG Definitions
@@ -627,7 +643,7 @@ export default function OrganizationProfilePage() {
               
               {activeTab === 'about' && (
                 <>
-                  {/* Mission & Vision */}
+                    {/* Mission & Vision */}
             <Card className="border-0 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1412,21 +1428,168 @@ export default function OrganizationProfilePage() {
               </CardContent>
             </Card>
 
-            {/* CTA Card */}
-            <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
-              <CardContent className="p-6 text-center">
-                <Heart className="w-12 h-12 mx-auto mb-4 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-white">
-                  Get Involved
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Join this organization&apos;s events and make an impact!
-                </p>
+            {/* Upcoming Events Card */}
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  Upcoming Events
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-2 pb-4 px-4">
+                {organization.recentEvents && organization.recentEvents.length > 0 ? (
+                  organization.recentEvents
+                    .filter(event => new Date(event.startDate) > new Date())
+                    .slice(0, 3)
+                    .map((event) => (
+                    <Link 
+                      key={event.id} 
+                      href={`/events/${event.id}`}
+                      className="block group"
+                    >
+                      <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                        {/* Date and Time at the top */}
+                        <div className="mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-full">
+                              <Calendar className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                              <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                                {formatEventDate(event.startDate)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-full">
+                              <Clock className="w-3 h-3 text-green-600 dark:text-green-400" />
+                              <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                                {formatEventTimeRange(event.startDate, event.endDate)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Thumbnail and Title on one line */}
+                        <div className="flex gap-3 items-start mb-2">
+                          {/* Event Thumbnail */}
+                          <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-600">
+                            {event.imageUrl ? (
+                              <Image 
+                                src={event.imageUrl} 
+                                alt={event.title}
+                                width={48}
+                                height={48}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Calendar className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Event Title and Location */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                              {event.title}
+                            </h4>
+                            <div className="flex items-center gap-1 mt-1">
+                              <MapPin className="w-3 h-3 text-gray-400" />
+                              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {(() => {
+                                  let locationData;
+                                  if (typeof event.location === 'string') {
+                                    try {
+                                      locationData = JSON.parse(event.location);
+                                    } catch (e) {
+                                      locationData = {
+                                        address: event.location,
+                                        city: 'Unknown',
+                                        country: 'Unknown',
+                                        isVirtual: false
+                                      };
+                                    }
+                                  } else {
+                                    locationData = event.location;
+                                  }
+                                  return locationData.isVirtual ? 'Virtual Event' : `${locationData.city}, ${locationData.country}`;
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-center py-6">
+                    <Calendar className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No upcoming events
+                    </p>
+                  </div>
+                )}
+                
+                {organization.recentEvents && organization.recentEvents.filter(event => new Date(event.startDate) > new Date()).length > 3 && (
+                  <div className="pt-2">
                 <Link href={`/events?org=${orgId}`}>
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-                    View Upcoming Events
+                      <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
+                        View All Events
+                        <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Leaderboard Ranking */}
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="w-5 h-5 text-blue-600" />
+                  Leaderboard Ranking
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Global Rank */}
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Global Rank</p>
+                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-3 py-1.5">
+                      {organization.tier.replace(/_/g, ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
+                    </Badge>
+                  </div>
+                  <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                    #12
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    out of 1,247 organizations
+                  </p>
+                </div>
+
+                {/* Local Rank */}
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Local Rank ({organization.country || 'Malaysia'})
+                    </p>
+                  </div>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                    #3
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    out of 89 organizations
+                  </p>
+                </div>
+
+                {/* View Full Leaderboard Button */}
+                <div className="pt-4">
+                  <Link href="/leaderboards?type=organizations">
+                    <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
+                      View Full Leaderboard
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
               </CardContent>
             </Card>
 

@@ -150,6 +150,7 @@ export default function EventDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
+  const [galleryCount, setGalleryCount] = useState(0);
 
   const fetchEvent = useCallback(async (eventId: string) => {
     try {
@@ -285,6 +286,17 @@ export default function EventDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching comment count:', error);
+    }
+
+    // Fetch gallery count
+    try {
+      const response = await fetch(`/api/events/${eventId}/gallery`);
+      if (response.ok) {
+        const data = await response.json();
+        setGalleryCount(data.images?.length || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching gallery count:', error);
     }
   };
 
@@ -513,21 +525,21 @@ export default function EventDetailPage() {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 {eventStatus && (
-                  <Badge variant={eventStatus.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="flex items-center">
+                  <Badge variant={eventStatus.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="flex items-center px-3 py-1.5">
                     <eventStatus.icon className="w-3 h-3 mr-1" />
                     {eventStatus.label}
                   </Badge>
                 )}
                 
                 {event.organization?.verified && (
-                  <Badge variant="secondary" className="flex items-center">
+                  <Badge variant="secondary" className="flex items-center px-3 py-1.5">
                     <CheckCircle className="w-3 h-3 mr-1" />
                     Verified Org
                   </Badge>
                 )}
                 
                 {intensityInfo && (
-                  <Badge variant={intensityInfo.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"}>
+                  <Badge variant={intensityInfo.color as "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" | "sdg"} className="px-3 py-1.5">
                     {intensityInfo.label} Intensity
                   </Badge>
                 )}
@@ -632,7 +644,7 @@ export default function EventDetailPage() {
                       : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
                   }`}
                 >
-                  Gallery
+                  Gallery {galleryCount > 0 && `(${galleryCount})`}
                 </button>
               </div>
             </div>
@@ -677,7 +689,7 @@ export default function EventDetailPage() {
                           const colorClass = colors[index % colors.length];
                           
                           return (
-                            <Badge key={skill} variant="outline" className={colorClass}>
+                            <Badge key={skill} variant="outline" className={`${colorClass} px-3 py-1.5`}>
                               {skill}
                             </Badge>
                           );
@@ -799,24 +811,33 @@ export default function EventDetailPage() {
                 <CardTitle>Event Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Date & Time */}
+                {/* Date */}
                 <div className="flex items-start space-x-3">
                   <Calendar className="w-5 h-5 text-muted-foreground mt-0.5" />
                   <div>
                     <div className="font-medium">
                       {formatDate(event.startDate)}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                  </div>
+                </div>
+
+                {/* Time */}
+                <div className="flex items-start space-x-3">
+                  <Clock className="w-5 h-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="font-medium">
                       {new Date(event.startDate).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true
                       })}
                       {event.endDate && event.endDate !== event.startDate && (
                         <>
                           {' - '}
                           {new Date(event.endDate).toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
+                            hour: 'numeric', 
+                            minute: '2-digit',
+                            hour12: true
                           })}
                         </>
                       )}
@@ -928,7 +949,7 @@ export default function EventDetailPage() {
                               }}
                             />
                           </div>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm text-gray-900 dark:text-white">
                               SDG {sdgData.id}
                             </p>

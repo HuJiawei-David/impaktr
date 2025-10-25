@@ -1,157 +1,208 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Calendar, 
+  MapPin,
+  Plus
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  Eye,
-  Share2
-} from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
 
-interface Event {
+interface UpcomingEvent {
   id: string;
   title: string;
-  date: string;
-  location: string;
-  attendees: number;
-  organizer: string;
-  type: 'Workshop' | 'Networking' | 'Event' | 'Volunteer' | 'Fundraiser' | 'Cleanup';
+  description: string;
+  startDate: string;
+  endDate?: string;
+  location: string | object;
+  imageUrl?: string;
+  organization?: {
+    id: string;
+    name: string;
+    logo?: string;
+  };
+  currentParticipants: number;
+  maxParticipants?: number;
+  status: string;
+  sdg?: string | number | number[];
 }
 
-interface UpcomingEventsWidgetProps {
-  events?: Event[];
-}
+// Utility functions for event formatting
+const formatEventDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
 
-export function UpcomingEventsWidget({ events }: UpcomingEventsWidgetProps) {
-  // Mock data - in real app, this would come from props or API
-  const mockEvents: Event[] = [
-    {
-      id: '1',
-      title: 'My Sustainability Workshop',
-      date: 'Next Saturday, 2:00 PM',
-      location: 'Local Community Center',
-      attendees: 1,
-      organizer: 'You',
-      type: 'Workshop'
-    },
-    {
-      id: '2',
-      title: 'Community Garden Workshop',
-      date: 'Tomorrow, 10:00 AM',
-      location: 'Green Valley Park',
-      attendees: 45,
-      organizer: 'Environmental Action Network',
-      type: 'Workshop'
-    },
-    {
-      id: '3',
-      title: 'Career Mentorship Meetup',
-      date: 'Friday, 6:00 PM',
-      location: 'Downtown Library',
-      attendees: 28,
-      organizer: 'Youth Mentorship Circle',
-      type: 'Networking'
-    },
-    {
-      id: '4',
-      title: 'Health & Wellness Fair',
-      date: 'Saturday, 9:00 AM',
-      location: 'Community Center',
-      attendees: 120,
-      organizer: 'Community Health Champions',
-      type: 'Event'
-    }
-  ];
+const formatEventTimeRange = (startDate: string, endDate?: string) => {
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+  
+  const startTime = start.toLocaleTimeString('en-US', { 
+    hour: 'numeric', 
+    minute: '2-digit',
+    hour12: true 
+  });
+  
+  if (end && end.getTime() !== start.getTime()) {
+    const endTime = end.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    return `${startTime} - ${endTime}`;
+  }
+  
+  return startTime;
+};
 
-  const displayEvents = events || mockEvents;
+export function UpcomingEventsWidget() {
+  const [events, setEvents] = useState<UpcomingEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getEventTypeColor = (type: string) => {
-    switch (type) {
-      case 'Workshop':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      case 'Networking':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'Event':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'Volunteer':
-        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-      case 'Fundraiser':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'Cleanup':
-        return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+  useEffect(() => {
+    fetchUpcomingEvents();
+  }, []);
+
+  const fetchUpcomingEvents = async () => {
+    try {
+      const response = await fetch('/api/events?limit=6&status=UPCOMING');
+      const data = await response.json();
+      
+      if (data.events) {
+        setEvents(data.events);
+      }
+    } catch (error) {
+      console.error('Error fetching upcoming events:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const displayEvents = events.slice(0, 3);
+
   return (
-    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center space-x-2 text-lg">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-            <Calendar className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-gray-900 dark:text-white">Upcoming Events</span>
+    <Card className="border-0 shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Calendar className="w-5 h-5 text-blue-600" />
+          Upcoming Events
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {displayEvents.map((event) => (
-          <div key={event.id} className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent border-l-4 border-l-blue-500 cursor-pointer group hover:shadow-md transition-all">
-            <h4 className="font-medium text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-1">
-              {event.title}
-            </h4>
-            <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-              <div className="flex items-center space-x-2">
-                <Clock className="w-3 h-3" />
-                <span>{event.date}</span>
+
+      <CardContent className="pt-2 pb-4 px-4">
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 animate-pulse">
+                <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4 mb-2"></div>
+                <div className="flex gap-3 items-start">
+                  <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-lg"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded w-1/2"></div>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-3 h-3" />
-                <span>{event.location}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Users className="w-3 h-3" />
-                <span>{event.attendees} attending</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mt-2">
-              <Badge className={`text-xs ${getEventTypeColor(event.type)}`}>
-                {event.type}
-              </Badge>
-              <div className="flex space-x-1">
+            ))}
+          </div>
+        ) : displayEvents.length > 0 ? (
+          <div className="space-y-4">
+            {displayEvents.map((event) => (
+              <Link 
+                key={event.id} 
+                href={`/events/${event.id}`}
+                className="block group"
+              >
+                <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                      {/* Date at the top */}
+                      <div className="mb-2">
+                        <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-full w-fit">
+                          <Calendar className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                          <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                            {formatEventDate(event.startDate)}
+                          </span>
+                        </div>
+                      </div>
+                  
+                  {/* Thumbnail and Title on one line */}
+                  <div className="flex gap-3 items-start mb-2">
+                    {/* Event Thumbnail */}
+                    <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-600">
+                      {event.imageUrl ? (
+                        <Image 
+                          src={event.imageUrl} 
+                          alt={event.title}
+                          width={48}
+                          height={48}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Calendar className="w-5 h-5 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Event Title and Location */}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors overflow-hidden" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {event.title}
+                      </h4>
+                      <div className="flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {(() => {
+                            let locationData;
+                            if (typeof event.location === 'string') {
+                              try {
+                                locationData = JSON.parse(event.location);
+                              } catch (e) {
+                                locationData = {
+                                  address: event.location,
+                                  city: 'Unknown',
+                                  country: 'Unknown',
+                                  isVirtual: false
+                                };
+                              }
+                            } else {
+                              locationData = event.location;
+                            }
+                            return locationData.isVirtual ? 'Online' : `${locationData.city}, ${locationData.country}`;
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+            
+            <div className="pt-2">
+              <Link href="/events">
                 <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="h-6 w-6 p-0 hover:bg-blue-100 dark:hover:bg-blue-900"
+                  className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
                 >
-                  <Eye className="w-3 h-3" />
+                  View All Events
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="h-6 w-6 p-0 hover:bg-blue-100 dark:hover:bg-blue-900"
-                >
-                  <Share2 className="w-3 h-3" />
-                </Button>
-              </div>
+              </Link>
             </div>
           </div>
-        ))}
-        
-        <div className="pt-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
-          >
-            View All Events
-          </Button>
-        </div>
+        ) : (
+          <div className="text-center py-6">
+            <Calendar className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No upcoming events
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -227,7 +227,7 @@ export function EventParticipants({ eventId }: EventParticipantsProps) {
                             </h3>
                           </Link>
                           {participant.user.currentRank && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="text-xs bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 px-3 py-1.5">
                               {participant.user.currentRank}
                             </Badge>
                           )}

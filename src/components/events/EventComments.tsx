@@ -211,7 +211,7 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
 
   const renderComment = (comment: Comment, isReply: boolean = false) => (
     <div key={comment.id} className={`${isReply ? 'ml-12 mt-4' : 'mb-6'}`}>
-      <div className="flex space-x-3">
+      <div className="flex items-start space-x-3">
         <Avatar className={`${isReply ? 'w-8 h-8' : 'w-10 h-10'} flex-shrink-0`}>
           <AvatarImage src={comment.user.image} alt={comment.user.name} />
           <AvatarFallback>
@@ -220,17 +220,17 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
         </Avatar>
 
         <div className="flex-1">
-          <div className="bg-muted/50 rounded-lg p-3">
+          <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center space-x-2">
                 <span className="font-medium text-sm">{comment.user.name}</span>
                 {isParticipant && comment.user.id === session?.user?.id && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge className="text-xs bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800 px-3 py-1.5">
                     Participant
                   </Badge>
                 )}
                 {comment.user.currentRank && (
-                  <Badge variant="outline" className="text-xs">
+                  <Badge className="text-xs bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 px-3 py-1.5">
                     {comment.user.currentRank}
                   </Badge>
                 )}
@@ -331,7 +331,7 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
               {comment.likes.length > 0 && comment.likes.length}
             </Button>
 
-            {!isReply && session?.user && canComment && (
+            {session?.user && canComment && (
               <Button
                 variant="ghost"
                 size="sm"

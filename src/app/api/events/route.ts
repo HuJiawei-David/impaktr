@@ -32,7 +32,7 @@ const createEventSchema = z.object({
 
 const querySchema = z.object({
   page: z.string().transform((str) => parseInt(str)).default('1'),
-  limit: z.string().transform((str) => parseInt(str)).default('10'),
+  limit: z.string().transform((str) => parseInt(str)).default('20'),
   search: z.string().optional(),
   sdg: z.string().transform((str) => parseInt(str)).optional(),
   location: z.string().optional(),

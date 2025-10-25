@@ -22,17 +22,31 @@ const formatEventDate = (dateString: string) => {
   return date.toLocaleDateString('en-US', { 
     weekday: 'short', 
     month: 'short', 
-    day: 'numeric' 
+    day: 'numeric',
+    year: 'numeric'
   });
 };
 
-const formatEventTime = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', { 
+const formatEventTimeRange = (startDate: string, endDate?: string) => {
+  const start = new Date(startDate);
+  const end = endDate ? new Date(endDate) : null;
+  
+  const startTime = start.toLocaleTimeString('en-US', { 
     hour: 'numeric', 
     minute: '2-digit',
     hour12: true 
   });
+  
+  if (end && end.getTime() !== start.getTime()) {
+    const endTime = end.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    return `${startTime} - ${endTime}`;
+  }
+  
+  return startTime;
 };
 
 // SDG Definitions
@@ -231,7 +245,11 @@ export const EventCard = ({
           <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
             <div className="flex items-center">
               <Calendar className="w-4 h-4 mr-2" />
-              {formatEventDate(event.startDate)} • {formatEventTime(event.startDate)}
+              {formatEventDate(event.startDate)}
+            </div>
+            <div className="flex items-center ml-6">
+              <Clock className="w-4 h-4 mr-2" />
+              {formatEventTimeRange(event.startDate, event.endDate)}
             </div>
             
             <div className="flex items-center">
@@ -266,13 +284,13 @@ export const EventCard = ({
               {sdgData.slice(0, 3).map((sdg: number) => {
                 const sdgInfo = SDG_DEFINITIONS[sdg as keyof typeof SDG_DEFINITIONS];
                 return (
-                  <Badge key={sdg} className={`text-xs px-2.5 py-1 ${sdgInfo?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
+                  <Badge key={sdg} className={`text-xs px-3 py-1.5 whitespace-nowrap ${sdgInfo?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
                     SDG {sdg}
                   </Badge>
                 );
               })}
               {sdgData.length > 3 && (
-                <Badge className="text-xs px-2.5 py-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                <Badge className="text-xs px-3 py-1.5 whitespace-nowrap bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
                   +{sdgData.length - 3}
                 </Badge>
               )}

@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { 
   Users, 
@@ -112,15 +112,7 @@ export function ParticipantsList({
   const [verificationNotes, setVerificationNotes] = useState('');
   const [verificationRating, setVerificationRating] = useState(5);
 
-  useEffect(() => {
-    fetchParticipants();
-  }, [eventId]);
-
-  useEffect(() => {
-    filterAndSortParticipants();
-  }, [participants, searchTerm, statusFilter, sortBy, activeTab]);
-
-  const fetchParticipants = async () => {
+  const fetchParticipants = useCallback(async () => {
     try {
       const response = await fetch(`/api/events/${eventId}/participants`);
       if (response.ok) {
@@ -133,9 +125,9 @@ export function ParticipantsList({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [eventId]);
 
-  const filterAndSortParticipants = () => {
+  const filterAndSortParticipants = useCallback(() => {
     let filtered = [...participants];
 
     // Filter by tab
@@ -189,7 +181,15 @@ export function ParticipantsList({
     });
 
     setFilteredParticipants(filtered);
-  };
+  }, [participants, searchTerm, statusFilter, sortBy, activeTab]);
+
+  useEffect(() => {
+    fetchParticipants();
+  }, [fetchParticipants]);
+
+  useEffect(() => {
+    filterAndSortParticipants();
+  }, [filterAndSortParticipants]);
 
   const handleVerifyParticipant = async (participantId: string, action: 'approve' | 'reject') => {
     try {
@@ -574,7 +574,7 @@ export function ParticipantsList({
                           <span className="font-medium">Verifications:</span>
                           {participant.verifications.map((verification, index) => (
                             <div key={index} className="flex items-center space-x-1">
-                              <Badge variant="outline">
+                              <Badge className="bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800 px-3 py-1.5">
                                 {verification.type}
                               </Badge>
                               {verification.rating && (

@@ -1024,7 +1024,7 @@ function EventsPageContent() {
         )}
 
         {/* Load More Button */}
-        {filteredEvents.length > 0 && filteredEvents.length >= 12 && (
+        {filteredEvents.length > 0 && filteredEvents.length >= 20 && (
           <div className="text-center mt-12">
             <Button variant="outline" size="lg" onClick={fetchEvents}>
               Load More Events
