@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:clean": "rm -rf .next && next dev",
+    "dev": "next dev --hostname localhost",
+    "dev:clean": "rm -rf .next && next dev --hostname localhost",
     "dev:with-socket": "concurrently \"npm run socket:dev\" \"next dev\"",
     "postinstall": "prisma generate",
     "build": "next build",

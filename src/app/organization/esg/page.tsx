@@ -40,6 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import SuggestionPanel from './suggestion/SuggestionPanel';
 import FavoriteEventsPanel from './favorites/FavoriteEventsPanel';
+import { useEventNotificationStore } from '@/store/eventNotificationStore';
 
 interface ESGData {
   organizationId: string;
@@ -118,6 +119,9 @@ export default function OrganizationESGPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedPeriod, setSelectedPeriod] = useState('annual');
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  
+  // Favorite event notification store
+  const { newFavoriteCount, clearFavoriteCount } = useEventNotificationStore();
 
   const fetchESGData = useCallback(async (orgId: string) => {
     try {
@@ -439,8 +443,14 @@ export default function OrganizationESGPage() {
             </Button>
             <Button
               variant={activeTab === 'favorites' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('favorites')}
-              className={`rounded-full px-6 py-2 ${
+              onClick={() => {
+                setActiveTab('favorites');
+                // Clear favorite notifications when user clicks on Favorites tab
+                if (newFavoriteCount > 0) {
+                  clearFavoriteCount();
+                }
+              }}
+              className={`relative rounded-full px-6 py-2 ${
                 activeTab === 'favorites' 
                   ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
                   : 'hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -448,6 +458,14 @@ export default function OrganizationESGPage() {
             >
               <Heart className="w-4 h-4 mr-2" />
               Favorite Events
+              {newFavoriteCount > 0 && activeTab !== 'favorites' && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-5 w-5 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                >
+                  {newFavoriteCount > 9 ? '9+' : newFavoriteCount}
+                </Badge>
+              )}
             </Button>
           </div>
 

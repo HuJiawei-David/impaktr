@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getSDGColor } from '@/lib/utils';
+import { useEventNotificationStore } from '@/store/eventNotificationStore';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 // ESG Attribute explanations (same as in SuggestionPanel)
 const ESG_ATTRIBUTES = {
@@ -95,6 +97,12 @@ export default function FavoriteEventsPanel({ organizationId }: FavoriteEventsPa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  
+  // Event notification store
+  const { incrementCount } = useEventNotificationStore();
+  
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     fetchFavoriteEvents();
@@ -118,34 +126,40 @@ export default function FavoriteEventsPanel({ organizationId }: FavoriteEventsPa
     }
   };
 
-  const handleRemoveFavorite = async (eventId: string) => {
-    if (!confirm('Are you sure you want to remove this event from favorites?')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/esg/favorite-events?id=${eventId}`, {
-        method: 'DELETE',
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Remove from local state
-        setFavoriteEvents(favoriteEvents.filter(e => e.id !== eventId));
-        setSelectedEvents(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(eventId);
-          return newSet;
-        });
-        toast.success('Event removed from favorites successfully');
-      } else {
-        toast.error(data.error || 'Failed to remove favorite event');
+  const handleRemoveFavorite = (eventId: string, eventName: string) => {
+    showConfirm({
+      title: 'Remove from Favorites',
+      message: `Are you sure you want to remove "${eventName}" from your favorites? You can always add it back later.`,
+      confirmText: 'Remove',
+      cancelText: 'Keep it',
+      type: 'remove',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/esg/favorite-events?id=${eventId}`, {
+            method: 'DELETE',
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // Remove from local state
+            setFavoriteEvents(favoriteEvents.filter(e => e.id !== eventId));
+            setSelectedEvents(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(eventId);
+              return newSet;
+            });
+            toast.success('Event removed from favorites');
+          } else {
+            throw new Error(data.message || 'Failed to remove from favorites');
+          }
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to remove from favorites');
+        }
       }
-    } catch (err) {
-      toast.error('Error removing favorite event');
-    }
+    });
   };
+
 
   const handleCreateDrafts = async () => {
     if (selectedEvents.size === 0) {
@@ -182,6 +196,8 @@ export default function FavoriteEventsPanel({ organizationId }: FavoriteEventsPa
       if (data.success) {
         toast.success(`Successfully created ${data.data.count} draft events! These events have been created and are now available in the Event page.`);
         setSelectedEvents(new Set());
+        // Increment event notification count
+        incrementCount(data.data.count);
       } else {
         toast.error('Failed to create draft events');
       }
@@ -283,7 +299,7 @@ export default function FavoriteEventsPanel({ organizationId }: FavoriteEventsPa
                         }
                         setSelectedEvents(newSelected);
                       }}
-                      onRemove={() => handleRemoveFavorite(event.id)}
+                      onRemove={() => handleRemoveFavorite(event.id, event.eventName)}
                     />
                   ))}
                 </div>
@@ -292,6 +308,9 @@ export default function FavoriteEventsPanel({ organizationId }: FavoriteEventsPa
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </TooltipProvider>
   );
 }

@@ -31,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'react-hot-toast';
+import { useEventNotificationStore } from '@/store/eventNotificationStore';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface Event {
   id: string;
@@ -69,6 +71,12 @@ export default function OrganizationEventsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  
+  // Event notification store - clear notifications when visiting events page
+  const { clearCount } = useEventNotificationStore();
+  
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
 
   const fetchOrganizationData = useCallback(async () => {
     try {
@@ -114,6 +122,11 @@ export default function OrganizationEventsPage() {
     }
   }, [isLoading, user, router, fetchOrganizationData]);
 
+  // Clear event notifications when visiting the organization events page
+  useEffect(() => {
+    clearCount();
+  }, [clearCount]);
+
   const handleCreateEvent = () => {
     router.push('/organization/events/create');
   };
@@ -135,26 +148,32 @@ export default function OrganizationEventsPage() {
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteEvent = (eventId: string, eventTitle: string) => {
+    showConfirm({
+      title: 'Delete Event',
+      message: `Are you sure you want to delete "${eventTitle}"? This action cannot be undone and all event data will be permanently removed.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/events/${eventId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/events/${eventId}`, {
-        method: 'DELETE',
-      });
+          if (!response.ok) {
+            throw new Error('Failed to delete event');
+          }
 
-      if (!response.ok) {
-        throw new Error('Failed to delete event');
+          toast.success('Event deleted successfully');
+          fetchOrganizationData(); // Refresh data
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to delete event');
+        }
       }
-
-      toast.success('Event deleted successfully');
-      fetchOrganizationData(); // Refresh data
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete event');
-    }
+    });
   };
+
 
   const filteredEvents = organizationData?.events?.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -423,7 +442,7 @@ export default function OrganizationEventsPage() {
                       <DropdownMenuItem 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteEvent(event.id);
+                          handleDeleteEvent(event.id, event.title);
                         }}
                         className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
@@ -495,6 +514,9 @@ export default function OrganizationEventsPage() {
           )}
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }

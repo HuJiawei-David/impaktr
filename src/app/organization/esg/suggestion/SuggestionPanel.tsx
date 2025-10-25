@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Lightbulb, 
   Target, 
@@ -15,7 +15,8 @@ import {
   X,
   HelpCircle,
   Heart,
-  FileText
+  FileText,
+  RotateCcw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SuggestionRequest, SuggestionResult, SuggestedEvent } from '@/lib/esg/suggestion/types';
 import { getSDGOptions } from '@/lib/esg/suggestion/sdg-mapping';
 import { getSDGColor } from '@/lib/utils';
+import { useEventNotificationStore } from '@/store/eventNotificationStore';
+import { useSuggestionStore } from '@/store/suggestionStore';
 
 // ESG Attribute explanations
 const ESG_ATTRIBUTES = {
@@ -83,6 +86,24 @@ interface SuggestionPanelProps {
 }
 
 export default function SuggestionPanel({ organizationId }: SuggestionPanelProps) {
+  // Suggestion store for persistence
+  const {
+    formData: storedFormData,
+    selectedSDGs: storedSelectedSDGs,
+    result: storedResult,
+    selectedEvents: storedSelectedEvents,
+    organizationId: storedOrgId,
+    timestamp,
+    setFormData: setStoredFormData,
+    setSelectedSDGs: setStoredSelectedSDGs,
+    setResult: setStoredResult,
+    setSelectedEvents: setStoredSelectedEvents,
+    setOrganizationId: setStoredOrganizationId,
+    clearSuggestions,
+    hasSettingsChanged,
+  } = useSuggestionStore();
+
+  // Local state for UI interactions
   const [formData, setFormData] = useState<SuggestionRequest>({
     focus: {},
     targets: {},
@@ -95,6 +116,158 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
   const [result, setResult] = useState<SuggestionResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Event notification store
+  const { incrementCount, incrementFavoriteCount } = useEventNotificationStore();
+
+  // Initialize state from store on mount
+  useEffect(() => {
+    console.log('Initializing suggestion component:', {
+      storedOrgId,
+      organizationId,
+      hasStoredResult: !!storedResult,
+      timestamp
+    });
+
+    // Check if we have stored data for this organization
+    if (storedOrgId === organizationId && storedResult && timestamp) {
+      // Check if data is not expired (24 hours)
+      const now = Date.now();
+      const dayInMs = 24 * 60 * 60 * 1000;
+      
+      if (now - timestamp < dayInMs) {
+        // Restore stored state
+        setFormData(storedFormData);
+        setSelectedSDGs(storedSelectedSDGs);
+        setResult(storedResult);
+        setSelectedEvents(new Set(storedSelectedEvents));
+        
+        console.log('Restored suggestion state from storage:', {
+          hasResult: !!storedResult,
+          selectedSDGs: storedSelectedSDGs.length,
+          selectedEvents: storedSelectedEvents.length
+        });
+      } else {
+        // Data expired, clear it
+        console.log('Stored suggestion data expired, clearing');
+        clearSuggestions();
+      }
+    } else if (storedOrgId && storedOrgId !== organizationId) {
+      // Different organization, clear stored data
+      console.log('Organization changed, clearing stored suggestions');
+      clearSuggestions();
+    }
+    
+    // Update stored organization ID
+    setStoredOrganizationId(organizationId);
+    setIsInitialized(true);
+  }, []);
+
+  // Save data when component unmounts (navigation away)
+  useEffect(() => {
+    return () => {
+      // Save current state when component unmounts
+      if (isInitialized && (result || formData.focus.band || selectedSDGs.length > 0)) {
+        console.log('Saving suggestion state on component unmount');
+        setStoredFormData(formData);
+        setStoredSelectedSDGs(selectedSDGs);
+        setStoredResult(result);
+        setStoredSelectedEvents(Array.from(selectedEvents));
+      }
+    };
+  }, [isInitialized, formData, selectedSDGs, result, selectedEvents]);
+
+  // Persist state changes to store (after initialization)
+  useEffect(() => {
+    if (isInitialized) {
+      setStoredFormData(formData);
+      console.log('Form data saved to store:', formData);
+    }
+  }, [formData, isInitialized]);
+
+  useEffect(() => {
+    if (isInitialized) {
+      setStoredSelectedSDGs(selectedSDGs);
+      console.log('Selected SDGs saved to store:', selectedSDGs);
+    }
+  }, [selectedSDGs, isInitialized]);
+
+  useEffect(() => {
+    if (isInitialized) {
+      setStoredResult(result);
+      console.log('Result saved to store:', result ? 'Has result' : 'No result');
+    }
+  }, [result, isInitialized]);
+
+  useEffect(() => {
+    if (isInitialized) {
+      setStoredSelectedEvents(Array.from(selectedEvents));
+      console.log('Selected events saved to store:', Array.from(selectedEvents));
+    }
+  }, [selectedEvents, isInitialized]);
+
+  // Force save all data periodically and on navigation
+  useEffect(() => {
+    if (!isInitialized) {
+      return;
+    }
+
+    const saveAllData = () => {
+      setStoredFormData(formData);
+      setStoredSelectedSDGs(selectedSDGs);
+      setStoredResult(result);
+      setStoredSelectedEvents(Array.from(selectedEvents));
+      console.log('All suggestion data force-saved to store');
+    };
+
+    // Save every 5 seconds if there's any data
+    const interval = setInterval(() => {
+      if (result || formData.focus.band || selectedSDGs.length > 0) {
+        saveAllData();
+      }
+    }, 5000);
+
+    // Save on page visibility change (user switching tabs)
+    const handleVisibilityChange = () => {
+      if (document.hidden && (result || formData.focus.band || selectedSDGs.length > 0)) {
+        saveAllData();
+      }
+    };
+
+    // Save on beforeunload (user navigating away)
+    const handleBeforeUnload = () => {
+      if (result || formData.focus.band || selectedSDGs.length > 0) {
+        saveAllData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Final save on cleanup
+      saveAllData();
+    };
+  }, [isInitialized, formData, selectedSDGs, result, selectedEvents]);
+
+  // Handler to clear suggestions and reset state
+  const handleClearSuggestions = () => {
+    setFormData({
+      focus: {},
+      targets: {},
+      constraints: {},
+    });
+    setSelectedSDGs([]);
+    setResult(null);
+    setSelectedEvents(new Set());
+    setError(null);
+    clearSuggestions(); // Clear from persistent store
+    toast.success('Suggestions cleared successfully');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +296,17 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
       
       if (data.success) {
         setResult(data.data);
+        // Immediately save all data to store
+        setStoredFormData(formData);
+        setStoredSelectedSDGs(selectedSDGs);
+        setStoredResult(data.data);
+        setStoredSelectedEvents([]); // Clear selected events for new results
+        console.log('Suggestion result saved to store:', {
+          hasResult: !!data.data,
+          formData: formData,
+          selectedSDGs: selectedSDGs.length
+        });
+        toast.success('Suggestions generated successfully!');
       } else {
         setError(data.error || 'Failed to generate suggestions');
       }
@@ -169,6 +353,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
       if (data.success) {
         toast.success(`Successfully created ${data.data.count} draft events! These events have been created and are now available in the Event page.`);
         setSelectedEvents(new Set());
+        // Increment event notification count
+        incrementCount(data.data.count);
       } else {
         toast.error('Failed to create draft events');
       }
@@ -205,6 +391,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
       if (data.success) {
         toast.success(`Successfully added ${selectedEventsData.length} event(s) to favorites! These events have been saved and are now available in the Favorite Events component.`);
         setSelectedEvents(new Set());
+        // Increment favorite notification count
+        incrementFavoriteCount(selectedEventsData.length);
       } else {
         toast.error(data.error || 'Failed to add events to favorites');
       }
@@ -236,6 +424,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
       
       if (data.success) {
         toast.success(`Successfully created event: ${event.name}. This event has been created and is now available in the Event page.`);
+        // Increment event notification count
+        incrementCount(1);
       } else {
         toast.error('Failed to create event');
       }
@@ -261,6 +451,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
       
       if (data.success) {
         toast.success(`Successfully added "${event.name}" to favorites! This event has been saved and is now available in the Favorite Events component.`);
+        // Increment favorite notification count
+        incrementFavoriteCount(1);
       } else {
         toast.error(data.error || 'Failed to add event to favorites');
       }
@@ -275,13 +467,28 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
         {/* Suggestion Form */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Lightbulb className="w-5 h-5 mr-2 text-yellow-600" />
-              Event Planning Suggestion Engine
-            </CardTitle>
-            <CardDescription>
-              Get AI-powered recommendations for events that will help you meet your ESG targets
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center">
+                  <Lightbulb className="w-5 h-5 mr-2 text-yellow-600" />
+                  Event Planning Suggestion Engine
+                </CardTitle>
+                <CardDescription>
+                  Get AI-powered recommendations for events that will help you meet your ESG targets
+                </CardDescription>
+              </div>
+              {result && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearSuggestions}
+                  className="flex items-center space-x-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Clear Suggestions</span>
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -294,15 +501,17 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                     <Select
                       value={formData.focus.band || ''}
                       onValueChange={(value) => {
-                        setFormData(prev => ({
-                          ...prev,
-                          focus: { ...prev.focus, band: value as any }
-                        }));
+                        const newFormData = {
+                          ...formData,
+                          focus: { ...formData.focus, band: value as any }
+                        };
+                        setFormData(newFormData);
+                        
                         // Auto-select all SDGs for the selected band
                         const sdgs = getSDGOptions(value as any).map(s => s.value);
                         setSelectedSDGs(sdgs);
-                        setResult(null);
-                        setSelectedEvents(new Set());
+                        
+                        // Don't clear results - let user decide when to generate new suggestions
                       }}
                     >
                       <SelectTrigger>
@@ -346,8 +555,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                           onClick={() => {
                             const allSDGs = getSDGOptions(formData.focus.band).map(s => s.value);
                             setSelectedSDGs(selectedSDGs.length === allSDGs.length ? [] : allSDGs);
-                            setResult(null);
-                            setSelectedEvents(new Set());
+                            
+                            // Don't clear results - let user decide when to generate new suggestions
                           }}
                           className="text-xs"
                         >
@@ -374,8 +583,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                                   ? selectedSDGs.filter(s => s !== sdg.value)
                                   : [...selectedSDGs, sdg.value]
                                 );
-                                setResult(null);
-                                setSelectedEvents(new Set());
+                                
+                                // Don't clear results - let user decide when to generate new suggestions
                               }}
                             >
                               <div 
@@ -388,8 +597,8 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedSDGs(selectedSDGs.filter(s => s !== sdg.value));
-                                    setResult(null);
-                                    setSelectedEvents(new Set());
+                                    
+                                    // Don't clear results - let user decide when to generate new suggestions
                                   }}
                                   className="ml-1 hover:bg-white hover:bg-opacity-20 rounded-full p-0.5 transition-colors duration-200"
                                 >
@@ -416,10 +625,13 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                     type="number"
                     placeholder="e.g., 500"
                     value={formData.targets.hours || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      targets: { ...prev.targets, hours: e.target.value ? Number(e.target.value) : undefined }
-                    }))}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        targets: { ...prev.targets, hours: e.target.value ? Number(e.target.value) : undefined }
+                      }));
+                      // Don't clear results on input change - let user decide when to generate new suggestions
+                    }}
                   />
                 </div>
                 <div>
@@ -429,10 +641,13 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                     type="number"
                     placeholder="e.g., 100"
                     value={formData.targets.participants || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      targets: { ...prev.targets, participants: e.target.value ? Number(e.target.value) : undefined }
-                    }))}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        targets: { ...prev.targets, participants: e.target.value ? Number(e.target.value) : undefined }
+                      }));
+                      // Don't clear results on input change
+                    }}
                   />
                 </div>
                 <div>
@@ -442,10 +657,13 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                     type="number"
                     placeholder="e.g., 10"
                     value={formData.targets.orgScoreDelta || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      targets: { ...prev.targets, orgScoreDelta: e.target.value ? Number(e.target.value) : undefined }
-                    }))}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        targets: { ...prev.targets, orgScoreDelta: e.target.value ? Number(e.target.value) : undefined }
+                      }));
+                      // Don't clear results on input change
+                    }}
                   />
                 </div>
               </div>
@@ -462,10 +680,13 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                     type="number"
                     placeholder="e.g., 5000"
                     value={formData.constraints?.budget || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      constraints: { ...prev.constraints, budget: e.target.value ? Number(e.target.value) : undefined }
-                    }))}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        constraints: { ...prev.constraints, budget: e.target.value ? Number(e.target.value) : undefined }
+                      }));
+                      // Don't clear results on input change
+                    }}
                   />
                 </div>
                 <div>
@@ -475,23 +696,29 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                     type="number"
                     placeholder="e.g., 5"
                     value={formData.constraints?.maxEvents || ''}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      constraints: { ...prev.constraints, maxEvents: e.target.value ? Number(e.target.value) : undefined }
-                    }))}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        constraints: { ...prev.constraints, maxEvents: e.target.value ? Number(e.target.value) : undefined }
+                      }));
+                      // Don't clear results on input change
+                    }}
                   />
                 </div>
                 <div>
                   <Label htmlFor="riskLevel">Risk Level</Label>
                   <Select 
                     value={formData.constraints?.riskAllowed?.join(',') || ''} 
-                    onValueChange={(value) => setFormData(prev => ({
-                      ...prev,
-                      constraints: { 
-                        ...prev.constraints, 
-                        riskAllowed: value ? value.split(',') as any : undefined 
-                      }
-                    }))}
+                    onValueChange={(value) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        constraints: { 
+                          ...prev.constraints, 
+                          riskAllowed: value ? value.split(',') as any : undefined 
+                        }
+                      }));
+                      // Don't clear results on input change
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select risk levels" />
@@ -520,6 +747,20 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
       {/* Results Section */}
       {result && (
         <div className="space-y-6">
+          {/* Restoration Info Message */}
+          {storedResult && storedOrgId === organizationId && timestamp && (
+            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2 text-blue-800 dark:text-blue-200">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="text-sm">
+                    Previous suggestions restored from {new Date(timestamp).toLocaleDateString()} at {new Date(timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           {/* Summary */}
           <Card>
             <CardHeader>

@@ -25,6 +25,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { countries } from '@/constants/countries';
+import { useEventNotificationStore } from '@/store/eventNotificationStore';
 
 // Utility functions
 const formatEventDate = (dateString: string) => {
@@ -124,6 +125,9 @@ function EventsPageContent() {
   const searchParams = useSearchParams();
   const category = searchParams.get('category');
   
+  // Event notification store - clear notifications when visiting events page
+  const { clearCount } = useEventNotificationStore();
+  
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -167,6 +171,11 @@ function EventsPageContent() {
       );
     }
   }, []);
+
+  // Clear event notifications when visiting the events page
+  useEffect(() => {
+    clearCount();
+  }, [clearCount]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -46,6 +46,7 @@ import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown';
+import { useEventNotificationStore } from '@/store/eventNotificationStore';
 
 const navigationItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -89,6 +90,9 @@ export function Navigation() {
   } | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+  
+  // Event notification store
+  const { newEventCount, clearCount } = useEventNotificationStore();
 
   // Determine if user is an organization
   // Only show org navbar for /organization/* routes, NOT /organizations/[id] (public profile view)
@@ -205,11 +209,18 @@ export function Navigation() {
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
+                  const isEventsButton = item.label === 'Events';
+                  const showNotificationBadge = isEventsButton && newEventCount > 0;
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => {
+                        if (isEventsButton && newEventCount > 0) {
+                          clearCount();
+                        }
+                      }}
                       className={cn(
                         "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
                         isActive
@@ -222,6 +233,14 @@ export function Navigation() {
                         isActive ? "scale-110" : "group-hover:scale-110"
                       )} />
                       <span className="truncate">{item.label}</span>
+                      {showNotificationBadge && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                        >
+                          {newEventCount > 9 ? '9+' : newEventCount}
+                        </Badge>
+                      )}
                     </Link>
                   );
                 })}
@@ -619,21 +638,36 @@ export function Navigation() {
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
+                  const isEventsButton = item.label === 'Events';
+                  const showNotificationBadge = isEventsButton && newEventCount > 0;
 
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
+                        "relative flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium transition-colors",
                         isActive
                           ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400"
                           : "text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
                       )}
-                      onClick={() => setIsOpen(false)}
+                      onClick={() => {
+                        setIsOpen(false);
+                        if (isEventsButton && newEventCount > 0) {
+                          clearCount();
+                        }
+                      }}
                     >
                       <Icon className="w-5 h-5" />
                       <span>{item.label}</span>
+                      {showNotificationBadge && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute top-1 right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                        >
+                          {newEventCount > 9 ? '9+' : newEventCount}
+                        </Badge>
+                      )}
                     </Link>
                   );
                 })}
@@ -829,11 +863,18 @@ export function Navigation() {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
+            const isEventsButton = item.label === 'Events';
+            const showNotificationBadge = isEventsButton && newEventCount > 0;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => {
+                  if (isEventsButton && newEventCount > 0) {
+                    clearCount();
+                  }
+                }}
                 className={cn(
                   "relative flex flex-col items-center justify-center px-2 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[60px]",
                   isActive
@@ -846,6 +887,14 @@ export function Navigation() {
                   isActive ? "scale-110" : ""
                 )} />
                 <span className="truncate text-[10px]">{item.label}</span>
+                {showNotificationBadge && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                  >
+                    {newEventCount > 9 ? '9+' : newEventCount}
+                  </Badge>
+                )}
                 {isActive && (
                   <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-purple-600 rounded-full"></div>
                 )}

@@ -36,6 +36,7 @@ import { Progress } from '@/components/ui/progress';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { toast } from 'react-hot-toast';
 import { EventPreview } from '@/components/events/EventPreview';
+import { useEventNotificationStore } from '@/store/eventNotificationStore';
 
 interface EventFormData {
   title: string;
@@ -98,6 +99,9 @@ export default function CreateEventPage() {
   }>>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [customFields, setCustomFields] = useState<EventFormData['customFields']>([]);
+  
+  // Event notification store
+  const { incrementCount } = useEventNotificationStore();
 
   const {
     register,
@@ -230,6 +234,8 @@ export default function CreateEventPage() {
       const result = await response.json();
       
       toast.success(saveAsDraft ? 'Event saved as draft' : 'Event created successfully!');
+      // Increment event notification count
+      incrementCount(1);
       router.push(`/events/${result.event.id}`);
       
     } catch (error) {
