@@ -44,7 +44,7 @@ const ESG_ATTRIBUTES = {
   S: { name: 'ΔS - Social Impact', description: 'Social benefits delivered including community engagement, education, and welfare' },
   C: { name: 'ΔC - Cause Impact', description: 'Alignment with specific causes and SDGs, measuring thematic impact' },
   G: { name: 'ΔG - Governance Impact', description: 'Governance quality including transparency, accountability, and ethical practices' },
-  overall: { name: 'Overall Δ - Total Impact Score', description: 'Combined impact score calculated as: (E + H + Q + V + S + C) × G × 100' }
+  overall: { name: 'Overall Δ - Total Impact Score', description: 'Combined impact score calculated as: (ΔE + ΔH + ΔQ + ΔV + ΔS + ΔC) × (G_current + ΔG) × 100, where ΔG comes from governance improvements in suggested events' }
 };
 
 // Helper to determine primary ESG band from SDGs
@@ -779,12 +779,21 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
                   <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <div>
                     <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">Score Calculation Formula</h4>
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      <strong>Overall Δ = (E + H + Q + V + S + C) × G × 100</strong>
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                      Where each attribute represents a specific impact dimension. Hover over attributes below to learn more.
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                        <strong>Overall Δ = (ΔE + ΔH + ΔQ + ΔV + ΔS + ΔC) × G<sub>new</sub> × 100</strong>
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-800/30 p-2 rounded">
+                        <strong>Where:</strong><br/>
+                        • G<sub>new</sub> = G<sub>current</sub> + ΔG<br/>
+                        • ΔG = {result.predictedDelta.G.toFixed(3)} (governance improvements from suggested events)<br/>
+                        • Each event contributes ΔG through policy and transparency enhancements<br/>
+                        • <strong>Note:</strong> If G<sub>current</sub> = 0, the formula becomes (components) × ΔG × 100
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                        Hover over attributes below to learn more about each impact dimension.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

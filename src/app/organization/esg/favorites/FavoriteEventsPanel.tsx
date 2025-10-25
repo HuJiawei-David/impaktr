@@ -27,7 +27,7 @@ const ESG_ATTRIBUTES = {
   S: { name: 'ΔS - Social Impact', description: 'Social benefits delivered including community engagement, education, and welfare' },
   C: { name: 'ΔC - Cause Impact', description: 'Alignment with specific causes and SDGs, measuring thematic impact' },
   G: { name: 'ΔG - Governance Impact', description: 'Governance quality including transparency, accountability, and ethical practices' },
-  overall: { name: 'Overall Δ - Total Impact Score', description: 'Combined impact score calculated as: (E + H + Q + V + S + C) × G × 100' }
+  overall: { name: 'Overall Δ - Total Impact Score', description: 'Combined impact score calculated as: (ΔE + ΔH + ΔQ + ΔV + ΔS + ΔC) × (G_current + ΔG) × 100, where ΔG comes from governance improvements in suggested events' }
 };
 
 // Helper functions (same as in SuggestionPanel)
