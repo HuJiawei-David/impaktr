@@ -26,25 +26,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { countries } from '@/constants/countries';
 import { useEventNotificationStore } from '@/store/eventNotificationStore';
+import { EventCard } from '@/components/events/EventCard';
 
-// Utility functions
-const formatEventDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric' 
-  });
-};
-
-const formatEventTime = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', { 
-    hour: 'numeric', 
-    minute: '2-digit',
-    hour12: true 
-  });
-};
+// Utility functions (moved to shared EventCard component)
 
 interface Event {
   id: string;
@@ -211,8 +195,12 @@ function EventsPageContent() {
         // Fetch recommendations for "For You" tab
         response = await fetch('/api/recommendations?type=events');
       } else {
-        // Regular events fetch
-        response = await fetch('/api/events');
+        // Regular events fetch - include status parameter for past events
+        let apiUrl = '/api/events';
+        if (activeTab === 'past') {
+          apiUrl += '?status=COMPLETED';
+        }
+        response = await fetch(apiUrl);
       }
       
       console.log('Response status:', response.status);
@@ -230,13 +218,40 @@ function EventsPageContent() {
       // Transform API data to match our Event interface
       const sourceEvents = activeTab === 'for-you' ? (data.recommendations || []) : (data.events || []);
       const transformedEvents: Event[] = sourceEvents.map((event: any) => {
-        const locationData = typeof event.location === 'string' 
-          ? JSON.parse(event.location) 
-          : event.location;
+        let locationData;
+        if (typeof event.location === 'string') {
+          try {
+            locationData = JSON.parse(event.location);
+          } catch (e) {
+            // If parsing fails, treat as a simple address string
+            locationData = {
+              address: event.location,
+              city: 'Unknown',
+              country: 'Unknown',
+              isVirtual: false
+            };
+          }
+        } else {
+          locationData = event.location;
+        }
         
-        const sdgData = event.sdg 
-          ? (typeof event.sdg === 'string' ? JSON.parse(event.sdg) : event.sdg)
-          : [];
+        let sdgData;
+        if (event.sdg) {
+          if (typeof event.sdg === 'string') {
+            try {
+              sdgData = JSON.parse(event.sdg);
+            } catch (e) {
+              // If parsing fails, treat as a single SDG number
+              sdgData = [parseInt(event.sdg)];
+            }
+          } else if (typeof event.sdg === 'number') {
+            sdgData = [event.sdg];
+          } else {
+            sdgData = event.sdg;
+          }
+        } else {
+          sdgData = [];
+        }
 
         return {
           id: event.id,
@@ -1003,7 +1018,7 @@ function EventsPageContent() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredEvents.map((event) => (
-              <EventCard key={event.id} event={event} onToggleFavorite={toggleFavorite} onToggleBookmark={toggleBookmark} />
+              <EventCard key={event.id} event={event} onToggleFavorite={toggleFavorite} onToggleBookmark={toggleBookmark} showOrganization={true} />
             ))}
           </div>
         )}
@@ -1029,116 +1044,4 @@ export default function EventsPage() {
   );
 }
 
-// Event Card Component
-const EventCard = ({ event, onToggleFavorite, onToggleBookmark }: { 
-  event: Event; 
-  onToggleFavorite: (id: string) => void;
-  onToggleBookmark?: (id: string) => void;
-}) => {
-  return (
-    <Link href={`/events/${event.id}`}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
-      <div className="relative h-48 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
-        {event.images && event.images.length > 0 ? (
-          <img 
-            src={event.images[0]} 
-            alt={event.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Calendar className="w-12 h-12 text-gray-400" />
-          </div>
-        )}
-        
-        {event.trending && (
-          <Badge className="absolute top-2 left-2 bg-red-500 text-white px-3 py-1.5">
-            <TrendingUp className="w-3 h-3 mr-1" />
-            Trending
-          </Badge>
-        )}
-        
-        {event.featured && (
-          <Badge className="absolute top-2 right-2 bg-yellow-500 text-white px-3 py-1.5">
-            <Star className="w-3 h-3 mr-1" />
-            Featured
-          </Badge>
-        )}
-      </div>
-      
-      <CardContent className="p-4 flex flex-col flex-grow">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-lg line-clamp-2">{event.title}</h3>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (onToggleBookmark) {
-                onToggleBookmark(event.id);
-              }
-            }}
-            className="ml-2 mt-1 transition-colors duration-200 group flex-shrink-0"
-          >
-            <Heart className={`w-4 h-4 transition-colors ${
-              event.isBookmarked 
-                ? 'fill-red-500 text-red-500' 
-                : 'text-gray-400 group-hover:text-red-500 group-hover:fill-red-500'
-            }`} />
-          </button>
-        </div>
-        
-        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-          <div className="flex items-center">
-            <Calendar className="w-4 h-4 mr-2" />
-            {formatEventDate(event.startDate)} • {formatEventTime(event.startDate)}
-          </div>
-          
-          <div className="flex items-center">
-            <MapPin className="w-4 h-4 mr-2" />
-            {event.location.isVirtual ? 'Virtual Event' : `${event.location.city}, ${event.location.country}`}
-          </div>
-          
-          {event.distance && (
-            <div className="text-xs text-gray-500 dark:text-gray-500 ml-6">
-              {event.distance.toFixed(1)} km away
-            </div>
-          )}
-        </div>
-        
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-            <Users className="w-4 h-4 mr-1" />
-            {event.currentParticipants} going
-            {event.interestedCount > 0 && (
-              <span className="ml-2">• {event.interestedCount} interested</span>
-            )}
-          </div>
-          
-          {event.isAttending && (
-            <Badge variant="secondary" className="text-xs">
-              Attending
-            </Badge>
-          )}
-        </div>
-
-        {/* SDG Tags */}
-        <div className="flex flex-wrap gap-1 mt-auto pt-3">
-          {event.sdgTags.slice(0, 3).map(sdg => {
-            const sdgInfo = SDG_DEFINITIONS[sdg as keyof typeof SDG_DEFINITIONS];
-            return (
-              <Badge key={sdg} className={`text-xs px-2.5 py-1 ${sdgInfo?.color || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}`}>
-                SDG {sdg}
-              </Badge>
-            );
-          })}
-          {event.sdgTags.length > 3 && (
-            <Badge className="text-xs px-2.5 py-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-              +{event.sdgTags.length - 3}
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-    </Link>
-  );
-};
+// EventCard component is now imported from @/components/events/EventCard

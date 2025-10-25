@@ -47,6 +47,7 @@ import { StatsCards } from '@/components/dashboard/StatsCards';
 import { GamificationJourney } from '@/components/dashboard/GamificationJourney';
 import { SDGBadgeCollection } from '@/components/dashboard/SDGBadgeCollection';
 import { AchievementFeed } from '@/components/dashboard/AchievementFeed';
+import { UnifiedFeed } from '@/components/dashboard/UnifiedFeed';
 import { UpcomingEventsWidget } from '@/components/dashboard/UpcomingEventsWidget';
 import { FeaturedOrganizations } from '@/components/dashboard/FeaturedOrganizations';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -60,6 +61,9 @@ interface UserProfile {
   displayName?: string;
   bio?: string;
   website?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   location?: {
     city: string;
     state: string;
@@ -238,84 +242,105 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-        {/* Compact Professional Header */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              {/* Left: Profile Info */}
-              <div className="flex items-center space-x-4">
-                <div className="relative group">
-                  <Avatar className="w-16 h-16 border-2 border-gray-100 dark:border-gray-700 cursor-pointer transition-all duration-200 group-hover:ring-2 group-hover:ring-blue-500 group-hover:ring-offset-2">
-                    <AvatarImage src={user?.image || ''} alt={user?.name || ''} />
-                    <AvatarFallback className="bg-blue-500 text-white font-semibold text-lg">
-                      {user?.name?.charAt(0) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer">
-                    <div className="text-white text-center">
-                      <User className="w-4 h-4 mx-auto mb-1" />
-                      <span className="text-xs font-medium">Edit</span>
+        {/* Profile Header - Community Style */}
+        <div className="relative pb-6">
+          <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl">
+            <CardContent className="p-6">
+                {/* User Type Badge - Top Right */}
+                <div className="absolute top-4 right-4">
+                  <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-1 font-medium">
+                    ⚡ {user?.userType === 'NGO' ? 'NGO' : user?.userType === 'COMPANY' ? 'Company' : 'Individual'}
+                  </Badge>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-start gap-6">
+                  {/* Avatar */}
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur opacity-75"></div>
+                    <Avatar className="relative w-32 h-32 md:w-40 md:h-40 border-4 border-white dark:border-gray-900 shadow-lg rounded-full">
+                      <AvatarImage src={user?.image || ''} alt={user?.name || ''} />
+                      <AvatarFallback className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full">
+                        {user?.name?.split(' ').map(word => word[0]).join('').slice(0, 2) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+
+                  {/* Profile Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="space-y-4">
+                      {/* Name */}
+                      <div className="flex items-start gap-3 flex-wrap">
+                        <h1 className="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white leading-tight">
+                          {user?.name || 'User'}
+                        </h1>
+                      </div>
+                      
+                      {/* Description */}
+                      <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl leading-relaxed">
+                        Impact Contributor passionate about creating positive change in the community through sustainable actions and meaningful connections.
+                      </p>
+
+                      {/* Stats */}
+                      <div className="flex flex-wrap items-center gap-6 text-base">
+                        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                            <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <span className="font-semibold">2,347</span>
+                          <span className="text-gray-500 dark:text-gray-400">impact score</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                          <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                            <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <span className="font-semibold">87.5</span>
+                          <span className="text-gray-500 dark:text-gray-400">hours</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                          <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
+                            <Award className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          </div>
+                          <span className="font-semibold">12</span>
+                          <span className="text-gray-500 dark:text-gray-400">badges</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                          <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30">
+                            <Globe className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {profileData?.user?.profile?.state && profileData?.user?.profile?.country 
+                              ? `${profileData.user.profile.state}, ${profileData.user.profile.country}`
+                              : profileData?.user?.profile?.country || 'Location not set'
+                            }
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex flex-wrap items-center gap-3 pt-2">
+                        <Button variant="outline" size="sm" className="text-sm px-4 py-2">
+                          <User className="w-4 h-4 mr-2" />
+                          Edit Profile
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 text-sm px-4 py-2"
+                          onClick={() => {
+                            const profileUrl = `${window.location.origin}/profile/${user?.id}`;
+                            navigator.clipboard.writeText(profileUrl);
+                            alert('Profile link copied to clipboard!');
+                          }}
+                        >
+                          <Share2 className="w-4 h-4 mr-2" />
+                          Share Profile
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="flex-1">
-                  <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {user?.name || 'User'}
-                  </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 normal-case">
-                    Impact Contributor • {user?.userType === 'NGO' ? 'NGO' : user?.userType === 'COMPANY' ? 'Company' : 'Individual'}
-                  </p>
-                  <div className="flex items-center space-x-4 mt-1">
-                    <span className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-                      <Globe className="w-3 h-3 mr-1" />
-                      Malaysia
-                    </span>
-                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-2 font-medium">
-                      ⚡ Contributor
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: Quick Stats & Actions */}
-              <div className="flex items-center space-x-6">
-                <div className="hidden md:flex items-center space-x-6">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">2,347</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Impact Score</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">87.5</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Hours</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-gray-900 dark:text-white">12</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">Badges</div>
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" className="text-xs px-4 py-3 h-auto">
-                    <User className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 text-xs px-4 py-3 h-auto"
-                    onClick={() => {
-                      const profileUrl = `${window.location.origin}/profile/${user?.id}`;
-                      navigator.clipboard.writeText(profileUrl);
-                      alert('Profile link copied to clipboard!');
-                    }}
-                  >
-                    <Share2 className="w-3 h-3 mr-1" />
-                    Share
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+        </div>
 
         {/* SDG Interests Section */}
         {profileLoading ? (
@@ -345,7 +370,7 @@ export default function DashboardPage() {
               </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {profileData.user.profile.sdgFocus.map((sdgId: number) => {
                   const sdg = getSDGById(sdgId);
                   if (!sdg) return null;
@@ -353,28 +378,35 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={sdgId}
-                      className="flex items-center space-x-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800"
+                      style={{ borderColor: sdg.color }}
                     >
-                      <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden shadow-md flex-shrink-0">
                         <Image 
                           src={sdg.image} 
                           alt={`SDG ${sdg.id}: ${sdg.title}`}
-                          width={32}
-                          height={32}
+                          width={48}
+                          height={48}
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            if (target.parentElement) {
+                              target.parentElement.style.backgroundColor = sdg.color;
+                              target.parentElement.innerHTML = `
+                                <div class="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                                  ${sdg.id}
+                                </div>
+                              `;
+                            }
+                          }}
                         />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">
-                            SDG {sdg.id}
-                          </span>
-                          <div 
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: sdg.color }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                      <div>
+                        <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                          SDG {sdg.id}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
                           {sdg.title}
                         </p>
                       </div>
@@ -420,14 +452,16 @@ export default function DashboardPage() {
             {/* Your Impact Stats */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardContent className="p-5">
-                <div className="text-center mb-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 mb-3 shadow-lg">
-                    <TrendingUp className="w-8 h-8 text-white" />
+                <div className="grid grid-cols-1 gap-3 mb-4">
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-transparent">
+                    <div className="flex items-center justify-center mb-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="text-3xl font-bold text-gray-900 dark:text-white text-center">2,347</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 text-center">Impact Score</div>
                   </div>
-                  <div className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                    2,347
-                  </div>
-                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Impact Score</div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
@@ -589,8 +623,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Achievement Feed */}
-            <AchievementFeed maxItems={5} />
+            {/* Unified Social Feed */}
+            <UnifiedFeed type="all" limit={10} />
           </div>
 
           {/* Right Sidebar - Upcoming Events & Connections */}

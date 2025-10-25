@@ -67,6 +67,13 @@ export async function GET(request: NextRequest) {
             status: true,
             imageUrl: true,
             sdg: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                logo: true
+              }
+            }
           }
         },
         corporateBadges: {
@@ -184,10 +191,14 @@ export async function GET(request: NextRequest) {
         endDate: event.endDate?.toISOString(),
         location: event.location,
         status: event.status,
+        imageUrl: event.imageUrl,
+        sdg: event.sdg,
         participantCount: 0,
+        organization: event.organization,
       })),
       members: organization.members.map(m => ({
         id: m.id,
+        userId: m.userId,
         name: m.user.name || 'Unknown',
         email: m.user.email || '',
         role: m.role,

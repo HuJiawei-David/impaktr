@@ -4,12 +4,11 @@ import React from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Building2,
   Users,
-  Eye,
-  UserPlus
+  Star
 } from 'lucide-react';
 
 interface Organization {
@@ -19,6 +18,9 @@ interface Organization {
   focus: string;
   description?: string;
   isFollowing?: boolean;
+  logo?: string;
+  impactScore?: number;
+  location?: string;
 }
 
 interface FeaturedOrganizationsProps {
@@ -32,7 +34,7 @@ export function FeaturedOrganizations({ organizations }: FeaturedOrganizationsPr
   React.useEffect(() => {
     const fetchOrganizations = async () => {
       try {
-        const response = await fetch('/api/organizations/dashboard?featured=true&limit=4');
+        const response = await fetch('/api/organizations/featured?limit=4');
         if (response.ok) {
           const data = await response.json();
           setOrgs(data.organizations || []);
@@ -90,49 +92,43 @@ export function FeaturedOrganizations({ organizations }: FeaturedOrganizationsPr
           </div>
         ) : (
           displayOrgs.map((org) => (
-          <Link key={org.id} href={`/organizations/${org.id}`}>
-            <div className="flex items-center space-x-3 p-3 rounded-lg bg-white dark:bg-gray-700 shadow-sm border border-gray-200 dark:border-transparent hover:shadow-md cursor-pointer group transition-all">
-            <Avatar className="w-10 h-10">
-              <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                {org.name.split(' ').map(word => word[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                {org.name}
-              </p>
-              <div className="flex items-center space-x-2 mt-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${getFocusColor(org.focus)}`}>
+          <Link key={org.id} href={`/organizations/${org.id}`} className="block">
+            <div className="p-4 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-md transition-all group">
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  {org.name}
+                </h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-2 ${getFocusColor(org.focus)}`}>
                   {org.focus}
                 </span>
               </div>
-              <div className="flex items-center mt-1">
-                <span className="text-xs text-gray-600 dark:text-gray-400">
-                  {org.members} members
-                </span>
+              
+              {org.description && (
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+                  {org.description}
+                </p>
+              )}
+              
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex items-center space-x-3">
+                  <span className="flex items-center">
+                    <Users className="w-3 h-3 mr-1" />
+                    {org.members}
+                  </span>
+                  {org.impactScore && (
+                    <span className="flex items-center font-medium text-blue-600 dark:text-blue-400">
+                      <Star className="w-3 h-3 mr-1" />
+                      {org.impactScore.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                {org.isFollowing && (
+                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                    Following
+                  </span>
+                )}
               </div>
             </div>
-            <div className="flex space-x-1">
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="h-6 w-6 p-0 hover:bg-blue-100 dark:hover:bg-blue-900"
-              >
-                <Eye className="w-3 h-3" />
-              </Button>
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className={`h-6 w-6 p-0 ${
-                  org.isFollowing 
-                    ? 'text-green-600 hover:bg-green-100 dark:hover:bg-green-900' 
-                    : 'hover:bg-blue-100 dark:hover:bg-blue-900'
-                }`}
-              >
-                <UserPlus className={`w-3 h-3 ${org.isFollowing ? 'fill-current' : ''}`} />
-              </Button>
-            </div>
-          </div>
           </Link>
         ))
         )}

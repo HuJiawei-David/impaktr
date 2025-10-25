@@ -174,13 +174,42 @@ export default function EventDetailPage() {
       
       // Transform the API response to match our Event interface
       const rawEvent = data.event;
-      const locationData = typeof rawEvent.location === 'string' 
-        ? JSON.parse(rawEvent.location) 
-        : rawEvent.location;
       
-      const sdgData = rawEvent.sdg 
-        ? (typeof rawEvent.sdg === 'string' ? JSON.parse(rawEvent.sdg) : rawEvent.sdg)
-        : [];
+      let locationData;
+      if (typeof rawEvent.location === 'string') {
+        try {
+          locationData = JSON.parse(rawEvent.location);
+        } catch (e) {
+          // If parsing fails, treat as a simple address string
+          locationData = {
+            address: rawEvent.location,
+            city: 'Unknown',
+            coordinates: undefined,
+            isVirtual: false
+          };
+        }
+      } else {
+        locationData = rawEvent.location;
+      }
+      
+      let sdgData;
+      if (rawEvent.sdg) {
+        if (typeof rawEvent.sdg === 'string') {
+          try {
+            sdgData = JSON.parse(rawEvent.sdg);
+          } catch (e) {
+            // If parsing fails, treat as a single SDG number
+            const parsed = parseInt(rawEvent.sdg);
+            sdgData = isNaN(parsed) ? [] : [parsed];
+          }
+        } else if (typeof rawEvent.sdg === 'number') {
+          sdgData = [rawEvent.sdg];
+        } else {
+          sdgData = rawEvent.sdg;
+        }
+      } else {
+        sdgData = [];
+      }
 
       const transformedEvent: Event = {
         ...rawEvent,

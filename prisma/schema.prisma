@@ -94,6 +94,10 @@ model User {
   vettingRequests          VettingRequest[]
   vettingResponses         VettingResponse[]
   volunteerProfile         VolunteerProfile?
+  organizationPosts        OrganizationPost[]
+  postComments             PostComment[]
+  postReactions            PostReaction[]
+  commentReactions         CommentReaction[]
 
   @@map("users")
 }
@@ -150,6 +154,7 @@ model Organization {
   members              OrganizationMember[]
   scoreHistory         OrganizationScoreHistory[]
   posts                Post[]
+  organizationPosts    OrganizationPost[]
   vettingRequests      VettingRequest[]
 
   @@map("organizations")
@@ -390,6 +395,7 @@ model Event {
   organizationLocation  OrganizationLocation? @relation(fields: [locationId], references: [id])
   organization          Organization?         @relation(fields: [organizationId], references: [id])
   participations        Participation[]
+  organizationPosts     OrganizationPost[]
 
   @@index([startDate])
   @@index([type])
@@ -1573,6 +1579,123 @@ enum CampaignStatus {
   COMPLETED
   CANCELLED
   PAUSED
+}
+
+model OrganizationPost {
+  id              String   @id @default(cuid())
+  organizationId  String
+  authorId        String   // User who posted (org admin)
+  content         String   @db.Text
+  postType        OrganizationPostType // UPDATE, EVENT_ANNOUNCE, EVENT_RECAP, IMPACT_STORY, ACHIEVEMENT
+  
+  // Media
+  images          String[] // Array of image URLs
+  videos          String[] // Video URLs/embeds
+  documents       Json?    // Document attachments
+  
+  // Metadata
+  eventId         String?
+  location        String?
+  sdgs            Int[]
+  tags            String[]
+  
+  // Impact Metrics
+  hoursReported   Float?
+  peopleReached   Int?
+  volunteersCount Int?
+  
+  // Interactions
+  likes           Int @default(0)
+  shares          Int @default(0)
+  kudos           Int @default(0)
+  
+  // Settings
+  visibility      Visibility // PUBLIC, FOLLOWERS, MEMBERS
+  isPinned        Boolean @default(false)
+  scheduledFor    DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author          User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  event           Event? @relation(fields: [eventId], references: [id])
+  comments        PostComment[]
+  reactions       PostReaction[]
+
+  @@map("organization_posts")
+}
+
+model PostComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  content   String   @db.Text
+  parentId  String?  // For nested replies
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post      OrganizationPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    PostComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   PostComment[] @relation("CommentReplies")
+  reactions CommentReaction[]
+
+  @@map("post_comments")
+}
+
+model PostReaction {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  type      ReactionType
+  createdAt DateTime @default(now())
+
+  post      OrganizationPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("post_reactions")
+}
+
+model CommentReaction {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  type      ReactionType
+  createdAt DateTime @default(now())
+
+  comment   PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@map("comment_reactions")
+}
+
+enum OrganizationPostType {
+  UPDATE
+  EVENT_ANNOUNCE
+  EVENT_RECAP
+  IMPACT_STORY
+  ACHIEVEMENT
+  MILESTONE
+  PARTNERSHIP
+}
+
+enum Visibility {
+  PUBLIC
+  FOLLOWERS
+  MEMBERS
+  PRIVATE
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  INSPIRE
+  SUPPORT
+  KUDOS
 }
 
 enum PaymentStatus {

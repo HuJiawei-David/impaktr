@@ -98,6 +98,31 @@ interface Community {
       impactScore: number;
       tier: string;
     };
+    comments?: Array<{
+      id: string;
+      content: string;
+      createdAt: string;
+      user: {
+        id: string;
+        name: string;
+        image?: string | null;
+        impactScore: number;
+        tier: string;
+      };
+      likes?: number;
+      replies?: Array<{
+        id: string;
+        content: string;
+        createdAt: string;
+        user: {
+          id: string;
+          name: string;
+          image?: string | null;
+          impactScore: number;
+          tier: string;
+        };
+      }>;
+    }>;
   }>;
   resources: Array<{
     id: string;
@@ -126,9 +151,15 @@ export default function CommunityPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'about'>('feed');
   const [joining, setJoining] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{postId: string, commentId?: string, replyId?: string, userName: string, isReplyToReply?: boolean} | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
   const fetchCommunity = useCallback(async () => {
     try {
@@ -146,16 +177,133 @@ export default function CommunityPage() {
             {
               id: '1',
               content: 'Just completed our community beach cleanup event! 🌊♻️ We collected over 200kg of waste and had 50+ volunteers join us. The impact we can make when we work together is incredible!',
-              imageUrl: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=600&h=400&fit=crop',
+              imageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop',
               createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
               isPinned: false,
               tags: ['beach-cleanup', 'environment', 'volunteer'],
               user: {
                 id: 'user1',
                 name: 'Sarah Chen',
-                image: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face',
+                image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                impactScore: 2450,
                 tier: 'Builder'
-              }
+              },
+              comments: [
+                {
+                  id: 'c1',
+                  content: 'Amazing work Sarah! The beach looks so much cleaner now. Count me in for the next cleanup! 🏖️',
+                  createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+                  user: {
+                    id: 'user2',
+                    name: 'Mike Rodriguez',
+                    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                    impactScore: 1890,
+                    tier: 'Contributor'
+                  },
+                  likes: 5,
+                  replies: [
+                    {
+                      id: 'r1',
+                      content: 'Thanks Mike! Next cleanup is scheduled for next Saturday at 9 AM. I\'ll post the details soon!',
+                      createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user1',
+                        name: 'Sarah Chen',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2450,
+                        tier: 'Builder'
+                      }
+                    },
+                    {
+                      id: 'r2',
+                      content: 'Perfect! I\'ll be there. Should I bring my own gloves and trash bags?',
+                      createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user2',
+                        name: 'Mike Rodriguez',
+                        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 1890,
+                        tier: 'Contributor'
+                      }
+                    },
+                    {
+                      id: 'r3',
+                      content: 'We\'ll provide gloves and bags, but feel free to bring your own if you prefer!',
+                      createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user1',
+                        name: 'Sarah Chen',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2450,
+                        tier: 'Builder'
+                      }
+                    },
+                    {
+                      id: 'r4',
+                      content: 'I\'m also interested! Can beginners join?',
+                      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user6',
+                        name: 'Alex Johnson',
+                        image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 600,
+                        tier: 'Newcomer'
+                      }
+                    },
+                    {
+                      id: 'r5',
+                      content: 'Absolutely! Everyone is welcome. We\'ll pair you with an experienced volunteer.',
+                      createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user1',
+                        name: 'Sarah Chen',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2450,
+                        tier: 'Builder'
+                      }
+                    }
+                  ]
+                },
+                {
+                  id: 'c2',
+                  content: '200kg is incredible! This is exactly the kind of community action we need. Thank you for organizing this! 🙌',
+                  createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+                  user: {
+                    id: 'user3',
+                    name: 'Emma Thompson',
+                    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                    impactScore: 3200,
+                    tier: 'Champion'
+                  },
+                  likes: 8,
+                  replies: [
+                    {
+                      id: 'r2',
+                      content: 'Thank you Emma! Your support means everything. The community really came together for this one!',
+                      createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user1',
+                        name: 'Sarah Chen',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2450,
+                        tier: 'Builder'
+                      }
+                    },
+                    {
+                      id: 'r3',
+                      content: 'Absolutely agree! We should make this a monthly event. I can help coordinate volunteers!',
+                      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user5',
+                        name: 'Lisa Wang',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2100,
+                        tier: 'Builder'
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             {
               id: '2',
@@ -166,9 +314,51 @@ export default function CommunityPage() {
               user: {
                 id: 'user2',
                 name: 'Mike Rodriguez',
-                image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face',
+                image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                impactScore: 1890,
                 tier: 'Contributor'
-              }
+              },
+              comments: [
+                {
+                  id: 'c3',
+                  content: 'This sounds perfect! I\'ve been wanting to learn more about sustainable living. What time does it start?',
+                  createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+                  user: {
+                    id: 'user4',
+                    name: 'David Kim',
+                    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
+                    impactScore: 1560,
+                    tier: 'Contributor'
+                  },
+                  likes: 3,
+                  replies: [
+                    {
+                      id: 'r4',
+                      content: 'Great question David! The workshop starts at 10 AM and runs until 2 PM with a lunch break. I\'ll send you the location details!',
+                      createdAt: new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user2',
+                        name: 'Mike Rodriguez',
+                        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 1890,
+                        tier: 'Contributor'
+                      }
+                    },
+                    {
+                      id: 'r5',
+                      content: 'I\'m bringing my notebook! This is exactly what I need to start my sustainability journey.',
+                      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user1',
+                        name: 'Sarah Chen',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2450,
+                        tier: 'Builder'
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             {
               id: '3',
@@ -180,9 +370,78 @@ export default function CommunityPage() {
               user: {
                 id: 'user3',
                 name: 'Emma Thompson',
-                image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face',
+                image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                impactScore: 3200,
                 tier: 'Champion'
-              }
+              },
+              comments: [
+                {
+                  id: 'c4',
+                  content: 'The trees are already looking so healthy! Can\'t wait to see them grow over the years. 🌱',
+                  createdAt: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
+                  user: {
+                    id: 'user1',
+                    name: 'Sarah Chen',
+                    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                    impactScore: 2450,
+                    tier: 'Builder'
+                  },
+                  likes: 7,
+                  replies: [
+                    {
+                      id: 'r6',
+                      content: 'I\'ll be checking on them regularly! We should organize a tree care schedule for the community.',
+                      createdAt: new Date(Date.now() - 19 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user3',
+                        name: 'Emma Thompson',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 3200,
+                        tier: 'Champion'
+                      }
+                    }
+                  ]
+                },
+                {
+                  id: 'c5',
+                  content: 'Amazing initiative! Trees are our best allies in fighting climate change. Thank you for leading this!',
+                  createdAt: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
+                  user: {
+                    id: 'user5',
+                    name: 'Lisa Wang',
+                    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                    impactScore: 2100,
+                    tier: 'Builder'
+                  },
+                  likes: 4,
+                  replies: [
+                    {
+                      id: 'r7',
+                      content: 'Thank you Lisa! Your support means so much. We\'re planning another planting session next month!',
+                      createdAt: new Date(Date.now() - 17 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user3',
+                        name: 'Emma Thompson',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 3200,
+                        tier: 'Champion'
+                      }
+                    },
+                    {
+                      id: 'r8',
+                      content: 'Count me in for the next one! I\'ll bring some friends too.',
+                      createdAt: new Date(Date.now() - 16 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user2',
+                        name: 'Mike Rodriguez',
+                        image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 1890,
+                        tier: 'Contributor'
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             {
               id: '4',
@@ -193,9 +452,51 @@ export default function CommunityPage() {
               user: {
                 id: 'user4',
                 name: 'David Kim',
-                image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
+                image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
+                impactScore: 1560,
                 tier: 'Contributor'
-              }
+              },
+              comments: [
+                {
+                  id: 'c6',
+                  content: 'Great recommendation! I\'m currently reading "The Sixth Extinction" - it\'s eye-opening about biodiversity loss.',
+                  createdAt: new Date(Date.now() - 1.5 * 24 * 60 * 60 * 1000).toISOString(),
+                  user: {
+                    id: 'user3',
+                    name: 'Emma Thompson',
+                    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                    impactScore: 3200,
+                    tier: 'Champion'
+                  },
+                  likes: 6,
+                  replies: [
+                    {
+                      id: 'r9',
+                      content: 'That sounds fascinating! I\'ll add it to my reading list. Any other climate books you\'d recommend?',
+                      createdAt: new Date(Date.now() - 1.2 * 24 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user4',
+                        name: 'David Kim',
+                        image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 1560,
+                        tier: 'Contributor'
+                      }
+                    },
+                    {
+                      id: 'r10',
+                      content: 'I loved "The Sixth Extinction"! "This Changes Everything" by Naomi Klein is also excellent.',
+                      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user1',
+                        name: 'Sarah Chen',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2450,
+                        tier: 'Builder'
+                      }
+                    }
+                  ]
+                }
+              ]
             },
             {
               id: '5',
@@ -207,9 +508,63 @@ export default function CommunityPage() {
               user: {
                 id: 'user5',
                 name: 'Lisa Wang',
-                image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face',
+                image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                impactScore: 2100,
                 tier: 'Builder'
-              }
+              },
+              comments: [
+                {
+                  id: 'c7',
+                  content: 'Those vegetables look absolutely delicious! When is the next gardening session? I\'d love to learn!',
+                  createdAt: new Date(Date.now() - 2.5 * 24 * 60 * 60 * 1000).toISOString(),
+                  user: {
+                    id: 'user2',
+                    name: 'Mike Rodriguez',
+                    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
+                    impactScore: 1890,
+                    tier: 'Contributor'
+                  },
+                  likes: 9,
+                  replies: [
+                    {
+                      id: 'r11',
+                      content: 'Every Saturday at 8 AM! We\'d love to have you join us. I\'ll show you the basics of organic gardening.',
+                      createdAt: new Date(Date.now() - 2.2 * 24 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user5',
+                        name: 'Lisa Wang',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2100,
+                        tier: 'Builder'
+                      }
+                    },
+                    {
+                      id: 'r12',
+                      content: 'Perfect timing! I\'ve been wanting to start my own garden. What should I bring?',
+                      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user3',
+                        name: 'Emma Thompson',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 3200,
+                        tier: 'Champion'
+                      }
+                    },
+                    {
+                      id: 'r13',
+                      content: 'Just bring yourself and some enthusiasm! We have all the tools and seeds you\'ll need.',
+                      createdAt: new Date(Date.now() - 1.8 * 24 * 60 * 60 * 1000).toISOString(),
+                      user: {
+                        id: 'user5',
+                        name: 'Lisa Wang',
+                        image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
+                        impactScore: 2100,
+                        tier: 'Builder'
+                      }
+                    }
+                  ]
+                }
+              ]
             }
           ]
         };
@@ -302,19 +657,100 @@ export default function CommunityPage() {
     if (!community) return;
     
     try {
-      const response = await fetch(`/api/communities/leave?communityId=${community.id}`, {
+      setLeaving(true);
+      const response = await fetch(`/api/communities/join?communityId=${community.id}`, {
         method: 'DELETE'
       });
 
       if (!response.ok) {
-        throw new Error('Failed to leave community');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Leave community error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(errorData.message || `Failed to leave community (${response.status})`);
       }
 
       // Refresh community data
       await fetchCommunity();
+      setShowLeaveConfirm(false);
     } catch (err) {
       console.error('Error leaving community:', err);
-      alert('Failed to leave community');
+      alert(err instanceof Error ? err.message : 'Failed to leave community');
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  const toggleReplies = (commentId: string) => {
+    const newExpanded = new Set(expandedReplies);
+    if (newExpanded.has(commentId)) {
+      newExpanded.delete(commentId);
+    } else {
+      newExpanded.add(commentId);
+    }
+    setExpandedReplies(newExpanded);
+  };
+
+  const handleReply = async (postId: string, commentId?: string, replyId?: string) => {
+    if (!replyContent.trim() || !session?.user) return;
+    
+    try {
+      setIsSubmittingReply(true);
+      
+      // For demo purposes, we'll just add the reply to the local state
+      // In a real app, you'd make an API call here
+      const newReply = {
+        id: `reply_${Date.now()}`,
+        content: replyContent,
+        createdAt: new Date().toISOString(),
+        user: {
+          id: session.user.id || 'current_user',
+          name: session.user.name || 'You',
+          image: session.user.image,
+          impactScore: 1500,
+          tier: 'Contributor'
+        }
+      };
+
+      // Update the community state with the new reply
+      if (community) {
+        const updatedPosts = community.posts.map(post => {
+          if (post.id === postId) {
+            const updatedComments = post.comments?.map(comment => {
+              if (commentId && comment.id === commentId) {
+                // If replying to a comment, add to comment's replies
+                return {
+                  ...comment,
+                  replies: [...(comment.replies || []), newReply]
+                };
+              }
+              return comment;
+            }) || [];
+            
+            return {
+              ...post,
+              comments: updatedComments
+            };
+          }
+          return post;
+        });
+        
+        setCommunity({
+          ...community,
+          posts: updatedPosts
+        });
+      }
+
+      // Reset reply state
+      setReplyContent('');
+      setReplyingTo(null);
+    } catch (err) {
+      console.error('Error submitting reply:', err);
+      alert('Failed to submit reply');
+    } finally {
+      setIsSubmittingReply(false);
     }
   };
 
@@ -403,7 +839,7 @@ export default function CommunityPage() {
 
         {/* Community Info */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative -mt-20 pb-6">
+          <div className="relative -mt-48 pb-6">
             <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl">
               <CardContent className="p-6">
                 {/* Privacy Badge - Top Right */}
@@ -512,13 +948,12 @@ export default function CommunityPage() {
 
                 {/* Action Buttons - Bottom Right of Profile Header */}
                 <div className="flex justify-end mt-6">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                     {community.isJoined ? (
                       <>
                         <Button 
-                          variant="outline" 
-                          onClick={handleLeave}
-                          className="whitespace-nowrap border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                          onClick={() => setShowLeaveConfirm(true)}
+                          className="flex-1 sm:flex-none whitespace-nowrap bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all"
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Joined
@@ -526,7 +961,7 @@ export default function CommunityPage() {
                         {community.userRole && ['OWNER', 'ADMIN'].includes(community.userRole) && (
                           <Button 
                             variant="outline" 
-                            className="whitespace-nowrap border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            className="flex-1 sm:flex-none whitespace-nowrap border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                           >
                             <Settings className="w-4 h-4 mr-2" />
                             Settings
@@ -537,7 +972,7 @@ export default function CommunityPage() {
                       <Button 
                         onClick={handleJoin}
                         disabled={joining}
-                        className="whitespace-nowrap bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all"
+                        className="flex-1 sm:flex-none whitespace-nowrap bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all"
                       >
                         {community.isPublic ? (
                           <>
@@ -554,7 +989,7 @@ export default function CommunityPage() {
                     )}
                     <Button 
                       variant="outline"
-                      className="whitespace-nowrap border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="flex-1 sm:flex-none whitespace-nowrap border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
                     >
                       <Share2 className="w-4 h-4 mr-2" />
                       Share
@@ -634,9 +1069,144 @@ export default function CommunityPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-3">
-                  {/* Post Composer - LinkedIn Style */}
-                  {community.isJoined && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  {/* Left Sidebar */}
+                  <div className="lg:col-span-3 space-y-4">
+                    {/* Community Stats */}
+                    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Users className="w-5 h-5 text-blue-600" />
+                          Community Stats
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Members</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">{community.memberCount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Posts</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">{community.postCount.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Resources</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">{community.resourceCount.toLocaleString()}</span>
+                        </div>
+                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Created</span>
+                            <span className="text-sm text-gray-900 dark:text-white">
+                              {new Date(community.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                year: 'numeric' 
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Quick Actions */}
+                    {community.isJoined && (
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Plus className="w-5 h-5 text-green-600" />
+                            Quick Actions
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <Button 
+                            className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                            onClick={() => setShowCreatePost(true)}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create Post
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="w-full justify-start"
+                          >
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Share Community
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Community Info */}
+                    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Globe className="w-5 h-5 text-purple-600" />
+                          Community Info
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Category</span>
+                          <div className="mt-1">
+                            <Badge 
+                              variant="outline" 
+                              className="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                            >
+                              {community.category}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Privacy</span>
+                          <div className="mt-1">
+                            <Badge 
+                              className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium ${getPrivacyColor(community.privacy)}`}
+                            >
+                              {getPrivacyIcon(community.privacy)}
+                              <span>{community.privacy.charAt(0).toUpperCase() + community.privacy.slice(1).toLowerCase()}</span>
+                            </Badge>
+                          </div>
+                        </div>
+                        {community.location && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">{community.location}</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Recent Members */}
+                    {community.memberAvatars && community.memberAvatars.length > 0 && (
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Users className="w-5 h-5 text-pink-600" />
+                            Recent Members
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex -space-x-2">
+                            {community.memberAvatars.slice(0, 5).map((avatar: string, index: number) => (
+                              <Avatar key={index} className="w-8 h-8 border-2 border-white dark:border-gray-900">
+                                <AvatarImage src={avatar} />
+                                <AvatarFallback className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                                  {community.name.charAt(index)}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            {community.memberCount.toLocaleString()} total members
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {/* Main Feed */}
+                  <div className="lg:col-span-6 space-y-3">
+                    {/* Post Composer - LinkedIn Style */}
+                    {community.isJoined && (
                     <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                       <CardContent className="p-4">
                         {!showCreatePost ? (
@@ -757,18 +1327,30 @@ export default function CommunityPage() {
                               </Avatar>
                               
                               <div className="flex-1">
-                                <div className="flex items-center space-x-2">
-                                  <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
-                                    {post.user.name}
-                                  </h4>
-                                  <Badge className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                                    {post.user.tier}
-                                  </Badge>
-                                  {post.isPinned && (
-                                    <Badge className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
-                                      <Pin className="w-3 h-3 mr-1" />
-                                      Pinned
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                                      {post.user.name}
+                                    </h4>
+                                    <Badge className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                      {post.user.tier}
                                     </Badge>
+                                    {post.isPinned && (
+                                      <Badge className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
+                                        <Pin className="w-3 h-3 mr-1" />
+                                        Pinned
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {post.user.id !== session?.user?.id && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs px-3 py-1 h-7 border-blue-200 hover:border-blue-300 hover:bg-blue-50 dark:border-blue-800 dark:hover:border-blue-700 dark:hover:bg-blue-900/20"
+                                    >
+                                      <UserPlus className="w-3 h-3 mr-1" />
+                                      Follow
+                                    </Button>
                                   )}
                                 </div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -840,11 +1422,478 @@ export default function CommunityPage() {
                                 <span>Share</span>
                               </button>
                             </div>
+
+                            {/* Comments Section */}
+                            {post.comments && post.comments.length > 0 && (
+                              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div className="space-y-3">
+                                  {post.comments.map((comment) => (
+                                    <div key={comment.id}>
+                                      <div className="flex items-start space-x-3">
+                                        <Avatar className="w-8 h-8 flex-shrink-0">
+                                          <AvatarImage src={comment.user.image || undefined} />
+                                          <AvatarFallback className="text-xs bg-blue-500 text-white">
+                                            {comment.user.name.charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center justify-between mb-1">
+                                            <div className="flex items-center space-x-2">
+                                              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                                {comment.user.name}
+                                              </h4>
+                                              <Badge className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                                {comment.user.tier}
+                                              </Badge>
+                                            </div>
+                                            {comment.user.id !== session?.user?.id && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="text-xs px-2 py-1 h-6 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                              >
+                                                <UserPlus className="w-3 h-3 mr-1" />
+                                                Follow
+                                              </Button>
+                                            )}
+                                          </div>
+                                          <p className="text-sm text-gray-700 dark:text-gray-200 mb-2">
+                                            {comment.content}
+                                          </p>
+                                          <div className="flex items-center justify-between">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                                              {new Date(comment.createdAt).toLocaleDateString('en-US', { 
+                                                month: 'short', 
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                              })}
+                                            </p>
+                                            <div className="flex items-center space-x-3">
+                                              <button className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors">
+                                                <Heart className="w-3 h-3" />
+                                                <span>{comment.likes || 0}</span>
+                                              </button>
+                                              <button 
+                                                className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                                                onClick={() => setReplyingTo({postId: post.id, commentId: comment.id, userName: comment.user.name})}
+                                              >
+                                                Reply
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Replies to this comment */}
+                                      {comment.replies && comment.replies.length > 0 && (
+                                        <div className="ml-11 mt-3">
+                                          {comment.replies.length > 2 && !expandedReplies.has(comment.id) ? (
+                                            <div className="space-y-3">
+                                              {comment.replies.slice(0, 2).map((reply) => (
+                                                <div key={reply.id} className="flex items-start space-x-3">
+                                                  <Avatar className="w-6 h-6 flex-shrink-0">
+                                                    <AvatarImage src={reply.user.image || undefined} />
+                                                    <AvatarFallback className="text-xs bg-green-500 text-white">
+                                                      {reply.user.name.charAt(0)}
+                                                    </AvatarFallback>
+                                                  </Avatar>
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                      <div className="flex items-center space-x-2">
+                                                        <h4 className="text-xs font-semibold text-gray-900 dark:text-white">
+                                                          {reply.user.name}
+                                                        </h4>
+                                                        <Badge className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                                          {reply.user.tier}
+                                                        </Badge>
+                                                      </div>
+                                                      {reply.user.id !== session?.user?.id && (
+                                                        <Button
+                                                          size="sm"
+                                                          variant="ghost"
+                                                          className="text-xs px-1.5 py-0.5 h-5 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                        >
+                                                          <UserPlus className="w-2.5 h-2.5 mr-0.5" />
+                                                          Follow
+                                                        </Button>
+                                                      )}
+                                                    </div>
+                                                    <p className="text-xs text-gray-700 dark:text-gray-200 mb-1">
+                                                      {reply.content}
+                                                    </p>
+                                                    <div className="flex items-center justify-between">
+                                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {new Date(reply.createdAt).toLocaleDateString('en-US', { 
+                                                          month: 'short', 
+                                                          day: 'numeric',
+                                                          hour: '2-digit',
+                                                          minute: '2-digit'
+                                                        })}
+                                                      </p>
+                                                      <div className="flex items-center space-x-3">
+                                                        <button className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors">
+                                                          <Heart className="w-3 h-3" />
+                                                          <span>1</span>
+                                                        </button>
+                                                        <button 
+                                                          className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                                                          onClick={() => setReplyingTo({postId: post.id, commentId: comment.id, replyId: reply.id, userName: reply.user.name, isReplyToReply: true})}
+                                                        >
+                                                          Reply
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                              <button 
+                                                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                                                onClick={() => toggleReplies(comment.id)}
+                                              >
+                                                View {comment.replies.length - 2} more replies
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-3">
+                                              {comment.replies.map((reply) => (
+                                                <div key={reply.id} className="flex items-start space-x-3">
+                                                  <Avatar className="w-6 h-6 flex-shrink-0">
+                                                    <AvatarImage src={reply.user.image || undefined} />
+                                                    <AvatarFallback className="text-xs bg-green-500 text-white">
+                                                      {reply.user.name.charAt(0)}
+                                                    </AvatarFallback>
+                                                  </Avatar>
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between mb-1">
+                                                      <div className="flex items-center space-x-2">
+                                                        <h4 className="text-xs font-semibold text-gray-900 dark:text-white">
+                                                          {reply.user.name}
+                                                        </h4>
+                                                        <Badge className="text-xs px-1 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                                          {reply.user.tier}
+                                                        </Badge>
+                                                      </div>
+                                                      {reply.user.id !== session?.user?.id && (
+                                                        <Button
+                                                          size="sm"
+                                                          variant="ghost"
+                                                          className="text-xs px-1.5 py-0.5 h-5 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                        >
+                                                          <UserPlus className="w-2.5 h-2.5 mr-0.5" />
+                                                          Follow
+                                                        </Button>
+                                                      )}
+                                                    </div>
+                                                    <p className="text-xs text-gray-700 dark:text-gray-200 mb-1">
+                                                      {reply.content}
+                                                    </p>
+                                                    <div className="flex items-center justify-between">
+                                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {new Date(reply.createdAt).toLocaleDateString('en-US', { 
+                                                          month: 'short', 
+                                                          day: 'numeric',
+                                                          hour: '2-digit',
+                                                          minute: '2-digit'
+                                                        })}
+                                                      </p>
+                                                      <div className="flex items-center space-x-3">
+                                                        <button className="flex items-center space-x-1 text-xs text-gray-500 hover:text-red-600 transition-colors">
+                                                          <Heart className="w-3 h-3" />
+                                                          <span>1</span>
+                                                        </button>
+                                                        <button 
+                                                          className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
+                                                          onClick={() => setReplyingTo({postId: post.id, commentId: comment.id, replyId: reply.id, userName: reply.user.name, isReplyToReply: true})}
+                                                        >
+                                                          Reply
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                              {comment.replies.length > 2 && (
+                                                <button 
+                                                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                                                  onClick={() => toggleReplies(comment.id)}
+                                                >
+                                                  Show less
+                                                </button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Reply Input */}
+                            {replyingTo && replyingTo.postId === post.id && (
+                              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <div className="flex items-start space-x-3">
+                                  <Avatar className="w-8 h-8 flex-shrink-0">
+                                    <AvatarImage src={session?.user?.image || undefined} />
+                                    <AvatarFallback className="text-xs bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                                      {session?.user?.name?.charAt(0)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                                      {replyingTo.isReplyToReply 
+                                        ? `Replying to ${replyingTo.userName}'s reply`
+                                        : `Replying to ${replyingTo.userName}`
+                                      }
+                                    </p>
+                                    <textarea
+                                      value={replyContent}
+                                      onChange={(e) => setReplyContent(e.target.value)}
+                                      placeholder="Write a reply..."
+                                      className="w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 text-sm min-h-[80px]"
+                                      autoFocus
+                                    />
+                                    <div className="flex items-center justify-end gap-2 mt-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setReplyingTo(null);
+                                          setReplyContent('');
+                                        }}
+                                        disabled={isSubmittingReply}
+                                      >
+                                        Cancel
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleReply(post.id, replyingTo.commentId, replyingTo.replyId)}
+                                        disabled={isSubmittingReply || !replyContent.trim()}
+                                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                                      >
+                                        {isSubmittingReply ? 'Replying...' : 'Reply'}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Add Comment Button */}
+                            {!replyingTo && (
+                              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                <button 
+                                  className="flex items-center space-x-2 text-sm text-gray-500 hover:text-blue-600 transition-colors"
+                                  onClick={() => setReplyingTo({postId: post.id, userName: post.user.name})}
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                  <span>Add a comment...</span>
+                                </button>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
                     </div>
                   )}
+                  </div>
+
+                  {/* Right Sidebar */}
+                  <div className="lg:col-span-3 space-y-4">
+                    {/* SDG Focus Areas */}
+                    {community.sdgFocus && community.sdgFocus.length > 0 && (
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Award className="w-5 h-5 text-green-600" />
+                            SDG Focus
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {community.sdgFocus.map((sdgId) => {
+                              const sdg = getSDGById(sdgId);
+                              return sdg ? (
+                                <div key={sdgId} className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800" style={{ borderColor: sdg.color }}>
+                                  <div className="w-12 h-12 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                                    <Image 
+                                      src={sdg.image} 
+                                      alt={`SDG ${sdg.id}: ${sdg.title}`}
+                                      width={48}
+                                      height={48}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        if (target.parentElement) {
+                                          target.parentElement.style.backgroundColor = sdg.color;
+                                          target.parentElement.innerHTML = `
+                                            <div class="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                                              ${sdg.id}
+                                            </div>
+                                          `;
+                                        }
+                                      }}
+                                    />
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-sm text-gray-900 dark:text-white">SDG {sdg.id}</p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight">{sdg.title}</p>
+                                  </div>
+                                </div>
+                              ) : null;
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Community Tags */}
+                    {community.tags && community.tags.length > 0 && (
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Pin className="w-5 h-5 text-purple-600" />
+                            Community Tags
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-wrap gap-2">
+                            {community.tags.map((tag, index) => (
+                              <Badge 
+                                key={index} 
+                                variant="secondary" 
+                                className="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/30 cursor-pointer transition-colors"
+                              >
+                                #{tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Pinned Posts */}
+                    {community.posts.filter(post => post.isPinned).length > 0 && (
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Pin className="w-5 h-5 text-yellow-600" />
+                            Pinned Posts
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {community.posts.filter(post => post.isPinned).map((post) => (
+                            <div key={post.id} className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Avatar className="w-6 h-6">
+                                  <AvatarImage src={post.user.image} />
+                                  <AvatarFallback className="text-xs bg-blue-500 text-white">
+                                    {post.user.name.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm font-medium text-gray-900 dark:text-white">{post.user.name}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{post.content}</p>
+                              <div className="flex items-center gap-1 mt-2">
+                                <Pin className="w-3 h-3 text-yellow-600" />
+                                <span className="text-xs text-yellow-600 font-medium">Pinned</span>
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Community Resources */}
+                    {community.resources && community.resources.length > 0 && (
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Calendar className="w-5 h-5 text-blue-600" />
+                            Resources
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {community.resources.slice(0, 3).map((resource) => (
+                            <div key={resource.id} className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span className="text-sm font-medium text-gray-900 dark:text-white">{resource.type}</span>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{resource.title}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                by {resource.uploader.name}
+                              </p>
+                            </div>
+                          ))}
+                          {community.resources.length > 3 && (
+                            <p className="text-xs text-gray-500 dark:text-gray-500 text-center">
+                              +{community.resources.length - 3} more resources
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Community Rules */}
+                    {community.rules && community.rules.length > 0 && (
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <Settings className="w-5 h-5 text-red-600" />
+                            Community Rules
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ul className="space-y-2">
+                            {community.rules.slice(0, 3).map((rule, index) => (
+                              <li key={index} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
+                                <div className="w-1.5 h-1.5 bg-red-500 rounded-full mt-2 flex-shrink-0"></div>
+                                <span className="line-clamp-2">{rule}</span>
+                              </li>
+                            ))}
+                            {community.rules.length > 3 && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                +{community.rules.length - 3} more rules
+                              </p>
+                            )}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Community Owner */}
+                    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <UserPlus className="w-5 h-5 text-indigo-600" />
+                          Community Owner
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={community.createdByUser.image} />
+                            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                              {community.createdByUser.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white truncate">{community.createdByUser.name}</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
+                              Created {new Date(community.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                year: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               )}
             </>
@@ -1302,6 +2351,110 @@ export default function CommunityPage() {
           )}
         </div>
       </div>
+
+      {/* Leave Community Confirmation Dialog */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Users className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Leave Community</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Are you sure you want to leave?</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              {community.userRole === 'OWNER' ? (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-xs font-bold">!</span>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-red-800 dark:text-red-200 mb-1">Owner Restriction</h4>
+                      <p className="text-sm text-red-700 dark:text-red-300">
+                        As the community owner, you cannot leave the community. You must either transfer ownership to another member or delete the community entirely.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-xs font-bold">!</span>
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-yellow-800 dark:text-yellow-200 mb-1">Important Notice</h4>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                        <li>• You&apos;ll lose access to community posts and discussions</li>
+                        <li>• Your community activity history will be preserved</li>
+                        <li>• You can rejoin anytime if the community is public</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Users className="w-3 h-3 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-1">Community Impact</h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      You&apos;re leaving <strong>{community?.name}</strong> with {community?.memberCount.toLocaleString()} members. 
+                      Your contributions have made a difference!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1"
+                disabled={leaving}
+              >
+                Cancel
+              </Button>
+              {community.userRole === 'OWNER' ? (
+                <Button
+                  onClick={() => setShowLeaveConfirm(false)}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white border-0"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Manage Community
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleLeave}
+                  disabled={leaving}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0"
+                >
+                  {leaving ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Leaving...
+                    </>
+                  ) : (
+                    <>
+                      <Users className="w-4 h-4 mr-2" />
+                      Leave Community
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
