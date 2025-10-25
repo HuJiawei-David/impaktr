@@ -775,22 +775,36 @@ export default function SuggestionPanel({ organizationId }: SuggestionPanelProps
             <CardContent>
               {/* Score Calculation Formula */}
               <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-start space-x-2">
+                <div className="flex items-start space-x-3">
                   <HelpCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">Score Calculation Formula</h4>
-                    <div className="space-y-2">
-                      <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <div className="flex-1 w-full">
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">Score Calculation Formula</h4>
+                    <div className="space-y-3">
+                      <p className="text-sm text-blue-800 dark:text-blue-200 text-center py-2 bg-blue-100 dark:bg-blue-800/20 rounded-md">
                         <strong>Overall Δ = (ΔE + ΔH + ΔQ + ΔV + ΔS + ΔC) × G<sub>new</sub> × 100</strong>
                       </p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-800/30 p-2 rounded">
-                        <strong>Where:</strong><br/>
-                        • G<sub>new</sub> = G<sub>current</sub> + ΔG<br/>
-                        • ΔG = {result.predictedDelta.G.toFixed(3)} (governance improvements from suggested events)<br/>
-                        • Each event contributes ΔG through policy and transparency enhancements<br/>
-                        • <strong>Note:</strong> If G<sub>current</sub> = 0, the formula becomes (components) × ΔG × 100
-                      </p>
-                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                      <div className="text-xs text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-800/30 p-4 rounded-md space-y-2">
+                        <div className="font-semibold text-sm mb-3">Where:</div>
+                        <div className="grid grid-cols-1 gap-2 text-xs leading-relaxed">
+                          <div className="flex items-start">
+                            <span className="font-medium mr-2">•</span>
+                            <span><strong>G<sub>new</sub></strong> = G<sub>current</sub> + ΔG</span>
+                          </div>
+                          <div className="flex items-start">
+                            <span className="font-medium mr-2">•</span>
+                            <span><strong>ΔG</strong> = {result.predictedDelta.G.toFixed(3)} (governance improvements from suggested events)</span>
+                          </div>
+                          <div className="flex items-start">
+                            <span className="font-medium mr-2">•</span>
+                            <span>Each event contributes ΔG through policy and transparency enhancements</span>
+                          </div>
+                          <div className="flex items-start pt-1 border-t border-blue-200 dark:border-blue-700">
+                            <span className="font-medium mr-2">📝</span>
+                            <span><strong>Note:</strong> If G<sub>current</sub> = 0, the formula becomes (components) × ΔG × 100</span>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 text-center italic">
                         Hover over attributes below to learn more about each impact dimension.
                       </p>
                     </div>
