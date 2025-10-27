@@ -1,47 +1,47 @@
-# 建议组件持久化测试指南
+# Suggestion Component Persistence Testing Guide
 
-## 问题修复
+## Problem Fix
 
-### 原问题
-当用户导航到其他组件或页面时，Suggested Events 和 Suggestion Summary 数据没有被保存。
+### Original Problem
+When users navigate to other components or pages, Suggested Events and Suggestion Summary data were not being saved.
 
-### 修复内容
-1. **添加了组件卸载时的数据保存**
-2. **添加了定期自动保存（每5秒）**
-3. **添加了页面可见性变化时的保存**
-4. **添加了页面卸载前的保存**
-5. **改进了store的持久化配置**
+### Fix Content
+1. **Added data saving on component unmount**
+2. **Added periodic automatic saving (every 5 seconds)**
+3. **Added saving on page visibility changes**
+4. **Added saving before page unload**
+5. **Improved store persistence configuration**
 
-## 测试步骤
+## Testing Steps
 
-### 测试1: 基本导航测试
-1. 打开建议组件页面
-2. 填写表单（选择Focus Area, SDGs等）
-3. 点击"Generate Suggestions"
-4. 查看生成的建议结果
-5. **导航到其他页面**（如Dashboard, Events等）
-6. **返回建议组件页面**
-7. **验证**: 数据应该被完整恢复
+### Test 1: Basic Navigation Test
+1. Open the suggestion component page
+2. Fill out the form (select Focus Area, SDGs, etc.)
+3. Click "Generate Suggestions"
+4. View the generated suggestion results
+5. **Navigate to other pages** (such as Dashboard, Events, etc.)
+6. **Return to the suggestion component page**
+7. **Verify**: Data should be completely restored
 
-### 测试2: 浏览器刷新测试
-1. 填写建议表单并生成结果
-2. **刷新浏览器页面** (F5 或 Ctrl+R)
-3. **验证**: 数据应该被完整恢复
+### Test 2: Browser Refresh Test
+1. Fill out the suggestion form and generate results
+2. **Refresh the browser page** (F5 or Ctrl+R)
+3. **Verify**: Data should be completely restored
 
-### 测试3: 标签页切换测试
-1. 填写建议表单并生成结果
-2. **切换到其他浏览器标签页**
-3. **切换回原标签页**
-4. **验证**: 数据应该被完整恢复
+### Test 3: Tab Switching Test
+1. Fill out the suggestion form and generate results
+2. **Switch to other browser tabs**
+3. **Switch back to the original tab**
+4. **Verify**: Data should be completely restored
 
-### 测试4: 浏览器关闭重开测试
-1. 填写建议表单并生成结果
-2. **关闭浏览器**
-3. **重新打开浏览器并导航到建议页面**
-4. **验证**: 数据应该被完整恢复（24小时内）
+### Test 4: Browser Close and Reopen Test
+1. Fill out the suggestion form and generate results
+2. **Close the browser**
+3. **Reopen the browser and navigate to the suggestion page**
+4. **Verify**: Data should be completely restored (within 24 hours)
 
-### 测试5: 控制台日志验证
-打开浏览器开发者工具的控制台，应该看到以下日志：
+### Test 5: Console Log Verification
+Open browser developer tools console, should see the following logs:
 
 ```
 Suggestion store rehydrated from localStorage
@@ -52,89 +52,90 @@ Selected events saved to store: ["event-id-1", "event-id-2"]
 All suggestion data force-saved to store
 ```
 
-## 验证点
+## Verification Points
 
-### ✅ 数据恢复验证
-- [ ] 表单数据恢复（Focus Area, Targets, Constraints）
-- [ ] 选中的SDGs恢复
-- [ ] 建议结果恢复（Suggested Events列表）
-- [ ] 建议摘要恢复（Suggestion Summary）
-- [ ] 选中的事件恢复（复选框状态）
+### ✅ Data Recovery Verification
+- [ ] Form data restored (Focus Area, Targets, Constraints)
+- [ ] Selected SDGs restored
+- [ ] Suggestion results restored (Suggested Events list)
+- [ ] Suggestion summary restored (Suggestion Summary)
+- [ ] Selected events restored (checkbox states)
 
-### ✅ 时间戳验证
-- [ ] 恢复时显示正确的生成时间
-- [ ] 蓝色信息横幅显示恢复时间
+### ✅ Timestamp Verification
+- [ ] Correct generation time displayed on restoration
+- [ ] Blue info banner shows restoration time
 
-### ✅ 清理机制验证
-- [ ] 修改Focus Area时，旧结果被清除
-- [ ] 修改Targets时，旧结果被清除
-- [ ] 修改Constraints时，旧结果被清除
-- [ ] 点击"Clear Suggestions"按钮时，所有数据被清除
+### ✅ Cleanup Mechanism Verification
+- [ ] Old results cleared when Focus Area is modified
+- [ ] Old results cleared when Targets are modified
+- [ ] Old results cleared when Constraints are modified
+- [ ] All data cleared when "Clear Suggestions" button is clicked
 
-## 故障排除
+## Troubleshooting
 
-### 如果数据仍然没有保存：
+### If data is still not saved:
 
-1. **检查浏览器控制台**
-   - 查看是否有错误信息
-   - 查看保存日志是否出现
+1. **Check browser console**
+   - Look for error messages
+   - Check if save logs appear
 
-2. **检查localStorage**
-   - 打开开发者工具 → Application → Local Storage
-   - 查找 `suggestion-storage` 键
-   - 验证数据是否存在
+2. **Check localStorage**
+   - Open Developer Tools → Application → Local Storage
+   - Look for `suggestion-storage` key
+   - Verify data exists
 
-3. **检查组织ID**
-   - 确保在同一个组织下测试
-   - 切换组织会清除数据
+3. **Check organization ID**
+   - Ensure testing under the same organization
+   - Switching organizations will clear data
 
-4. **检查时间戳**
-   - 数据24小时后会过期
-   - 检查timestamp字段
+4. **Check timestamp**
+   - Data expires after 24 hours
+   - Check timestamp field
 
-### 手动验证localStorage
+### Manual localStorage verification
 ```javascript
-// 在浏览器控制台运行
+// Run in browser console
 const data = localStorage.getItem('suggestion-storage');
 console.log('Stored data:', JSON.parse(data));
 ```
 
-## 预期行为
+## Expected Behavior
 
-### 正常情况
-- 数据自动保存到localStorage
-- 导航后数据完整恢复
-- 控制台显示保存日志
-- 蓝色横幅显示恢复信息
+### Normal Case
+- Data automatically saved to localStorage
+- Data completely restored after navigation
+- Console shows save logs
+- Blue banner shows restoration info
 
-### 异常情况
-- 数据过期（24小时后）
-- 组织切换
-- 浏览器禁用localStorage
-- 存储空间不足
+### Abnormal Case
+- Data expired (after 24 hours)
+- Organization switch
+- Browser localStorage disabled
+- Insufficient storage space
 
-## 性能考虑
+## Performance Considerations
 
-### 保存频率
-- **实时保存**: 每次状态变化
-- **定期保存**: 每5秒（如果有数据）
-- **事件保存**: 页面切换、标签切换、页面卸载
+### Save Frequency
+- **Real-time saving**: On every state change
+- **Periodic saving**: Every 5 seconds (if there is data)
+- **Event saving**: Page switching, tab switching, page unload
 
-### 存储大小
-- 典型大小: 10-50KB
-- 最大大小: 通常 < 100KB
-- 清理机制: 24小时自动过期
+### Storage Size
+- Typical size: 10-50KB
+- Maximum size: Usually < 100KB
+- Cleanup mechanism: Automatic expiration after 24 hours
 
-## 成功标准
+## Success Criteria
 
-✅ **数据持久化**: 导航后数据完整恢复
-✅ **性能良好**: 保存操作不影响用户体验
-✅ **错误处理**: 优雅处理各种异常情况
-✅ **用户反馈**: 清晰的视觉指示器
-✅ **代码质量**: 无linting错误，类型安全
+✅ **Data Persistence**: Data completely restored after navigation
+✅ **Good Performance**: Save operations don't affect user experience
+✅ **Error Handling**: Gracefully handles various abnormal situations
+✅ **User Feedback**: Clear visual indicators
+✅ **Code Quality**: No linting errors, type safety
 
 ---
 
-**测试状态**: 待验证
-**修复版本**: v1.1
-**测试日期**: 2025年10月24日
+**Test Status**: Pending verification
+**Fix Version**: v1.1
+**Test Date**: October 24, 2025
+

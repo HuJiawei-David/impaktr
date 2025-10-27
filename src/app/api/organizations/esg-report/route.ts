@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { calculateESGScore } from '@/lib/esg-calculator';
+import { calculateDataCollectionStatus } from '@/lib/esg/dataCollectionStatus';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     const esgMetrics = await calculateESGScore(organizationId, period);
+    const dataCollectionStatus = await calculateDataCollectionStatus(organizationId);
 
     return NextResponse.json({
       success: true,
@@ -26,6 +28,7 @@ export async function GET(request: NextRequest) {
         period,
         calculatedAt: new Date().toISOString(),
         metrics: esgMetrics,
+        dataCollectionStatus,
         breakdown: {
           environmental: {
             weight: 40,

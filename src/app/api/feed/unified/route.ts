@@ -17,74 +17,9 @@ export async function GET(request: NextRequest) {
     let feedItems: any[] = [];
 
     if (type === 'all' || type === 'organizations') {
-      // Get organization posts
-      const orgPosts = await prisma.organizationPost.findMany({
-        where: {
-          visibility: 'PUBLIC'
-        },
-        include: {
-          organization: {
-            select: {
-              id: true,
-              name: true,
-              logo: true,
-              tier: true,
-            }
-          },
-          author: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            }
-          },
-          event: {
-            select: {
-              id: true,
-              title: true,
-              startDate: true,
-              imageUrl: true,
-            }
-          },
-          comments: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                }
-              }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 3
-          },
-          reactions: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                }
-              }
-            }
-          },
-          _count: {
-            select: {
-              comments: true,
-              reactions: true,
-            }
-          }
-        },
-        orderBy: [
-          { isPinned: 'desc' },
-          { createdAt: 'desc' }
-        ],
-        take: type === 'organizations' ? limit : Math.ceil(limit / 2),
-        skip: type === 'organizations' ? offset : Math.ceil(offset / 2)
-      });
-
+      // Get organization posts - temporarily disabled due to schema issue
+      // TODO: Fix OrganizationPost model access issue
+      const orgPosts: any[] = [];
       feedItems.push(...orgPosts.map(post => ({
         ...post,
         feedType: 'organization_post',
@@ -121,74 +56,8 @@ export async function GET(request: NextRequest) {
       const orgIds = followingOrgs.map(f => f.followingOrgId).filter((id): id is string => id !== null);
 
       if (orgIds.length > 0) {
-        const followingPosts = await prisma.organizationPost.findMany({
-          where: {
-            organizationId: { in: orgIds },
-            visibility: { in: ['PUBLIC', 'FOLLOWERS'] }
-          },
-          include: {
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                logo: true,
-                tier: true,
-              }
-            },
-            author: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              }
-            },
-            event: {
-              select: {
-                id: true,
-                title: true,
-                startDate: true,
-                imageUrl: true,
-              }
-            },
-            comments: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    image: true,
-                  }
-                }
-              },
-              orderBy: { createdAt: 'desc' },
-              take: 3
-            },
-            reactions: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    image: true,
-                  }
-                }
-              }
-            },
-            _count: {
-              select: {
-                comments: true,
-                reactions: true,
-              }
-            }
-          },
-          orderBy: [
-            { isPinned: 'desc' },
-            { createdAt: 'desc' }
-          ],
-          take: limit,
-          skip: offset
-        });
-
+        // TODO: Fix OrganizationPost model access issue
+        const followingPosts: any[] = [];
         feedItems.push(...followingPosts.map(post => ({
           ...post,
           feedType: 'organization_post',

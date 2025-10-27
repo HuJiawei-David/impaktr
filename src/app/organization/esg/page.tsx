@@ -2,9 +2,9 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Leaf,
   TrendingUp,
@@ -107,11 +107,12 @@ interface ESGData {
   }>;
 }
 
-export default function OrganizationESGPage() {
+function OrganizationESGContent() {
   const { data: session, status } = useSession();
   const user = session?.user;
   const isLoading = status === 'loading';
   const router = useRouter();
+  const searchParams = useSearchParams();
   
   const [esgData, setESGData] = useState<ESGData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -133,13 +134,13 @@ export default function OrganizationESGPage() {
       }
       
       const result = await response.json();
-      // Add default values for missing properties
+      // Use real data collection status from API response
       const esgDataWithDefaults = {
         ...result.data,
-        dataCollectionStatus: {
-          environmental: 85,
-          social: 78,
-          governance: 92
+        dataCollectionStatus: result.data.dataCollectionStatus || {
+          environmental: 0,
+          social: 0,
+          governance: 0
         },
         recentReports: [
           { id: '1', type: 'Quarterly Report', period: result.data.period, status: 'submitted', submittedAt: result.data.calculatedAt },
@@ -172,6 +173,14 @@ export default function OrganizationESGPage() {
       setLoading(false);
     }
   }, [fetchESGData]);
+
+  // Set initial active tab from URL parameters
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['overview', 'metrics', 'data-collection', 'reports', 'analytics', 'suggestion', 'favorites'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -608,24 +617,41 @@ export default function OrganizationESGPage() {
                     <CardTitle>Data Collection & Entry</CardTitle>
                     <CardDescription>Submit new ESG data and metrics</CardDescription>
                   </div>
-                  <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Data Entry
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Button 
+                      onClick={() => router.push('/organization/esg/data-entry/enhanced?from=data-collection')}
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Your Data
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center">
-                      <Droplets className="w-8 h-8 mb-2 text-blue-500" />
+                    <Button 
+                      variant="outline" 
+                      className="h-24 flex flex-col items-center justify-center hover:bg-green-50 hover:border-green-300"
+                      onClick={() => router.push('/organization/esg/data-entry/enhanced?from=environmental')}
+                    >
+                      <Droplets className="w-8 h-8 mb-2 text-green-500" />
                       <span>Environmental Data</span>
                     </Button>
-                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center">
-                      <Heart className="w-8 h-8 mb-2 text-red-500" />
+                    <Button 
+                      variant="outline" 
+                      className="h-24 flex flex-col items-center justify-center hover:bg-blue-50 hover:border-blue-300"
+                      onClick={() => router.push('/organization/esg/data-entry/enhanced?from=social')}
+                    >
+                      <Heart className="w-8 h-8 mb-2 text-blue-500" />
                       <span>Social Data</span>
                     </Button>
-                    <Button variant="outline" className="h-24 flex flex-col items-center justify-center">
+                    <Button 
+                      variant="outline" 
+                      className="h-24 flex flex-col items-center justify-center hover:bg-purple-50 hover:border-purple-300"
+                      onClick={() => router.push('/organization/esg/data-entry/enhanced?from=governance')}
+                    >
                       <Shield className="w-8 h-8 mb-2 text-purple-500" />
                       <span>Governance Data</span>
                     </Button>
@@ -824,5 +850,17 @@ export default function OrganizationESGPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OrganizationESGPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    }>
+      <OrganizationESGContent />
+    </Suspense>
   );
 }

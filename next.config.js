@@ -2,10 +2,9 @@
 const nextConfig = {
   // Allow each user to set a unique build folder via env
   distDir: process.env.DIST_DIR || '.next',
-  // Disable development indicators
+  // Development indicators configuration
   devIndicators: {
-    buildActivity: true,
-    buildActivityPosition: 'bottom-right',
+    position: 'bottom-right',
   },
   eslint: {
     ignoreDuringBuilds: true,

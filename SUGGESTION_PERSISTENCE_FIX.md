@@ -1,13 +1,13 @@
-# 建议组件持久化问题修复
+# Suggestion Component Persistence Issue Fix
 
-## 🐛 问题描述
-当用户导航到其他组件或页面时，Suggested Events 和 Suggestion Summary 数据没有被保存。
+## 🐛 Problem Description
+When users navigate to other components or pages, Suggested Events and Suggestion Summary data were not being saved.
 
-## 🔧 修复方案
+## 🔧 Fix Solution
 
-### 1. 添加了多重保存机制
+### 1. Added Multiple Save Mechanisms
 
-#### A. 组件卸载时保存
+#### A. Save on Component Unmount
 ```typescript
 // Save data when component unmounts (navigation away)
 useEffect(() => {
@@ -24,7 +24,7 @@ useEffect(() => {
 }, [isInitialized, formData, selectedSDGs, result, selectedEvents]);
 ```
 
-#### B. 定期自动保存（每5秒）
+#### B. Periodic Automatic Save (Every 5 seconds)
 ```typescript
 // Save every 5 seconds if there's any data
 const interval = setInterval(() => {
@@ -34,7 +34,7 @@ const interval = setInterval(() => {
 }, 5000);
 ```
 
-#### C. 页面可见性变化时保存
+#### C. Save on Page Visibility Change
 ```typescript
 // Save on page visibility change (user switching tabs)
 const handleVisibilityChange = () => {
@@ -44,7 +44,7 @@ const handleVisibilityChange = () => {
 };
 ```
 
-#### D. 页面卸载前保存
+#### D. Save Before Page Unload
 ```typescript
 // Save on beforeunload (user navigating away)
 const handleBeforeUnload = () => {
@@ -54,7 +54,7 @@ const handleBeforeUnload = () => {
 };
 ```
 
-### 2. 改进了Store配置
+### 2. Improved Store Configuration
 
 ```typescript
 {
@@ -75,39 +75,39 @@ const handleBeforeUnload = () => {
 }
 ```
 
-### 3. 添加了调试面板
+### 3. Added Debug Panel
 
-创建了 `SuggestionDebugPanel` 组件来实时监控数据保存状态：
-- 显示Store状态
-- 显示LocalStorage数据
-- 显示数据大小和时间戳
-- 提供手动刷新和清除功能
+Created `SuggestionDebugPanel` component to monitor data save status in real-time:
+- Display Store status
+- Display LocalStorage data
+- Display data size and timestamp
+- Provide manual refresh and clear functions
 
-## 🧪 测试验证
+## 🧪 Test Verification
 
-### 测试场景
-1. **基本导航**: 填写表单 → 生成建议 → 导航到其他页面 → 返回
-2. **浏览器刷新**: 填写表单 → 生成建议 → 刷新页面
-3. **标签页切换**: 填写表单 → 生成建议 → 切换标签页 → 返回
-4. **浏览器关闭重开**: 填写表单 → 生成建议 → 关闭浏览器 → 重新打开
+### Test Scenarios
+1. **Basic Navigation**: Fill form → Generate suggestions → Navigate to other pages → Return
+2. **Browser Refresh**: Fill form → Generate suggestions → Refresh page
+3. **Tab Switching**: Fill form → Generate suggestions → Switch tabs → Return
+4. **Browser Close and Reopen**: Fill form → Generate suggestions → Close browser → Reopen
 
-### 验证点
-- ✅ 表单数据恢复
-- ✅ 选中的SDGs恢复
-- ✅ 建议结果恢复
-- ✅ 建议摘要恢复
-- ✅ 选中的事件恢复
-- ✅ 时间戳正确显示
+### Verification Points
+- ✅ Form data restored
+- ✅ Selected SDGs restored
+- ✅ Suggestion results restored
+- ✅ Suggestion summary restored
+- ✅ Selected events restored
+- ✅ Timestamp correctly displayed
 
-## 📊 保存机制总结
+## 📊 Save Mechanism Summary
 
-### 保存时机
-1. **实时保存**: 每次状态变化时
-2. **定期保存**: 每5秒（如果有数据）
-3. **事件保存**: 页面切换、标签切换、页面卸载
-4. **组件卸载**: 组件被销毁时
+### Save Timing
+1. **Real-time saving**: On every state change
+2. **Periodic saving**: Every 5 seconds (if there is data)
+3. **Event saving**: Page switching, tab switching, page unload
+4. **Component unmount**: When component is destroyed
 
-### 保存内容
+### Saved Content
 - Form Data (Focus, Targets, Constraints)
 - Selected SDGs
 - Suggestion Result
@@ -115,22 +115,22 @@ const handleBeforeUnload = () => {
 - Organization ID
 - Timestamp
 
-### 存储位置
+### Storage Location
 - **localStorage key**: `suggestion-storage`
-- **大小**: 通常 10-50KB
-- **过期时间**: 24小时
+- **Size**: Usually 10-50KB
+- **Expiration time**: 24 hours
 
-## 🔍 调试工具
+## 🔍 Debug Tools
 
-### 开发环境调试面板
-在开发环境中，建议组件顶部会显示一个黄色的调试面板，显示：
-- Store状态
-- LocalStorage数据
-- 数据大小
-- 最后更新时间
-- 手动刷新/清除按钮
+### Development Environment Debug Panel
+In development environment, a yellow debug panel will be displayed at the top of the suggestion component, showing:
+- Store status
+- LocalStorage data
+- Data size
+- Last update time
+- Manual refresh/clear buttons
 
-### 控制台日志
+### Console Logs
 ```
 Suggestion store rehydrated from localStorage
 Form data saved to store: {...}
@@ -140,54 +140,55 @@ Selected events saved to store: [...]
 All suggestion data force-saved to store
 ```
 
-## 🚀 部署说明
+## 🚀 Deployment Instructions
 
-### 生产环境
-- 调试面板只在开发环境显示
-- 所有保存机制在生产环境正常工作
-- 控制台日志可以保留用于监控
+### Production Environment
+- Debug panel only shows in development environment
+- All save mechanisms work normally in production environment
+- Console logs can be kept for monitoring
 
-### 性能影响
-- **最小影响**: 保存操作很轻量
-- **智能保存**: 只在有数据时保存
-- **异步操作**: 不阻塞UI
+### Performance Impact
+- **Minimal impact**: Save operations are lightweight
+- **Smart saving**: Only saves when there is data
+- **Asynchronous operations**: Non-blocking UI
 
-## ✅ 修复验证
+## ✅ Fix Verification
 
-### 文件修改
-1. `src/app/organization/esg/suggestion/SuggestionPanel.tsx` - 添加多重保存机制
-2. `src/store/suggestionStore.ts` - 改进store配置
-3. `src/components/debug/SuggestionDebugPanel.tsx` - 新增调试组件
+### Files Modified
+1. `src/app/organization/esg/suggestion/SuggestionPanel.tsx` - Added multiple save mechanisms
+2. `src/store/suggestionStore.ts` - Improved store configuration
+3. `src/components/debug/SuggestionDebugPanel.tsx` - New debug component
 
-### 功能验证
-- [x] 导航后数据恢复
-- [x] 刷新后数据恢复
-- [x] 标签切换后数据恢复
-- [x] 浏览器重开后数据恢复
-- [x] 设置变化时数据清除
-- [x] 手动清除功能
-- [x] 调试面板显示
+### Function Verification
+- [x] Data restored after navigation
+- [x] Data restored after refresh
+- [x] Data restored after tab switching
+- [x] Data restored after browser restart
+- [x] Data cleared when settings change
+- [x] Manual clear function
+- [x] Debug panel display
 
-## 📝 使用说明
+## 📝 Usage Instructions
 
-### 用户操作
-1. 填写建议表单
-2. 生成建议
-3. 可以自由导航到其他页面
-4. 返回时数据自动恢复
-5. 修改设置时旧结果自动清除
+### User Operations
+1. Fill out suggestion form
+2. Generate suggestions
+3. Can freely navigate to other pages
+4. Data automatically restored when returning
+5. Old results automatically cleared when settings are modified
 
-### 开发者监控
-1. 打开浏览器开发者工具
-2. 查看控制台日志
-3. 在开发环境中查看调试面板
-4. 检查localStorage中的 `suggestion-storage` 数据
+### Developer Monitoring
+1. Open browser developer tools
+2. Check console logs
+3. View debug panel in development environment
+4. Check `suggestion-storage` data in localStorage
 
 ---
 
-**修复状态**: ✅ 完成
-**测试状态**: ✅ 通过
-**部署状态**: ✅ 就绪
+**Fix Status**: ✅ Complete
+**Test Status**: ✅ Passed
+**Deployment Status**: ✅ Ready
 
-**修复日期**: 2025年10月24日
-**版本**: v1.1
+**Fix Date**: October 24, 2025
+**Version**: v1.1
+

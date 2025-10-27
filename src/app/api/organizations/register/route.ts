@@ -15,13 +15,22 @@ const organizationRegistrationSchema = z.object({
   type: z.string().min(1, 'Organization type is required'),
   city: z.string().min(1, 'City is required'),
   country: z.string().min(1, 'Country is required'),
-  website: z.string().url().optional().or(z.literal('')),
+  website: z.string().optional().refine((val) => !val || val === '' || z.string().url().safeParse(val).success, {
+    message: 'Invalid url'
+  }),
   description: z.string().min(1, 'Description is required'),
   contactPersonName: z.string().min(1, 'Contact person name is required'),
   contactPersonRole: z.string().min(1, 'Contact person role is required'),
   contactPersonEmail: z.string().email('Valid email is required'),
   contactPersonPhone: z.string().optional(),
-  sdgFocus: z.string().transform((str) => JSON.parse(str)).pipe(z.array(z.number().min(1).max(17))),
+  sdgFocus: z.string().optional().transform((str) => {
+    if (!str) return [];
+    try {
+      return JSON.parse(str);
+    } catch {
+      return [];
+    }
+  }).pipe(z.array(z.number().min(1).max(17))),
   profileType: z.nativeEnum(UserType),
 });
 

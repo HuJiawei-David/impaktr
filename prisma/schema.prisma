@@ -156,6 +156,7 @@ model Organization {
   posts                Post[]
   organizationPosts    OrganizationPost[]
   vettingRequests      VettingRequest[]
+  validationResults    ValidationResult[]
 
   @@map("organizations")
 }
@@ -1696,6 +1697,23 @@ enum ReactionType {
   INSPIRE
   SUPPORT
   KUDOS
+}
+
+model ValidationResult {
+  id               String       @id @default(cuid())
+  organizationId   String
+  validatedBy      String
+  validationScore  Int          // 0-100 score
+  isValid          Boolean
+  issues           Json         // Array of ValidationIssue objects
+  recommendations  String[]     // Array of recommendation strings
+  validatorResults Json         // Array of ValidationResult objects from each validator
+  validatedAt      DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("validation_results")
 }
 
 enum PaymentStatus {
