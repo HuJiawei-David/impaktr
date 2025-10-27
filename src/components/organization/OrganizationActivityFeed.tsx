@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 import { 
   Heart, 
   MessageCircle, 
@@ -340,7 +341,7 @@ export default function OrganizationActivityFeed({ organizationId }: Organizatio
                     {/* Author info */}
                     {activity.author && (
                       <div className="text-xs text-gray-500 dark:text-gray-500 mb-3">
-                        Posted by {activity.author.name}
+                        Posted by <Link href={`/profile/${activity.author.id}`} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">{activity.author.name}</Link>
                         {activity.author.role && (
                           <span className="ml-1">• {activity.author.role}</span>
                         )}

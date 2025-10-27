@@ -741,6 +741,35 @@ export default function MethodologyPage() {
                         </div>
                       </div>
 
+                      <h3 className="font-semibold text-xl mt-8">Organization Badge Requirements:</h3>
+                      
+                      <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg p-6 mb-6">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-purple-600" />
+                          Organization SDG Badge Requirements
+                        </h4>
+                        <p className="text-sm mb-4">Organizations earn the same 68 SDG badges but with higher thresholds reflecting collective effort:</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">SUPPORTER</div>
+                            <div className="text-sm text-muted-foreground">50 hours, 2 activities</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">BUILDER</div>
+                            <div className="text-sm text-muted-foreground">200 hours, 8 activities</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">CHAMPION</div>
+                            <div className="text-sm text-muted-foreground">500 hours, 20 activities</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">GUARDIAN</div>
+                            <div className="text-sm text-muted-foreground">1000 hours, 50 activities</div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-3">Hours are cumulative across all employees for that SDG area.</p>
+                      </div>
+
                       <h3 className="font-semibold text-xl mt-8">Overall Rank Progression:</h3>
                       
                       <div className="space-y-2">

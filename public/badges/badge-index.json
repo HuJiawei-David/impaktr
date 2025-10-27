@@ -1,0 +1,654 @@
+{
+  "sdgBadges": {
+    "sdg-1": {
+      "supporter": {
+        "name": "Supporter",
+        "path": "sdg-badges/sdg-1/supporter.svg",
+        "sdgNumber": 1,
+        "sdgName": "No Poverty",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Advocate",
+        "path": "sdg-badges/sdg-1/builder.svg",
+        "sdgNumber": 1,
+        "sdgName": "No Poverty",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Builder",
+        "path": "sdg-badges/sdg-1/champion.svg",
+        "sdgNumber": 1,
+        "sdgName": "No Poverty",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Poverty Fighter",
+        "path": "sdg-badges/sdg-1/guardian.svg",
+        "sdgNumber": 1,
+        "sdgName": "No Poverty",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-2": {
+      "supporter": {
+        "name": "Food Giver",
+        "path": "sdg-badges/sdg-2/supporter.svg",
+        "sdgNumber": 2,
+        "sdgName": "Zero Hunger",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Nourisher",
+        "path": "sdg-badges/sdg-2/builder.svg",
+        "sdgNumber": 2,
+        "sdgName": "Zero Hunger",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Hunger Solver",
+        "path": "sdg-badges/sdg-2/champion.svg",
+        "sdgNumber": 2,
+        "sdgName": "Zero Hunger",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Food Security Leader",
+        "path": "sdg-badges/sdg-2/guardian.svg",
+        "sdgNumber": 2,
+        "sdgName": "Zero Hunger",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-3": {
+      "supporter": {
+        "name": "Health Ally",
+        "path": "sdg-badges/sdg-3/supporter.svg",
+        "sdgNumber": 3,
+        "sdgName": "Good Health and Well-being",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Health Advocate",
+        "path": "sdg-badges/sdg-3/builder.svg",
+        "sdgNumber": 3,
+        "sdgName": "Good Health and Well-being",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Health Champion",
+        "path": "sdg-badges/sdg-3/champion.svg",
+        "sdgNumber": 3,
+        "sdgName": "Good Health and Well-being",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Health Guardian",
+        "path": "sdg-badges/sdg-3/guardian.svg",
+        "sdgNumber": 3,
+        "sdgName": "Good Health and Well-being",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-4": {
+      "supporter": {
+        "name": "Tutor",
+        "path": "sdg-badges/sdg-4/supporter.svg",
+        "sdgNumber": 4,
+        "sdgName": "Quality Education",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Mentor",
+        "path": "sdg-badges/sdg-4/builder.svg",
+        "sdgNumber": 4,
+        "sdgName": "Quality Education",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Knowledge Builder",
+        "path": "sdg-badges/sdg-4/champion.svg",
+        "sdgNumber": 4,
+        "sdgName": "Quality Education",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Education Leader",
+        "path": "sdg-badges/sdg-4/guardian.svg",
+        "sdgNumber": 4,
+        "sdgName": "Quality Education",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-5": {
+      "supporter": {
+        "name": "Supporter",
+        "path": "sdg-badges/sdg-5/supporter.svg",
+        "sdgNumber": 5,
+        "sdgName": "Gender Equality",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Equalizer",
+        "path": "sdg-badges/sdg-5/builder.svg",
+        "sdgNumber": 5,
+        "sdgName": "Gender Equality",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Advocate",
+        "path": "sdg-badges/sdg-5/champion.svg",
+        "sdgNumber": 5,
+        "sdgName": "Gender Equality",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Justice Leader",
+        "path": "sdg-badges/sdg-5/guardian.svg",
+        "sdgNumber": 5,
+        "sdgName": "Gender Equality",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-6": {
+      "supporter": {
+        "name": "Water Ally",
+        "path": "sdg-badges/sdg-6/supporter.svg",
+        "sdgNumber": 6,
+        "sdgName": "Clean Water and Sanitation",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Water Builder",
+        "path": "sdg-badges/sdg-6/builder.svg",
+        "sdgNumber": 6,
+        "sdgName": "Clean Water and Sanitation",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Water Guardian",
+        "path": "sdg-badges/sdg-6/champion.svg",
+        "sdgNumber": 6,
+        "sdgName": "Clean Water and Sanitation",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Sanitation Leader",
+        "path": "sdg-badges/sdg-6/guardian.svg",
+        "sdgNumber": 6,
+        "sdgName": "Clean Water and Sanitation",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-7": {
+      "supporter": {
+        "name": "Energy Helper",
+        "path": "sdg-badges/sdg-7/supporter.svg",
+        "sdgNumber": 7,
+        "sdgName": "Affordable and Clean Energy",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Innovator",
+        "path": "sdg-badges/sdg-7/builder.svg",
+        "sdgNumber": 7,
+        "sdgName": "Affordable and Clean Energy",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Energy Advocate",
+        "path": "sdg-badges/sdg-7/champion.svg",
+        "sdgNumber": 7,
+        "sdgName": "Affordable and Clean Energy",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Renewable Leader",
+        "path": "sdg-badges/sdg-7/guardian.svg",
+        "sdgNumber": 7,
+        "sdgName": "Affordable and Clean Energy",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-8": {
+      "supporter": {
+        "name": "Work Ally",
+        "path": "sdg-badges/sdg-8/supporter.svg",
+        "sdgNumber": 8,
+        "sdgName": "Decent Work and Economic Growth",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Skills Builder",
+        "path": "sdg-badges/sdg-8/builder.svg",
+        "sdgNumber": 8,
+        "sdgName": "Decent Work and Economic Growth",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Economic Advocate",
+        "path": "sdg-badges/sdg-8/champion.svg",
+        "sdgNumber": 8,
+        "sdgName": "Decent Work and Economic Growth",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Opportunity Creator",
+        "path": "sdg-badges/sdg-8/guardian.svg",
+        "sdgNumber": 8,
+        "sdgName": "Decent Work and Economic Growth",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-9": {
+      "supporter": {
+        "name": "Innovator",
+        "path": "sdg-badges/sdg-9/supporter.svg",
+        "sdgNumber": 9,
+        "sdgName": "Industry, Innovation and Infrastructure",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Builder",
+        "path": "sdg-badges/sdg-9/builder.svg",
+        "sdgNumber": 9,
+        "sdgName": "Industry, Innovation and Infrastructure",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Changemaker",
+        "path": "sdg-badges/sdg-9/champion.svg",
+        "sdgNumber": 9,
+        "sdgName": "Industry, Innovation and Infrastructure",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Innovation Leader",
+        "path": "sdg-badges/sdg-9/guardian.svg",
+        "sdgNumber": 9,
+        "sdgName": "Industry, Innovation and Infrastructure",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-10": {
+      "supporter": {
+        "name": "Supporter",
+        "path": "sdg-badges/sdg-10/supporter.svg",
+        "sdgNumber": 10,
+        "sdgName": "Reduced Inequalities",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Equalizer",
+        "path": "sdg-badges/sdg-10/builder.svg",
+        "sdgNumber": 10,
+        "sdgName": "Reduced Inequalities",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Advocate",
+        "path": "sdg-badges/sdg-10/champion.svg",
+        "sdgNumber": 10,
+        "sdgName": "Reduced Inequalities",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Global Justice Leader",
+        "path": "sdg-badges/sdg-10/guardian.svg",
+        "sdgNumber": 10,
+        "sdgName": "Reduced Inequalities",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-11": {
+      "supporter": {
+        "name": "Community Ally",
+        "path": "sdg-badges/sdg-11/supporter.svg",
+        "sdgNumber": 11,
+        "sdgName": "Sustainable Cities and Communities",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Builder",
+        "path": "sdg-badges/sdg-11/builder.svg",
+        "sdgNumber": 11,
+        "sdgName": "Sustainable Cities and Communities",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Advocate",
+        "path": "sdg-badges/sdg-11/champion.svg",
+        "sdgNumber": 11,
+        "sdgName": "Sustainable Cities and Communities",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Sustainable Leader",
+        "path": "sdg-badges/sdg-11/guardian.svg",
+        "sdgNumber": 11,
+        "sdgName": "Sustainable Cities and Communities",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-12": {
+      "supporter": {
+        "name": "Green Consumer",
+        "path": "sdg-badges/sdg-12/supporter.svg",
+        "sdgNumber": 12,
+        "sdgName": "Responsible Consumption and Production",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Responsible Actor",
+        "path": "sdg-badges/sdg-12/builder.svg",
+        "sdgNumber": 12,
+        "sdgName": "Responsible Consumption and Production",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Eco Advocate",
+        "path": "sdg-badges/sdg-12/champion.svg",
+        "sdgNumber": 12,
+        "sdgName": "Responsible Consumption and Production",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Sustainability Leader",
+        "path": "sdg-badges/sdg-12/guardian.svg",
+        "sdgNumber": 12,
+        "sdgName": "Responsible Consumption and Production",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-13": {
+      "supporter": {
+        "name": "Climate Ally",
+        "path": "sdg-badges/sdg-13/supporter.svg",
+        "sdgNumber": 13,
+        "sdgName": "Climate Action",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Climate Builder",
+        "path": "sdg-badges/sdg-13/builder.svg",
+        "sdgNumber": 13,
+        "sdgName": "Climate Action",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Climate Champion",
+        "path": "sdg-badges/sdg-13/champion.svg",
+        "sdgNumber": 13,
+        "sdgName": "Climate Action",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Climate Guardian",
+        "path": "sdg-badges/sdg-13/guardian.svg",
+        "sdgNumber": 13,
+        "sdgName": "Climate Action",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-14": {
+      "supporter": {
+        "name": "Ocean Friend",
+        "path": "sdg-badges/sdg-14/supporter.svg",
+        "sdgNumber": 14,
+        "sdgName": "Life Below Water",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Ocean Advocate",
+        "path": "sdg-badges/sdg-14/builder.svg",
+        "sdgNumber": 14,
+        "sdgName": "Life Below Water",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Marine Protector",
+        "path": "sdg-badges/sdg-14/champion.svg",
+        "sdgNumber": 14,
+        "sdgName": "Life Below Water",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Ocean Guardian",
+        "path": "sdg-badges/sdg-14/guardian.svg",
+        "sdgNumber": 14,
+        "sdgName": "Life Below Water",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-15": {
+      "supporter": {
+        "name": "Nature Ally",
+        "path": "sdg-badges/sdg-15/supporter.svg",
+        "sdgNumber": 15,
+        "sdgName": "Life on Land",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Wildlife Advocate",
+        "path": "sdg-badges/sdg-15/builder.svg",
+        "sdgNumber": 15,
+        "sdgName": "Life on Land",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Forest Protector",
+        "path": "sdg-badges/sdg-15/champion.svg",
+        "sdgNumber": 15,
+        "sdgName": "Life on Land",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Planet Guardian",
+        "path": "sdg-badges/sdg-15/guardian.svg",
+        "sdgNumber": 15,
+        "sdgName": "Life on Land",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-16": {
+      "supporter": {
+        "name": "Supporter",
+        "path": "sdg-badges/sdg-16/supporter.svg",
+        "sdgNumber": 16,
+        "sdgName": "Peace, Justice and Strong Institutions",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Advocate",
+        "path": "sdg-badges/sdg-16/builder.svg",
+        "sdgNumber": 16,
+        "sdgName": "Peace, Justice and Strong Institutions",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Justice Builder",
+        "path": "sdg-badges/sdg-16/champion.svg",
+        "sdgNumber": 16,
+        "sdgName": "Peace, Justice and Strong Institutions",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Peace Leader",
+        "path": "sdg-badges/sdg-16/guardian.svg",
+        "sdgNumber": 16,
+        "sdgName": "Peace, Justice and Strong Institutions",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    },
+    "sdg-17": {
+      "supporter": {
+        "name": "Collaborator",
+        "path": "sdg-badges/sdg-17/supporter.svg",
+        "sdgNumber": 17,
+        "sdgName": "Partnerships for the Goals",
+        "tier": "SUPPORTER",
+        "color": "#4C9F38"
+      },
+      "builder": {
+        "name": "Connector",
+        "path": "sdg-badges/sdg-17/builder.svg",
+        "sdgNumber": 17,
+        "sdgName": "Partnerships for the Goals",
+        "tier": "BUILDER",
+        "color": "#26BDE2"
+      },
+      "champion": {
+        "name": "Partnership Builder",
+        "path": "sdg-badges/sdg-17/champion.svg",
+        "sdgNumber": 17,
+        "sdgName": "Partnerships for the Goals",
+        "tier": "CHAMPION",
+        "color": "#A21942"
+      },
+      "guardian": {
+        "name": "Global Partner Leader",
+        "path": "sdg-badges/sdg-17/guardian.svg",
+        "sdgNumber": 17,
+        "sdgName": "Partnerships for the Goals",
+        "tier": "GUARDIAN",
+        "color": "#FD6925"
+      }
+    }
+  },
+  "rankBadges": {
+    "helper": {
+      "name": "Helper",
+      "path": "rank-badges/helper.svg",
+      "rank": "HELPER",
+      "color": "#9CA3AF",
+      "description": "Taking your first steps in making a difference"
+    },
+    "supporter": {
+      "name": "Supporter",
+      "path": "rank-badges/supporter.svg",
+      "rank": "SUPPORTER",
+      "color": "#4C9F38",
+      "description": "Supporting causes that matter"
+    },
+    "contributor": {
+      "name": "Contributor",
+      "path": "rank-badges/contributor.svg",
+      "rank": "CONTRIBUTOR",
+      "color": "#26BDE2",
+      "description": "Contributing meaningfully to your community"
+    },
+    "builder": {
+      "name": "Builder",
+      "path": "rank-badges/builder.svg",
+      "rank": "BUILDER",
+      "color": "#A21942",
+      "description": "Building lasting change in your community"
+    },
+    "advocate": {
+      "name": "Advocate",
+      "path": "rank-badges/advocate.svg",
+      "rank": "ADVOCATE",
+      "color": "#FD6925",
+      "description": "Advocating for positive change"
+    },
+    "changemaker": {
+      "name": "Changemaker",
+      "path": "rank-badges/changemaker.svg",
+      "rank": "CHANGEMAKER",
+      "color": "#EC4899",
+      "description": "Making transformative impact in society"
+    },
+    "mentor": {
+      "name": "Mentor",
+      "path": "rank-badges/mentor.svg",
+      "rank": "MENTOR",
+      "color": "#6366F1",
+      "description": "Mentoring others in their impact journey"
+    },
+    "leader": {
+      "name": "Leader",
+      "path": "rank-badges/leader.svg",
+      "rank": "LEADER",
+      "color": "#F59E0B",
+      "description": "Leading transformative social initiatives"
+    },
+    "ambassador": {
+      "name": "Ambassador",
+      "path": "rank-badges/ambassador.svg",
+      "rank": "AMBASSADOR",
+      "color": "#06B6D4",
+      "description": "Representing impact excellence globally"
+    },
+    "global_citizen": {
+      "name": "Global Citizen",
+      "path": "rank-badges/global_citizen.svg",
+      "rank": "GLOBAL_CITIZEN",
+      "color": "#10B981",
+      "description": "Achieving world-class impact leadership"
+    }
+  }
+}

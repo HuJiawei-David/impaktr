@@ -1409,4 +1409,33 @@ export function getSDGBadgeRequirements(sdgNumber: number, tier: BadgeTier, isOr
   return isOrganization ? tierConfig.organization : tierConfig.individual;
 }
 
+// Badge image helper functions
+export function getSDGBadgeImage(sdgNumber: number, tier: BadgeTier): string {
+  const tierMap = {
+    [BadgeTier.SUPPORTER]: 'supporter',
+    [BadgeTier.BUILDER]: 'builder',
+    [BadgeTier.CHAMPION]: 'champion',
+    [BadgeTier.GUARDIAN]: 'guardian'
+  };
+  
+  return `/badges/sdg-badges/sdg-${sdgNumber}/${tierMap[tier]}.svg`;
+}
+
+export function getRankBadgeImage(rank: IndividualRank): string {
+  const rankMap = {
+    [IndividualRank.HELPER]: 'helper',
+    [IndividualRank.SUPPORTER]: 'supporter',
+    [IndividualRank.CONTRIBUTOR]: 'contributor',
+    [IndividualRank.BUILDER]: 'builder',
+    [IndividualRank.ADVOCATE]: 'advocate',
+    [IndividualRank.CHANGEMAKER]: 'changemaker',
+    [IndividualRank.MENTOR]: 'mentor',
+    [IndividualRank.LEADER]: 'leader',
+    [IndividualRank.AMBASSADOR]: 'ambassador',
+    [IndividualRank.GLOBAL_CITIZEN]: 'global_citizen'
+  };
+  
+  return `/badges/rank-badges/${rankMap[rank]}.svg`;
+}
+
 

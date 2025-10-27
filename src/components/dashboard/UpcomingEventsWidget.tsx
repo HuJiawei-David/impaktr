@@ -89,15 +89,17 @@ export function UpcomingEventsWidget() {
   const displayEvents = events.slice(0, 3);
 
   return (
-    <Card className="border-0 shadow-sm">
-      <CardHeader>
+    <Card className="relative overflow-hidden border-0 shadow-sm bg-white dark:bg-gray-800">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5" />
+      
+      <CardHeader className="relative">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Calendar className="w-5 h-5 text-blue-600" />
           Upcoming Events
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="pt-2 pb-4 px-4">
+      <CardContent className="relative pt-2 pb-4 px-4">
         {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (

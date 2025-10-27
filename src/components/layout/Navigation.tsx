@@ -453,7 +453,7 @@ export function Navigation() {
                             {isOrgContext && organizationData ? organizationData.email : user.email}
                           </p>
                           <div>
-                            <Badge className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 border-0">
+                            <Badge className="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 border-0">
                               {isOrgContext && organizationData 
                                 ? getOrganizationTypeDisplay(organizationData.type)
                                 : user.userType === 'NGO' ? 'NGO' : user.userType === 'COMPANY' ? 'Company' : 'Individual'
@@ -698,7 +698,7 @@ export function Navigation() {
                         {user.email}
                       </p>
                       <div>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs px-3 py-1">
                           {user.userType === 'NGO' ? 'NGO' : user.userType === 'COMPANY' ? 'Company' : 'Individual'}
                         </Badge>
                       </div>

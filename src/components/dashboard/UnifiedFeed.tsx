@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { getSDGById } from '@/constants/sdgs';
 import Image from 'next/image';
+import Link from 'next/link';
 import { CreatePost } from '@/components/organization/CreatePost';
 
 interface FeedItem {
@@ -355,9 +356,11 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                     </Avatar>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
-                          {item.organization?.name}
-                        </h4>
+                        <Link href={`/organizations/${item.organization?.id}`}>
+                          <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                            {item.organization?.name}
+                          </h4>
+                        </Link>
                         {item.postType && (
                           <Badge className={`text-xs px-2 py-0.5 ${getPostTypeColor(item.postType)}`}>
                             {getPostTypeIcon(item.postType)}
@@ -566,9 +569,11 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                     </Avatar>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
-                          {item.userName}
-                        </h4>
+                        <Link href={`/profile/${item.userId}`}>
+                          <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                            {item.userName}
+                          </h4>
+                        </Link>
                         {item.userTitle && (
                           <Badge className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                             {item.userTitle}

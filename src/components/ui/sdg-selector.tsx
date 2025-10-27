@@ -209,7 +209,7 @@ export function SDGSelector({
       </div>
 
       {/* Selection Summary */}
-      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-muted/50 rounded-lg">
         <div className="text-sm">
           <span className="font-medium">{selectedSDGs.length}</span>
           <span className="text-muted-foreground"> of {maxSelection} SDGs selected</span>
@@ -228,7 +228,7 @@ export function SDGSelector({
               </Badge>
             ))}
             {selectedSDGs.length > 5 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs px-3 py-1">
                 +{selectedSDGs.length - 5} more
               </Badge>
             )}

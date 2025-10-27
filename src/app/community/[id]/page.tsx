@@ -211,8 +211,8 @@ export default function CommunityPage() {
                         name: 'Sarah Chen',
                         image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
                         impactScore: 2450,
-                        tier: 'Builder'
-                      }
+                tier: 'Builder'
+              }
                     },
                     {
                       id: 'r2',
@@ -341,8 +341,8 @@ export default function CommunityPage() {
                         name: 'Mike Rodriguez',
                         image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
                         impactScore: 1890,
-                        tier: 'Contributor'
-                      }
+                tier: 'Contributor'
+              }
                     },
                     {
                       id: 'r5',
@@ -397,8 +397,8 @@ export default function CommunityPage() {
                         name: 'Emma Thompson',
                         image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
                         impactScore: 3200,
-                        tier: 'Champion'
-                      }
+                tier: 'Champion'
+              }
                     }
                   ]
                 },
@@ -479,8 +479,8 @@ export default function CommunityPage() {
                         name: 'David Kim',
                         image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face',
                         impactScore: 1560,
-                        tier: 'Contributor'
-                      }
+                tier: 'Contributor'
+              }
                     },
                     {
                       id: 'r10',
@@ -535,8 +535,8 @@ export default function CommunityPage() {
                         name: 'Lisa Wang',
                         image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face',
                         impactScore: 2100,
-                        tier: 'Builder'
-                      }
+                tier: 'Builder'
+              }
                     },
                     {
                       id: 'r12',
@@ -1205,8 +1205,8 @@ export default function CommunityPage() {
 
                   {/* Main Feed */}
                   <div className="lg:col-span-6 space-y-3">
-                    {/* Post Composer - LinkedIn Style */}
-                    {community.isJoined && (
+                  {/* Post Composer - LinkedIn Style */}
+                  {community.isJoined && (
                     <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                       <CardContent className="p-4">
                         {!showCreatePost ? (
@@ -1328,18 +1328,18 @@ export default function CommunityPage() {
                               
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
-                                    <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
-                                      {post.user.name}
-                                    </h4>
+                                <div className="flex items-center space-x-2">
+                                  <h4 className="font-semibold text-sm text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                                    {post.user.name}
+                                  </h4>
                                     <Badge className="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                                      {post.user.tier}
-                                    </Badge>
-                                    {post.isPinned && (
+                                    {post.user.tier}
+                                  </Badge>
+                                  {post.isPinned && (
                                       <Badge className="text-xs px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
-                                        <Pin className="w-3 h-3 mr-1" />
-                                        Pinned
-                                      </Badge>
+                                      <Pin className="w-3 h-3 mr-1" />
+                                      Pinned
+                                    </Badge>
                                     )}
                                   </div>
                                   {post.user.id !== session?.user?.id && (

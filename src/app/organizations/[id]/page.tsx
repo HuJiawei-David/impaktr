@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { 
   Building2, 
+  Building,
   MapPin, 
   Users, 
   Calendar,
@@ -38,6 +39,8 @@ import { Progress } from '@/components/ui/progress';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { UnifiedFeed } from '@/components/dashboard/UnifiedFeed';
 import { EventCard } from '@/components/events/EventCard';
+import { FollowersList } from '@/components/organization/FollowersList';
+import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import { getSDGById } from '@/constants/sdgs';
 
 // Type definitions
@@ -55,6 +58,10 @@ interface Opportunity {
   requirements: string[];
   isRemote: boolean;
   createdAt: string;
+  stats?: {
+    totalApplications: number;
+    spotsRemaining: number;
+  };
 }
 
 interface Member {
@@ -109,6 +116,8 @@ interface OrganizationWithOpportunities {
   city?: string;
   state?: string;
   country?: string;
+  industry?: string;
+  companySize?: string;
   tier: string;
   isFollowing?: boolean;
   members?: Member[];
@@ -119,9 +128,16 @@ interface OrganizationWithOpportunities {
   badges?: Badge[];
   sdgs?: number[];
   memberCount?: number;
+  followerCount?: number;
   eventCount?: number;
   totalHours?: number;
   impactScore?: number;
+  esgData?: {
+    environmental: { total: number };
+    social: { total: number };
+    governance: { total: number };
+    overall: number;
+  };
   _count?: {
     members: number;
     events: number;
@@ -130,34 +146,6 @@ interface OrganizationWithOpportunities {
 }
 
 // Utility functions for event formatting
-const getBadgeColor = (text: string, type: 'requirement' | 'skill') => {
-  const lowerText = text.toLowerCase();
-  
-  if (type === 'requirement') {
-    if (lowerText.includes('experience') || lowerText.includes('years')) {
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-    } else if (lowerText.includes('skill') || lowerText.includes('ability')) {
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-    } else if (lowerText.includes('available') || lowerText.includes('time')) {
-      return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-    } else {
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
-    }
-  } else {
-    if (lowerText.includes('leadership') || lowerText.includes('management')) {
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-    } else if (lowerText.includes('communication') || lowerText.includes('writing')) {
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-    } else if (lowerText.includes('technical') || lowerText.includes('programming')) {
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-    } else if (lowerText.includes('creative') || lowerText.includes('design')) {
-      return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-    } else {
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
-    }
-  }
-};
-
 const formatEventDate = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', { 
@@ -348,9 +336,12 @@ export default function OrganizationProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'feed' | 'about' | 'events' | 'opportunities' | 'impact'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'about' | 'events' | 'opportunities' | 'impact' | 'followers'>('feed');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const [bookmarkedOpportunities, setBookmarkedOpportunities] = useState<string[]>([]);
+  const [appliedOpportunities, setAppliedOpportunities] = useState<string[]>([]);
+  const [isApplying, setIsApplying] = useState<string | null>(null);
 
   const fetchOrganization = useCallback(async () => {
     try {
@@ -447,20 +438,70 @@ export default function OrganizationProfilePage() {
     
     setFollowLoading(true);
     try {
-      const response = await fetch(`/api/organizations/${orgId}/follow`, {
+      const endpoint = isFollowing ? 'unfollow' : 'follow';
+      const response = await fetch(`/api/organizations/${orgId}/${endpoint}`, {
         method: 'POST',
       });
 
       if (!response.ok) {
-        throw new Error('Failed to follow organization');
+        throw new Error(`Failed to ${endpoint} organization`);
       }
 
       const data = await response.json();
       setIsFollowing(data.isFollowing);
+      
+      // Refresh organization data to update stats
+      await fetchOrganization();
     } catch (err) {
-      console.error('Error following organization:', err);
+      console.error(`Error ${isFollowing ? 'unfollowing' : 'following'} organization:`, err);
     } finally {
       setFollowLoading(false);
+    }
+  };
+
+  const handleBookmark = async (opportunityId: string) => {
+    if (!session?.user?.id) return;
+    
+    try {
+      const isBookmarked = bookmarkedOpportunities.includes(opportunityId);
+      const response = await fetch(`/api/opportunities/${opportunityId}/bookmark`, {
+        method: isBookmarked ? 'DELETE' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setBookmarkedOpportunities(prev => 
+          isBookmarked 
+            ? prev.filter(id => id !== opportunityId)
+            : [...prev, opportunityId]
+        );
+      }
+    } catch (error) {
+      console.error('Error bookmarking:', error);
+    }
+  };
+
+  const handleApply = async (opportunityId: string) => {
+    if (!session?.user?.id) return;
+    
+    setIsApplying(opportunityId);
+    try {
+      const response = await fetch(`/api/opportunities/${opportunityId}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        setAppliedOpportunities(prev => [...prev, opportunityId]);
+      }
+    } catch (error) {
+      console.error('Error applying:', error);
+    } finally {
+      setIsApplying(null);
     }
   };
 
@@ -569,7 +610,7 @@ export default function OrganizationProfilePage() {
                           <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
                             <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                          <span className="font-semibold">{organization.memberCount}</span>
+                          <span className="font-semibold">{organization.followerCount || 0}</span>
                           <span className="text-gray-500 dark:text-gray-400">followers</span>
                         </div>
                       </div>
@@ -595,10 +636,11 @@ export default function OrganizationProfilePage() {
                     <Button
                       onClick={handleFollow}
                       disabled={followLoading}
+                      variant={isFollowing ? "outline" : "default"}
                           className={`flex-1 sm:flex-none ${
                         isFollowing
-                          ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                          : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
+                          ? '!border-blue-500 !text-blue-600 dark:!text-blue-400 !bg-transparent hover:!bg-transparent hover:!text-blue-600 dark:hover:!text-blue-400 hover:!border-blue-500 hover:!opacity-100 !shadow-none hover:!shadow-none'
+                          : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0'
                       }`}
                     >
                       {isFollowing ? (
@@ -734,7 +776,7 @@ export default function OrganizationProfilePage() {
                     : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
-                Events
+                Events ({organization.eventCount || 0})
               </Button>
               <Button
                 variant={activeTab === 'opportunities' ? 'default' : 'outline'}
@@ -745,7 +787,7 @@ export default function OrganizationProfilePage() {
                     : 'hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
-                Opportunities
+                Opportunities ({organization?.opportunities?.length || 0})
               </Button>
               <Button
                 variant={activeTab === 'impact' ? 'default' : 'outline'}
@@ -757,6 +799,17 @@ export default function OrganizationProfilePage() {
                 }`}
               >
                 Impact
+              </Button>
+              <Button
+                variant={activeTab === 'followers' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('followers')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'followers' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Followers ({organization.followerCount || 0})
               </Button>
             </div>
             
@@ -774,190 +827,100 @@ export default function OrganizationProfilePage() {
               
               {activeTab === 'about' && (
                 <>
-                    {/* Mission & Vision */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-red-600" />
-                  Our Mission & Vision
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Mission</h4>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {organization.description}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Vision</h4>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    To create a sustainable future where environmental conservation and community development go hand in hand, 
-                    empowering individuals and organizations to make meaningful impact through collaborative action and innovative solutions.
-                  </p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Core Values</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Environmental Stewardship</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Community Empowerment</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Transparency & Accountability</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Innovation & Impact</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Impact Metrics Dashboard */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-green-600" />
-                  Impact Metrics Dashboard
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {organization.totalHours?.toLocaleString() || '0'}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Hours Donated</div>
-                  </div>
-                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {organization.memberCount?.toLocaleString() || '0'}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Active Volunteers</div>
-                  </div>
-                  <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                      {organization.eventCount || '0'}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Events Completed</div>
-                  </div>
-                  <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                      {organization.impactScore?.toLocaleString() || '0'}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Lives Impacted</div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Environmental Impact</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">85%</span>
-                    </div>
-                    <Progress value={85} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Community Engagement</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">92%</span>
-                    </div>
-                    <Progress value={92} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Volunteer Satisfaction</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">96%</span>
-                    </div>
-                    <Progress value={96} className="h-2" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* SDG Focus Areas */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="w-5 h-5 text-blue-600" />
-                  SDG Focus Areas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {organization.sdgs && organization.sdgs.length > 0 ? (
-                    organization.sdgs.map((sdg) => (
-                      <Badge 
-                        key={sdg}
-                        variant="outline" 
-                        className="px-3 py-1 text-sm border-blue-200 dark:border-blue-800"
-                      >
-                        <Leaf className="w-3 h-3 mr-1" />
-                        SDG {sdg}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      No SDG focus areas specified
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Events */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-purple-600" />
-                    Recent Events
-                  </CardTitle>
-                  <Link href={`/events?org=${orgId}`}>
-                    <Button variant="ghost" size="sm">
-                      View All
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {organization.recentEvents && organization.recentEvents.length > 0 ? (
-                  <div className="space-y-3">
-                    {organization.recentEvents.map((event) => (
-                      <Link key={event.id} href={`/events/${event.id}`}>
-                        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                          <h4 className="font-medium text-gray-900 dark:text-white mb-1">
-                            {event.title}
-                          </h4>
-                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(event.startDate).toLocaleDateString()}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {typeof event.location === 'string' ? event.location : 'Location TBD'}
-                            </span>
-                          </div>
+                  {/* Organization Information */}
+                  <Card className="border-0 shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Building className="w-5 h-5 text-blue-600" />
+                        Organization Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <h4 className="font-semibold text-gray-900 dark:text-white mb-2">About Us</h4>
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                          {organization.description || 'No description available.'}
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Industry</h4>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {organization.industry || 'Not specified'}
+                          </p>
                         </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
-                    No recent events
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Company Size</h4>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {organization.companySize || 'Not specified'}
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Location</h4>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {organization.city && organization.country 
+                              ? `${organization.city}, ${organization.country}`
+                              : organization.country || 'Not specified'
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Website</h4>
+                          <p className="text-gray-700 dark:text-gray-300">
+                            {organization.website ? (
+                              <a 
+                                href={organization.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                              >
+                                {organization.website}
+                              </a>
+                            ) : 'Not provided'}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* SDG Focus Areas */}
+                  {organization.sdgs && organization.sdgs.length > 0 && (
+                    <Card className="border-0 shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Target className="w-5 h-5 text-green-600" />
+                          Our SDG Focus Areas
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {organization.sdgs.map((sdgId) => {
+                            const sdg = getSDGById(sdgId);
+                            return sdg ? (
+                              <div key={sdgId} className="flex items-center space-x-3 p-3 border rounded-lg bg-white dark:bg-gray-800">
+                                <Image 
+                                  src={sdg.image} 
+                                  alt={`SDG ${sdgId}`} 
+                                  width={32} 
+                                  height={32} 
+                                  className="w-8 h-8"
+                                />
+                                <div>
+                                  <p className="font-medium text-gray-900 dark:text-white text-sm">
+                                    SDG {sdgId}
+                                  </p>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {sdg.title}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
             {/* Team & Leadership */}
             <Card className="border-0 shadow-sm">
@@ -968,73 +931,47 @@ export default function OrganizationProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <Avatar className="w-12 h-12">
-                      <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face" />
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white">John Doe</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Executive Director</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">15 years experience in environmental conservation</p>
-                    </div>
+                {organization.members && organization.members.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {organization.members.slice(0, 6).map((member) => (
+                      <div key={member.userId} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <Avatar className="w-12 h-12">
+                          {member.user?.image ? (
+                            <AvatarImage src={member.user.image} alt={member.user.name || member.user.email} />
+                          ) : (
+                            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold">
+                              {member.user?.name ? member.user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div>
+                          <h4 className="font-medium text-gray-900 dark:text-white">
+                            {member.user?.name || member.user?.email || 'Unknown User'}
+                          </h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
+                            {member.role}
+                          </p>
+                          {member.user?.email && (
+                            <p className="text-xs text-gray-500 dark:text-gray-500">
+                              {member.user.email}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {organization.members.length > 6 && (
+                      <div className="flex items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          +{organization.members.length - 6} more team members
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <Avatar className="w-12 h-12">
-                      <AvatarImage src="https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&h=200&fit=crop&crop=face" />
-                      <AvatarFallback>SM</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white">Sarah Miller</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Program Manager</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500">Expert in community engagement and volunteer coordination</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Transparency & Accountability */}
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-yellow-600" />
-                  Transparency & Accountability
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <div className="text-lg font-bold text-green-600 dark:text-green-400">95%</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Program Spending</div>
-                    </div>
-                    <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div className="text-lg font-bold text-blue-600 dark:text-blue-400">5%</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Administrative</div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                      <div className="text-lg font-bold text-purple-600 dark:text-purple-400">A+</div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Accountability Rating</div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <h5 className="font-medium text-gray-900 dark:text-white">Certifications & Awards</h5>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        ISO 14001 Certified
-                      </Badge>
-                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        Charity Navigator 4-Star
-                      </Badge>
-                      <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                        UN Global Compact
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
+                    No team members found
+                  </p>
+                )}
               </CardContent>
             </Card>
                 </>
@@ -1070,6 +1007,7 @@ export default function OrganizationProfilePage() {
                                 event={{
                                   ...event,
                                   isBookmarked: bookmarks.has(event.id),
+                                  isFavorite: favorites.has(event.id),
                                   currentParticipants: event.participantCount || event.currentParticipants || 0
                                 }} 
                                 onToggleFavorite={toggleFavorite}
@@ -1120,6 +1058,7 @@ export default function OrganizationProfilePage() {
                                 event={{
                                   ...event,
                                   isBookmarked: bookmarks.has(event.id),
+                                  isFavorite: favorites.has(event.id),
                                   currentParticipants: event.participantCount || event.currentParticipants || 0
                                 }} 
                                 onToggleFavorite={toggleFavorite}
@@ -1198,98 +1137,22 @@ export default function OrganizationProfilePage() {
                   <div className="grid gap-4">
                     {organization?.opportunities && organization.opportunities.length > 0 ? (
                       organization.opportunities.map((opportunity) => (
-                        <Card key={opportunity.id} className="hover:shadow-lg transition-shadow">
-                          <CardContent className="p-6">
-                            <Link href={`/opportunities/${opportunity.id}`}>
-                              <div className="cursor-pointer">
-                                <div className="flex items-center justify-between mb-3">
-                                  <div className="flex items-center space-x-3">
-                                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                                      {opportunity.title}
-                                    </h3>
-                                    <Badge className={`px-3 py-1 ${
-                                      opportunity.status === 'OPEN' 
-                                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                                        : opportunity.status === 'CLOSED'
-                                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                                    }`}>
-                                      {opportunity.status}
-                                    </Badge>
-                                    {opportunity.isRemote && (
-                                      <Badge variant="outline" className="px-3 py-1">Remote</Badge>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
-                                  {opportunity.description}
-                                </p>
-                                
-                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                                  <div className="flex items-center space-x-1">
-                                    <MapPin className="w-4 h-4" />
-                                    <span>{opportunity.location}</span>
-                                  </div>
-                                  <div className="flex items-center space-x-1">
-                                    <Users className="w-4 h-4" />
-                                    <span>{opportunity.spotsFilled || 0}/{opportunity.spots || 0} spots filled</span>
-                                  </div>
-                                  {opportunity.deadline && (
-                                    <div className="flex items-center space-x-1">
-                                      <Calendar className="w-4 h-4" />
-                                      <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                {opportunity.requirements && opportunity.requirements.length > 0 && (
-                                  <div className="mb-4">
-                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Requirements:</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {opportunity.requirements.map((req, index) => (
-                                        <Badge key={index} className={`text-xs px-3 py-1 ${getBadgeColor(req, 'requirement')}`}>
-                                          {req}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {opportunity.skills && opportunity.skills.length > 0 && (
-                                  <div className="mb-4">
-                                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Skills:</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {opportunity.skills.map((skill, index) => (
-                                        <Badge key={index} className={`text-xs px-3 py-1 ${getBadgeColor(skill, 'skill')}`}>
-                                          {skill}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {opportunity.sdg && (
-                                  <div className="flex flex-wrap gap-2 mt-4">
-                                    {(() => {
-                                      const sdg = getSDGById(parseInt(opportunity.sdg));
-                                      return sdg ? (
-                                        <Badge
-                                          variant="outline"
-                                          className="text-xs px-3 py-1"
-                                          style={{ borderColor: sdg.color }}
-                                        >
-                                          <Image src={sdg.image} alt="" width={12} height={12} className="w-3 h-3 mr-1" />
-                                          SDG {sdg.id}
-                                        </Badge>
-                                      ) : null;
-                                    })()}
-                                  </div>
-                                )}
-                              </div>
-                            </Link>
-                          </CardContent>
-                        </Card>
+                        <OpportunityCard
+                          key={opportunity.id}
+                          opportunity={{
+                            ...opportunity,
+                            organization: { name: organization.name },
+                            stats: {
+                              totalApplications: opportunity.stats?.totalApplications || 0,
+                              spotsRemaining: opportunity.stats?.spotsRemaining || (opportunity.spots - opportunity.spotsFilled)
+                            }
+                          }}
+                          isBookmarked={bookmarkedOpportunities.includes(opportunity.id)}
+                          isApplied={appliedOpportunities.includes(opportunity.id)}
+                          isApplying={isApplying === opportunity.id}
+                          onBookmark={handleBookmark}
+                          onApply={handleApply}
+                        />
                       ))
                     ) : (
                       <Card className="border-0 shadow-sm">
@@ -1306,6 +1169,10 @@ export default function OrganizationProfilePage() {
                     )}
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'followers' && (
+                <FollowersList organizationId={orgId} />
               )}
               
               {activeTab === 'impact' && (
@@ -1368,70 +1235,92 @@ export default function OrganizationProfilePage() {
                     </CardContent>
                   </Card>
 
-                  {/* Impact Metrics Dashboard */}
+                  {/* ESG Impact Dashboard */}
                   <Card className="border-0 shadow-sm">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-purple-600" />
-                        Impact Metrics Dashboard
+                        ESG Impact Dashboard
                       </CardTitle>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Environmental, Social, and Governance metrics based on actual organization activities
+                      </p>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-6">
-                        {/* Progress Bars */}
+                        {/* ESG Progress Bars */}
                         <div className="space-y-4">
                           <div>
                             <div className="flex justify-between items-center mb-2">
                               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Environmental Impact</span>
-                              <span className="text-sm text-gray-600 dark:text-gray-400">85%</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {organization.esgData?.environmental?.total?.toFixed(1) || '0'}%
+                              </span>
                             </div>
-                            <Progress value={85} className="h-3" />
+                            <Progress 
+                              value={organization.esgData?.environmental?.total || 0} 
+                              className="h-3" 
+                            />
                             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                              Carbon footprint reduction and environmental conservation efforts
+                              Based on SDG 6, 7, 11, 12, 13, 14, 15 activities and environmental initiatives
                             </p>
                           </div>
                           
                           <div>
                             <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Community Engagement</span>
-                              <span className="text-sm text-gray-600 dark:text-gray-400">92%</span>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Social Impact</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {organization.esgData?.social?.total?.toFixed(1) || '0'}%
+                              </span>
                             </div>
-                            <Progress value={92} className="h-3" />
+                            <Progress 
+                              value={organization.esgData?.social?.total || 0} 
+                              className="h-3" 
+                            />
                             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                              Local community involvement and social impact
+                              Based on SDG 1, 2, 3, 4, 5, 8, 10 activities and community engagement
                             </p>
                           </div>
                           
                           <div>
                             <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Volunteer Satisfaction</span>
-                              <span className="text-sm text-gray-600 dark:text-gray-400">96%</span>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Governance Impact</span>
+                              <span className="text-sm text-gray-600 dark:text-gray-400">
+                                {organization.esgData?.governance?.total?.toFixed(1) || '0'}%
+                              </span>
                             </div>
-                            <Progress value={96} className="h-3" />
+                            <Progress 
+                              value={organization.esgData?.governance?.total || 0} 
+                              className="h-3" 
+                            />
                             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                              Volunteer experience and retention rates
-                            </p>
-                          </div>
-                          
-                          <div>
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Program Effectiveness</span>
-                              <span className="text-sm text-gray-600 dark:text-gray-400">88%</span>
-                            </div>
-                            <Progress value={88} className="h-3" />
-                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                              Measurable outcomes and goal achievement
+                              Based on SDG 16, 17 activities and organizational transparency
                             </p>
                           </div>
                         </div>
 
-                        {/* Key Performance Indicators */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        {/* Overall ESG Score */}
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="text-center p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl">
+                            <div className="text-4xl font-bold text-purple-600 dark:text-purple-400 mb-2">
+                              {organization.esgData?.overall?.toFixed(1) || '0'}
+                            </div>
+                            <div className="text-lg font-medium text-purple-700 dark:text-purple-300 mb-1">
+                              Overall ESG Score
+                            </div>
+                            <div className="text-sm text-purple-600 dark:text-purple-400">
+                              Calculated from Environmental (40%), Social (35%), and Governance (25%) metrics
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Real Performance Indicators */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
                           <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                              {Math.floor((organization.impactScore || 0) / 100)}
+                              {organization.totalHours?.toLocaleString() || '0'}
                             </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">Lives Impacted</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">Volunteer Hours</div>
                           </div>
                           <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -1441,166 +1330,21 @@ export default function OrganizationProfilePage() {
                           </div>
                           <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                              {Math.floor((organization.totalHours || 0) / 10)}
+                              {organization.memberCount || '0'}
                             </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">Communities Served</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">Active Members</div>
                           </div>
                           <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                             <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                              {Math.floor((organization.impactScore || 0) / 50)}
+                              {organization.followerCount || '0'}
                             </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">Projects Completed</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">Followers</div>
                           </div>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Impact Stories */}
-                  <Card className="border-0 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Heart className="w-5 h-5 text-red-600" />
-                        Impact Stories
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-6">
-                        <div className="p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200 dark:border-green-800">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
-                              <Leaf className="w-6 h-6 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                                Environmental Conservation Success
-                              </h4>
-                              <p className="text-gray-700 dark:text-gray-300 mb-3">
-                                Through our beach cleanup initiatives, we&apos;ve successfully removed over 2 tons of plastic waste from local coastlines, 
-                                protecting marine life and improving water quality for future generations.
-                              </p>
-                              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" />
-                                  150+ volunteers
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-4 h-4" />
-                                  600+ hours
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Target className="w-4 h-4" />
-                                  SDG 14, 6
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-6 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center flex-shrink-0">
-                              <Users className="w-6 h-6 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                                Community Education Impact
-                              </h4>
-                              <p className="text-gray-700 dark:text-gray-300 mb-3">
-                                Our digital literacy workshops have empowered 500+ community members with essential technology skills, 
-                                opening new opportunities for employment and personal growth.
-                              </p>
-                              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" />
-                                  500+ participants
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-4 h-4" />
-                                  1,200+ hours
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Target className="w-4 h-4" />
-                                  SDG 4, 8
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-6 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
-                          <div className="flex items-start gap-4">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center flex-shrink-0">
-                              <Heart className="w-6 h-6 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                                Health & Wellness Initiative
-                              </h4>
-                              <p className="text-gray-700 dark:text-gray-300 mb-3">
-                                Our mental health awareness programs have reached over 1,000 individuals, providing crucial support and resources 
-                                to improve community wellbeing and reduce stigma around mental health.
-                              </p>
-                              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                <span className="flex items-center gap-1">
-                                  <Users className="w-4 h-4" />
-                                  1,000+ reached
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-4 h-4" />
-                                  800+ hours
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Target className="w-4 h-4" />
-                                  SDG 3, 10
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* SDG Impact Alignment */}
-                  <Card className="border-0 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="w-5 h-5 text-blue-600" />
-                        SDG Impact Alignment
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {organization.sdgs && organization.sdgs.length > 0 ? (
-                          organization.sdgs.map((sdg) => (
-                            <div key={sdg} className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                                  <Target className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-gray-900 dark:text-white">
-                                    SDG {sdg}
-                                  </div>
-                                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                                    {getSDGDescription(sdg)}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="col-span-full text-center py-8">
-                            <Target className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              No SDG focus areas specified
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
               )}
             </div>

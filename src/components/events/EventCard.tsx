@@ -94,6 +94,7 @@ interface Event {
   trending?: boolean;
   featured?: boolean;
   isBookmarked?: boolean;
+  isFavorite?: boolean;
   isAttending?: boolean;
   distance?: number;
   sdgTags?: number[];
@@ -209,12 +210,12 @@ export const EventCard = ({
                   e.stopPropagation();
                   onToggleBookmark(event.id);
                 }}
-                className="ml-2 mt-1 flex-shrink-0 group transition-colors duration-200"
+                className="ml-2 mt-1 flex-shrink-0 transition-all duration-200 hover:scale-110"
               >
-                <Heart className={`w-4 h-4 transition-colors ${
+                <Heart className={`w-4 h-4 transition-all duration-200 ${
                   event.isBookmarked 
                     ? 'fill-red-500 text-red-500' 
-                    : 'text-gray-400 group-hover:text-red-500 group-hover:fill-red-500'
+                    : 'text-gray-400 hover:text-red-500 hover:fill-red-500'
                 }`} />
               </button>
             )}
@@ -236,9 +237,9 @@ export const EventCard = ({
                   <Building2 className="w-3 h-3 text-white" />
                 </div>
               )}
-              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+              <Link href={`/organizations/${event.organization.id}`} className="text-sm text-gray-600 dark:text-gray-400 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
                 {event.organization.name}
-              </span>
+              </Link>
             </div>
           )}
           

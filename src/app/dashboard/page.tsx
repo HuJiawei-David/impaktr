@@ -152,6 +152,7 @@ export default function DashboardPage() {
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
+  const [showAllSDGs, setShowAllSDGs] = useState(false);
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) return;
@@ -370,49 +371,114 @@ export default function DashboardPage() {
               </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {profileData.user.profile.sdgFocus.map((sdgId: number) => {
-                  const sdg = getSDGById(sdgId);
-                  if (!sdg) return null;
-                  
-                  return (
-                    <div
-                      key={sdgId}
-                      className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800"
-                      style={{ borderColor: sdg.color }}
+              <div className="space-y-4">
+                {/* First Row - Always Visible */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {profileData.user.profile.sdgFocus.slice(0, 4).map((sdgId: number) => {
+                    const sdg = getSDGById(sdgId);
+                    if (!sdg) return null;
+                    
+                    return (
+                      <div
+                        key={sdgId}
+                        className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800"
+                        style={{ borderColor: sdg.color }}
+                      >
+                        <div className="w-12 h-12 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                          <Image 
+                            src={sdg.image} 
+                            alt={`SDG ${sdg.id}: ${sdg.title}`}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              if (target.parentElement) {
+                                target.parentElement.style.backgroundColor = sdg.color;
+                                target.parentElement.innerHTML = `
+                                  <div class="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                                    ${sdg.id}
+                                  </div>
+                                `;
+                              }
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                            SDG {sdg.id}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {sdg.title}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Additional SDGs - Collapsible */}
+                {profileData.user.profile.sdgFocus.length > 4 && (
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowAllSDGs(!showAllSDGs)}
+                      className="flex items-center justify-center w-full py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
                     >
-                      <div className="w-12 h-12 rounded-lg overflow-hidden shadow-md flex-shrink-0">
-                        <Image 
-                          src={sdg.image} 
-                          alt={`SDG ${sdg.id}: ${sdg.title}`}
-                          width={48}
-                          height={48}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            if (target.parentElement) {
-                              target.parentElement.style.backgroundColor = sdg.color;
-                              target.parentElement.innerHTML = `
-                                <div class="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                                  ${sdg.id}
-                                </div>
-                              `;
-                            }
-                          }}
-                        />
+                      <span className="mr-2">
+                        {showAllSDGs ? 'Show Less' : `Show ${profileData.user.profile.sdgFocus.length - 4} More`}
+                      </span>
+                      <ChevronRight className={`w-4 h-4 transition-transform ${showAllSDGs ? 'rotate-90' : ''}`} />
+                    </button>
+                    
+                    {showAllSDGs && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-in slide-in-from-top-2 duration-200">
+                        {profileData.user.profile.sdgFocus.slice(4).map((sdgId: number) => {
+                          const sdg = getSDGById(sdgId);
+                          if (!sdg) return null;
+                          
+                          return (
+                            <div
+                              key={sdgId}
+                              className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800"
+                              style={{ borderColor: sdg.color }}
+                            >
+                              <div className="w-12 h-12 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                                <Image 
+                                  src={sdg.image} 
+                                  alt={`SDG ${sdg.id}: ${sdg.title}`}
+                                  width={48}
+                                  height={48}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    if (target.parentElement) {
+                                      target.parentElement.style.backgroundColor = sdg.color;
+                                      target.parentElement.innerHTML = `
+                                        <div class="w-full h-full flex items-center justify-center text-white font-bold text-lg">
+                                          ${sdg.id}
+                                        </div>
+                                      `;
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-sm text-gray-900 dark:text-white">
+                                  SDG {sdg.id}
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {sdg.title}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div>
-                        <p className="font-semibold text-sm text-gray-900 dark:text-white">
-                          SDG {sdg.id}
-                        </p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {sdg.title}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -487,46 +553,6 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Quick Actions */}
-            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardContent className="p-4">
-                <div className="flex items-center mb-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
-                    <Zap className="w-4 h-4 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">Quick Actions</h3>
-                </div>
-                <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
-                    onClick={() => router.push('/events')}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Find Events
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
-                    onClick={() => router.push('/profile/badges')}
-                  >
-                    <Award className="w-4 h-4 mr-2" />
-                    View Badges
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
-                    onClick={() => router.push('/leaderboards')}
-                  >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Leaderboard
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Badge Progress */}
             <BadgeProgress />
@@ -588,7 +614,9 @@ export default function DashboardPage() {
                         </Avatar>
                         <div>
                           <p className="font-semibold text-gray-900 dark:text-white">{user?.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Individual</p>
+                          <Badge className="text-xs px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            Supporter
+                          </Badge>
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => { setShowCreatePost(false); setNewPostContent(''); }}>
@@ -633,8 +661,10 @@ export default function DashboardPage() {
             <UpcomingEventsWidget />
 
             {/* Impact Summary */}
-            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardHeader className="pb-3">
+            <Card className="relative overflow-hidden border-0 shadow-sm bg-white dark:bg-gray-800">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-purple-500/5" />
+              
+              <CardHeader className="relative pb-3">
                 <CardTitle className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
                     <TrendingUp className="w-4 h-4 text-white" />
@@ -642,12 +672,18 @@ export default function DashboardPage() {
                   Impact Summary
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
-                    <span className="text-gray-500 dark:text-gray-400">Global Rank</span>
-                    <span className="font-medium text-gray-900 dark:text-white">#2,847</span>
+              
+              <CardContent className="relative p-4 pt-0 space-y-4">
+                {/* Global Rank - Prominent Display */}
+                <div className="text-center">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+                    #2,847
                   </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Global Rank</div>
+                </div>
+
+                {/* Additional Stats */}
+                <div className="space-y-2">
                   <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
                     <span className="text-gray-500 dark:text-gray-400">Country Rank</span>
                     <span className="font-medium text-gray-900 dark:text-white">#284</span>
@@ -658,6 +694,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 
+                {/* Progress Section */}
                 <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
                   <div className="flex justify-between items-center text-xs mb-1">
                     <span className="text-gray-500 dark:text-gray-400">Progress to Builder</span>
@@ -696,6 +733,47 @@ export default function DashboardPage() {
                 </div>
                 <div className="bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
                   <p className="text-xs text-gray-600 dark:text-gray-400">15 new connections this week</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+              <CardContent className="p-4">
+                <div className="flex items-center mb-3">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
+                    <Zap className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Quick Actions</h3>
+                </div>
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+                    onClick={() => router.push('/events')}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Find Events
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+                    onClick={() => router.push('/profile/badges')}
+                  >
+                    <Award className="w-4 h-4 mr-2" />
+                    View Badges
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+                    onClick={() => router.push('/leaderboards')}
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Leaderboard
+                  </Button>
                 </div>
               </CardContent>
             </Card>

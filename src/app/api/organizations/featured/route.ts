@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
           select: {
             members: true,
             events: true,
-            posts: true
+            posts: true,
+            followers: true
           }
         }
       },
@@ -72,7 +73,8 @@ export async function GET(request: NextRequest) {
         isFollowing: session?.user?.id ? org.followers.length > 0 : false,
         logo: org.logo,
         impactScore: Math.round(org.esgScore || 0),
-        location: location || 'Global'
+        location: location || 'Global',
+        followerCount: org._count.followers
       };
     });
 

@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
+import Image from 'next/image';
 import { CalendarDays, Upload, MapPin, Languages, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,7 +39,7 @@ interface IndividualRegistrationData {
 
 interface IndividualRegistrationFormProps {
   isStepMode?: boolean;
-  onDataChange?: (data: any) => void;
+  onDataChange?: (data: Partial<IndividualRegistrationData>) => void;
   validationErrors?: string[];
 }
 
@@ -120,7 +121,7 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
     if (isStepMode && onDataChange) {
       // Use a subscription to watch form changes instead of watching the entire object
       const subscription = watch((value) => {
-        onDataChange(value);
+        onDataChange(value as Partial<IndividualRegistrationData>);
       });
       return () => subscription.unsubscribe();
     }
@@ -428,11 +429,11 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                     <Badge
                       key={language}
                       variant="secondary"
-                      className="cursor-pointer px-4 py-2 text-sm font-semibold bg-gradient-to-r from-blue-100 to-indigo-100 dark:!bg-gray-700 text-blue-900 dark:!text-white hover:from-blue-200 hover:to-indigo-200 dark:hover:!bg-gray-600 border-2 border-blue-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-gray-500 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105"
+                      className="cursor-pointer px-3 py-1 text-sm bg-blue-100 dark:bg-gray-700 text-blue-900 dark:text-white hover:bg-blue-200 dark:hover:bg-gray-600 transition-colors"
                       onClick={() => handleLanguageRemove(language)}
                     >
                       <span className="mr-2">{language}</span>
-                      <span className="text-blue-600 dark:!text-white font-bold text-base">×</span>
+                      <span className="text-blue-600 dark:text-white font-bold">×</span>
                     </Badge>
                   ))}
                 </div>
@@ -447,23 +448,28 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                 <Upload className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
                 Profile Picture
               </CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                Add a professional photo to help others recognize you. This will be visible on your public profile.
+              </p>
             </CardHeader>
             <CardContent>
-              <div className="grid md:grid-cols-2 gap-8 items-center">
-                {/* Left: Large Preview */}
+              <div className="space-y-6">
+                {/* Preview Section */}
                 <div className="flex justify-center">
                   <div className="relative group">
-                    <div className="w-48 h-48 rounded-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center border-4 border-blue-200 dark:border-blue-700 shadow-2xl overflow-hidden transition-all duration-300 hover:shadow-blue-300 dark:hover:shadow-blue-900 hover:scale-105 hover:border-blue-400 dark:hover:border-blue-500">
+                    <div className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 overflow-hidden transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500">
                       {profilePicture ? (
-                        <img
+                        <Image
                           src={URL.createObjectURL(profilePicture)}
                           alt="Profile preview"
+                          width={128}
+                          height={128}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className="flex flex-col items-center text-gray-400 dark:text-gray-500">
-                          <Upload className="w-16 h-16 mb-3" />
-                          <span className="text-base font-medium">Upload Photo</span>
+                          <Upload className="w-8 h-8 mb-2" />
+                          <span className="text-sm font-medium">No photo</span>
                         </div>
                       )}
                     </div>
@@ -471,35 +477,32 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                       <button
                         type="button"
                         onClick={() => setProfilePicture(null)}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-2.5 shadow-xl transition-all duration-200 hover:scale-110 ring-4 ring-white dark:ring-gray-800"
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-lg transition-all duration-200 hover:scale-110"
                         title="Remove photo"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Right: Upload Area */}
+                {/* Upload Area */}
                 <div className="space-y-4">
                   <label 
                     htmlFor="profile-picture-upload" 
-                    className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl cursor-pointer bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/20 dark:hover:to-indigo-900/20 transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-lg group"
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer bg-gray-50 dark:bg-gray-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 group"
                   >
-                    <div className="flex flex-col items-center justify-center p-6 text-center">
-                      <div className="w-16 h-16 mb-4 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800/60 transition-colors">
-                        <Upload className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                    <div className="flex flex-col items-center justify-center p-4 text-center">
+                      <div className="w-10 h-10 mb-3 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800/60 transition-colors">
+                        <Upload className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                       </div>
-                      <p className="mb-2 text-base font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        Click to upload
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        Choose a photo
                       </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        or drag and drop
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2 px-4">
-                        JPG, PNG or WebP (max. 5MB)
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        or drag and drop here
                       </p>
                     </div>
                     <Input
@@ -520,25 +523,38 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                     />
                   </label>
                   
+                  {/* File Info */}
                   {profilePicture && (
-                    <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-800 rounded-xl p-4 shadow-sm">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
                       <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
-                          <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                             {profilePicture.name}
                           </p>
-                          <p className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                          <p className="text-xs text-green-600 dark:text-green-400">
                             {(profilePicture.size / 1024 / 1024).toFixed(2)} MB • Ready to upload
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
+
+                  {/* Guidelines */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">Photo Guidelines</h4>
+                    <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                      <li>• Use a clear, professional headshot</li>
+                      <li>• Supported formats: JPG, PNG, WebP</li>
+                      <li>• Maximum file size: 5MB</li>
+                      <li>• Recommended size: 400x400 pixels or larger</li>
+                      <li>• Make sure your face is clearly visible</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </CardContent>

@@ -115,6 +115,12 @@ function EventsPageContent() {
   
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
+  const [tabCounts, setTabCounts] = useState({
+    nearYou: 0,
+    forYou: 0,
+    favorites: 0,
+    attending: 0
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('near-you');
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
@@ -311,6 +317,7 @@ function EventsPageContent() {
       
       setEvents(transformedEvents);
       filterEventsByTab(transformedEvents, activeTab);
+      calculateTabCounts(transformedEvents);
     } catch (error) {
       console.error('Error fetching events:', error);
       console.error('Error details:', error);
@@ -382,6 +389,35 @@ function EventsPageContent() {
     }
 
     setFilteredEvents(filtered);
+  };
+
+  const calculateTabCounts = (eventList: Event[]) => {
+    const now = new Date();
+    
+    // Near You count
+    const nearYouCount = eventList.filter(event => {
+      if (event.location.isVirtual) return filters.showVirtual;
+      if (event.distance !== undefined) {
+        return event.distance <= (filters.maxDistance || 50);
+      }
+      return true;
+    }).length;
+
+    // For You count (recommendations) - will be from API
+    const forYouCount = eventList.length;
+
+    // Favorites count
+    const favoritesCount = eventList.filter(event => event.isBookmarked).length;
+
+    // Attending count
+    const attendingCount = eventList.filter(event => event.isAttending).length;
+
+    setTabCounts({
+      nearYou: nearYouCount,
+      forYou: forYouCount,
+      favorites: favoritesCount,
+      attending: attendingCount
+    });
   };
 
   const handleFilterChange = (newFilters: Partial<EventFilters>) => {
@@ -673,7 +709,7 @@ function EventsPageContent() {
                 }`}
               >
                 <MapPin className="w-4 h-4 mr-2" />
-                Near You
+                Near You ({tabCounts.nearYou})
               </button>
               <button
                 onClick={() => handleTabChange('for-you')}
@@ -684,7 +720,7 @@ function EventsPageContent() {
                 }`}
               >
                 <Target className="w-4 h-4 mr-2" />
-                For You
+                For You ({tabCounts.forYou})
               </button>
               <button
                 onClick={() => handleTabChange('latest')}
@@ -741,7 +777,7 @@ function EventsPageContent() {
                     }`}
                   >
                     <Heart className="w-4 h-4 mr-2" />
-                    Favorites
+                    Favorites ({tabCounts.favorites})
                   </button>
                 </>
               )}

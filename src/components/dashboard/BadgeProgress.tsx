@@ -4,54 +4,95 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Award, TrendingUp, Target, ChevronRight, Star, Trophy, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { getSDGColor, getSDGName } from '@/lib/utils';
+import { getSDGById } from '@/constants/sdgs';
+import { 
+  INDIVIDUAL_RANK_BADGES, 
+  SDG_BADGE_CONFIGS,
+  getIndividualSDGBadgeName,
+  getSDGBadgeRequirements,
+  getSDGBadgeImage,
+  getRankBadgeImage
+} from '@/lib/badge-config';
+import { IndividualRank, BadgeTier } from '@prisma/client';
 
-interface BadgeProgressItem {
-  id: string;
-  sdgNumber: number;
-  tier: string;
-  name: string;
-  description: string;
-  progress: number;
-  earned: boolean;
-  earnedAt?: string;
-  requirements: {
-    minHours: number;
-    minActivities: number;
-    minQuality?: number;
+// Real badge system interfaces matching the API
+interface RankProgress {
+  currentRank: {
+    rank: IndividualRank;
+    name: string;
+    icon: string;
   };
-  userStats: {
-    currentHours: number;
-    currentActivities: number;
-    avgQuality: number;
-  };
-  nextTier?: {
+  nextRank: {
+    rank: IndividualRank;
     name: string;
     requirements: {
+      minScore: number;
       minHours: number;
-      minActivities: number;
-      minQuality?: number;
+      minBadges: number;
     };
+    progress: {
+      score: number;
+      hours: number;
+      badges: number;
+    };
+  } | null;
+  currentProgress: {
+    score: number;
+    hours: number;
+    badges: number;
   };
 }
 
+interface SDGBadgeProgress {
+  sdgNumber: number;
+  sdgName: string;
+  icon: string;
+  color: string;
+  tiers: Array<{
+    tier: BadgeTier;
+    name: string;
+    description: string;
+    requirements: {
+      minHours: number;
+      minActivities: number;
+    };
+    progress: {
+      hours: number;
+      activities: number;
+      percentage: number;
+    };
+    earned: boolean;
+  }>;
+}
+
 interface BadgeProgressData {
-  recentlyEarned: BadgeProgressItem[];
-  inProgress: BadgeProgressItem[];
-  available: BadgeProgressItem[];
-  totalBadges: number;
-  earnedBadges: number;
+  rankProgress: RankProgress;
+  sdgBadges: SDGBadgeProgress[];
+  stats: {
+    recentlyEarned: Array<{
+      name: string;
+      earnedAt: Date;
+      icon: string;
+    }>;
+    closeToEarning: Array<{
+      sdgNumber: number;
+      sdgName: string;
+      tierName: string;
+      progress: number;
+    }>;
+  };
 }
 
 export function BadgeProgress() {
   const [badgeData, setBadgeData] = useState<BadgeProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('progress');
 
   useEffect(() => {
     fetchBadgeProgress();
@@ -63,104 +104,179 @@ export function BadgeProgress() {
       // const response = await fetch('/api/users/badges/progress');
       // const data = await response.json();
       
-      // Mock data for demonstration
-      const mockData: BadgeProgressData = {
-        totalBadges: 68, // 17 SDGs x 4 tiers
-        earnedBadges: 12,
-        recentlyEarned: [
+  // Mock data matching the real API structure
+  const mockData: BadgeProgressData = {
+    rankProgress: {
+      currentRank: {
+        rank: IndividualRank.SUPPORTER,
+        name: 'Supporter',
+        icon: 'heart'
+      },
+      nextRank: {
+        rank: IndividualRank.CONTRIBUTOR,
+        name: 'Contributor',
+        requirements: {
+          minScore: 100,
+          minHours: 25,
+          minBadges: 3
+        },
+        progress: {
+          score: 75,
+          hours: 80,
+          badges: 67
+        }
+      },
+      currentProgress: {
+        score: 75,
+        hours: 20,
+        badges: 2
+      }
+    },
+    sdgBadges: [
+      {
+        sdgNumber: 1,
+        sdgName: 'No Poverty',
+        icon: 'coins',
+        color: 'from-red-600 to-red-700',
+        tiers: [
           {
-            id: '1',
-            sdgNumber: 13,
-            tier: 'SUPPORTER',
-            name: 'Climate Action Supporter',
-            description: 'Starting your journey in Climate Action',
-            progress: 100,
-            earned: true,
-            earnedAt: '2024-01-15T10:30:00Z',
-            requirements: { minHours: 5, minActivities: 1 },
-            userStats: { currentHours: 8, currentActivities: 2, avgQuality: 0.9 },
-            nextTier: {
-              name: 'Climate Action Builder',
-              requirements: { minHours: 25, minActivities: 3, minQuality: 0.7 }
-            }
+            tier: BadgeTier.SUPPORTER,
+            name: 'Supporter',
+            description: 'Supporting poverty alleviation efforts',
+            requirements: { minHours: 10, minActivities: 2 },
+            progress: { hours: 8, activities: 2, percentage: 100 },
+            earned: true
           },
           {
-            id: '2',
-            sdgNumber: 4,
-            tier: 'BUILDER',
-            name: 'Quality Education Builder',
-            description: 'Building impact in Quality Education',
-            progress: 100,
-            earned: true,
-            earnedAt: '2024-01-10T14:20:00Z',
-            requirements: { minHours: 25, minActivities: 3, minQuality: 0.7 },
-            userStats: { currentHours: 32, currentActivities: 4, avgQuality: 0.85 }
-          }
-        ],
-        inProgress: [
-          {
-            id: '3',
-            sdgNumber: 1,
-            tier: 'SUPPORTER',
-            name: 'No Poverty Supporter',
-            description: 'Starting your journey in fighting poverty',
-            progress: 75,
-            earned: false,
-            requirements: { minHours: 5, minActivities: 1 },
-            userStats: { currentHours: 3.5, currentActivities: 1, avgQuality: 0.8 },
-            nextTier: {
-              name: 'No Poverty Builder',
-              requirements: { minHours: 25, minActivities: 3, minQuality: 0.7 }
-            }
+            tier: BadgeTier.BUILDER,
+            name: 'Advocate',
+            description: 'Advocating for poverty elimination',
+            requirements: { minHours: 50, minActivities: 8 },
+            progress: { hours: 8, activities: 2, percentage: 16 },
+            earned: false
           },
           {
-            id: '4',
-            sdgNumber: 13,
-            tier: 'BUILDER',
-            name: 'Climate Action Builder',
-            description: 'Building significant impact in Climate Action',
-            progress: 45,
-            earned: false,
-            requirements: { minHours: 25, minActivities: 3, minQuality: 0.7 },
-            userStats: { currentHours: 12, currentActivities: 2, avgQuality: 0.9 }
+            tier: BadgeTier.CHAMPION,
+            name: 'Builder',
+            description: 'Building sustainable poverty solutions',
+            requirements: { minHours: 150, minActivities: 20 },
+            progress: { hours: 8, activities: 2, percentage: 5 },
+            earned: false
           },
           {
-            id: '5',
-            sdgNumber: 3,
-            tier: 'SUPPORTER',
-            name: 'Good Health Supporter',
-            description: 'Starting your journey in health and well-being',
-            progress: 30,
-            earned: false,
-            requirements: { minHours: 5, minActivities: 1 },
-            userStats: { currentHours: 1.5, currentActivities: 1, avgQuality: 0.7 }
-          }
-        ],
-        available: [
-          {
-            id: '6',
-            sdgNumber: 2,
-            tier: 'SUPPORTER',
-            name: 'Zero Hunger Supporter',
-            description: 'Start fighting hunger in your community',
-            progress: 0,
-            earned: false,
-            requirements: { minHours: 5, minActivities: 1 },
-            userStats: { currentHours: 0, currentActivities: 0, avgQuality: 0 }
-          },
-          {
-            id: '7',
-            sdgNumber: 5,
-            tier: 'SUPPORTER',
-            name: 'Gender Equality Supporter',
-            description: 'Begin promoting gender equality',
-            progress: 0,
-            earned: false,
-            requirements: { minHours: 5, minActivities: 1 },
-            userStats: { currentHours: 0, currentActivities: 0, avgQuality: 0 }
+            tier: BadgeTier.GUARDIAN,
+            name: 'Poverty Fighter',
+            description: 'Fighting poverty with exceptional dedication',
+            requirements: { minHours: 400, minActivities: 50 },
+            progress: { hours: 8, activities: 2, percentage: 2 },
+            earned: false
           }
         ]
-      };
+      },
+      {
+        sdgNumber: 4,
+        sdgName: 'Quality Education',
+        icon: 'graduation-cap',
+        color: 'from-red-700 to-red-800',
+        tiers: [
+          {
+            tier: BadgeTier.SUPPORTER,
+            name: 'Tutor',
+            description: 'Tutoring and mentoring learners',
+            requirements: { minHours: 10, minActivities: 2 },
+            progress: { hours: 12, activities: 3, percentage: 100 },
+            earned: true
+          },
+          {
+            tier: BadgeTier.BUILDER,
+            name: 'Mentor',
+            description: 'Mentoring future leaders',
+            requirements: { minHours: 50, minActivities: 8 },
+            progress: { hours: 12, activities: 3, percentage: 24 },
+            earned: false
+          },
+          {
+            tier: BadgeTier.CHAMPION,
+            name: 'Knowledge Builder',
+            description: 'Building knowledge ecosystems',
+            requirements: { minHours: 150, minActivities: 20 },
+            progress: { hours: 12, activities: 3, percentage: 8 },
+            earned: false
+          },
+          {
+            tier: BadgeTier.GUARDIAN,
+            name: 'Education Leader',
+            description: 'Leading educational transformation',
+            requirements: { minHours: 400, minActivities: 50 },
+            progress: { hours: 12, activities: 3, percentage: 3 },
+            earned: false
+          }
+        ]
+      },
+      {
+        sdgNumber: 13,
+        sdgName: 'Climate Action',
+        icon: 'thermometer',
+        color: 'from-green-700 to-green-800',
+        tiers: [
+          {
+            tier: BadgeTier.SUPPORTER,
+            name: 'Climate Ally',
+            description: 'Supporting climate action',
+            requirements: { minHours: 10, minActivities: 2 },
+            progress: { hours: 5, activities: 1, percentage: 50 },
+            earned: false
+          },
+          {
+            tier: BadgeTier.BUILDER,
+            name: 'Climate Builder',
+            description: 'Building climate solutions',
+            requirements: { minHours: 50, minActivities: 8 },
+            progress: { hours: 5, activities: 1, percentage: 10 },
+            earned: false
+          },
+          {
+            tier: BadgeTier.CHAMPION,
+            name: 'Climate Champion',
+            description: 'Championing climate action',
+            requirements: { minHours: 150, minActivities: 20 },
+            progress: { hours: 5, activities: 1, percentage: 3 },
+            earned: false
+          },
+          {
+            tier: BadgeTier.GUARDIAN,
+            name: 'Climate Guardian',
+            description: 'Protecting our climate',
+            requirements: { minHours: 400, minActivities: 50 },
+            progress: { hours: 5, activities: 1, percentage: 1 },
+            earned: false
+          }
+        ]
+      }
+    ],
+    stats: {
+      recentlyEarned: [
+        {
+          name: 'No Poverty Supporter',
+          earnedAt: new Date('2024-01-15'),
+          icon: 'coins'
+        },
+        {
+          name: 'Quality Education Tutor',
+          earnedAt: new Date('2024-01-10'),
+          icon: 'graduation-cap'
+        }
+      ],
+      closeToEarning: [
+        {
+          sdgNumber: 13,
+          sdgName: 'Climate Action',
+          tierName: 'Climate Ally',
+          progress: 50
+        }
+      ]
+    }
+  };
       
       setBadgeData(mockData);
     } catch (error) {
@@ -170,93 +286,145 @@ export function BadgeProgress() {
     }
   };
 
-  const getBadgeIcon = (tier: string) => {
+  const getTierBadgeColor = (tier: BadgeTier) => {
     switch (tier) {
-      case 'SUPPORTER': return '🌱';
-      case 'BUILDER': return '🔨';
-      case 'CHAMPION': return '🏆';
-      case 'GUARDIAN': return '🛡️';
+      case BadgeTier.SUPPORTER:
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case BadgeTier.BUILDER:
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case BadgeTier.CHAMPION:
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case BadgeTier.GUARDIAN:
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+    }
+  };
+
+  const getTierIcon = (tier: BadgeTier) => {
+    switch (tier) {
+      case BadgeTier.SUPPORTER: return '🌱';
+      case BadgeTier.BUILDER: return '🔨';
+      case BadgeTier.CHAMPION: return '🏆';
+      case BadgeTier.GUARDIAN: return '🛡️';
       default: return '⭐';
     }
   };
 
-  const getProgressColor = (progress: number) => {
-    if (progress >= 100) return 'text-green-600';
-    if (progress >= 75) return 'text-blue-600';
-    if (progress >= 50) return 'text-yellow-600';
-    return 'text-gray-600';
+  const getRankIcon = (rank: IndividualRank) => {
+    switch (rank) {
+      case IndividualRank.HELPER: return 'hand-helping';
+      case IndividualRank.SUPPORTER: return 'heart';
+      case IndividualRank.CONTRIBUTOR: return 'users';
+      case IndividualRank.BUILDER: return 'hammer';
+      case IndividualRank.ADVOCATE: return 'megaphone';
+      case IndividualRank.CHANGEMAKER: return 'sparkles';
+      case IndividualRank.MENTOR: return 'user-graduate';
+      case IndividualRank.LEADER: return 'crown';
+      case IndividualRank.AMBASSADOR: return 'globe';
+      case IndividualRank.GLOBAL_CITIZEN: return 'earth';
+      default: return 'award';
+    }
   };
 
-  const renderBadgeCard = (badge: BadgeProgressItem, showProgress = true) => {
-    const hoursNeeded = badge.requirements.minHours - badge.userStats.currentHours;
-    const activitiesNeeded = badge.requirements.minActivities - badge.userStats.currentActivities;
+  const renderSDGBadgeCard = (sdgBadge: SDGBadgeProgress) => {
+    const sdgInfo = getSDGById(sdgBadge.sdgNumber);
+    const earnedTiers = sdgBadge.tiers.filter(tier => tier.earned);
+    const currentTier = earnedTiers.length > 0 ? earnedTiers[earnedTiers.length - 1] : null;
+    const nextTier = sdgBadge.tiers.find(tier => !tier.earned);
     
     return (
-      <Card key={badge.id} className="hover:shadow-md transition-shadow">
+      <Card key={sdgBadge.sdgNumber} className="hover:shadow-md transition-shadow bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
         <CardContent className="p-4">
           <div className="space-y-3">
-            {/* SDG Badge and Name - Top */}
+            {/* SDG Badge Image and Name */}
             <div className="flex items-center gap-3">
-              <div
-                className="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-white flex-shrink-0"
-                style={{ backgroundColor: getSDGColor(badge.sdgNumber) }}
-              >
-                <div className="text-xs font-bold">SDG</div>
-                <div className="text-sm font-bold leading-none">{badge.sdgNumber}</div>
+              <div className="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden">
+                {currentTier ? (
+                  <Image
+                    src={getSDGBadgeImage(sdgBadge.sdgNumber, currentTier.tier)}
+                    alt={`${currentTier.name} - SDG ${sdgBadge.sdgNumber}`}
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-400 text-xs">No Badge</span>
+                  </div>
+                )}
               </div>
               <div className="flex-1">
                 <h4 className="font-semibold text-sm flex items-center">
-                  {badge.name}
-                  {badge.earned && <Star className="w-3 h-3 ml-1 text-yellow-500 fill-current" />}
+                  SDG {sdgBadge.sdgNumber}: {sdgBadge.sdgName}
+                  {earnedTiers.length > 0 && <Star className="w-3 h-3 ml-1 text-yellow-500 fill-current" />}
                 </h4>
-                <p className="text-xs text-muted-foreground">
-                  {badge.tier}
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  {currentTier ? (
+                    <Badge className={`text-xs px-3 py-1 ${getTierBadgeColor(currentTier.tier)}`}>
+                      {getTierIcon(currentTier.tier)} {currentTier.name}
+                    </Badge>
+                  ) : (
+                    <Badge className="text-xs px-3 py-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                      No Badge Yet
+                    </Badge>
+                  )}
+                  {earnedTiers.length > 0 && (
+                    <Badge variant="success" className="text-xs px-2 py-1 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />
+                      {earnedTiers.length} earned
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Earned Badge */}
-            {badge.earned && (
-              <Badge variant="success" className="text-xs px-2 py-1 w-fit flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" />
-                Earned
-              </Badge>
-            )}
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                <div className="font-semibold text-gray-900 dark:text-white">
+                  {sdgBadge.tiers.reduce((sum, tier) => sum + tier.progress.hours, 0)}h
+                </div>
+                <div className="text-gray-500 dark:text-gray-400">Total Hours</div>
+              </div>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                <div className="font-semibold text-gray-900 dark:text-white">
+                  {sdgBadge.tiers.reduce((sum, tier) => sum + tier.progress.activities, 0)}
+                </div>
+                <div className="text-gray-500 dark:text-gray-400">Activities</div>
+              </div>
+            </div>
 
-            {/* Progress - Full Width Below */}
-            {showProgress && !badge.earned && (
+            {/* Progress towards next tier */}
+            {nextTier && (
               <div className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className={`font-medium ${getProgressColor(badge.progress)}`}>
-                    {badge.progress}%
+                  <span className="text-gray-500 dark:text-gray-400">Progress to {nextTier.name}</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {Math.round(nextTier.progress.percentage)}%
                   </span>
                 </div>
-                <Progress value={badge.progress} className="h-2" />
+                <Progress value={nextTier.progress.percentage} className="h-2" />
                 
-                {/* Requirements - Only show what's still needed */}
-                <div className="text-xs text-muted-foreground">
-                  {hoursNeeded > 0 && activitiesNeeded > 0 && (
-                    <span>Need {hoursNeeded.toFixed(1)} more hours and {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
-                  )}
-                  {hoursNeeded > 0 && activitiesNeeded <= 0 && (
-                    <span>Need {hoursNeeded.toFixed(1)} more hours</span>
-                  )}
-                  {hoursNeeded <= 0 && activitiesNeeded > 0 && (
-                    <span>Need {activitiesNeeded} more {activitiesNeeded === 1 ? 'activity' : 'activities'}</span>
-                  )}
+                {/* Requirements */}
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Need {nextTier.requirements.minHours - nextTier.progress.hours} more hours and {nextTier.requirements.minActivities - nextTier.progress.activities} more activities
                 </div>
               </div>
             )}
 
-            {/* Next Tier */}
-            {badge.earned && badge.nextTier && (
-              <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-                <div className="text-xs font-semibold text-gray-900 dark:text-white mb-1">
-                  Next: {badge.nextTier.name}
+            {/* Earned tiers display */}
+            {earnedTiers.length > 0 && (
+              <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="text-xs font-semibold text-green-800 dark:text-green-200 mb-2">
+                  Earned Badges:
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  Need {badge.nextTier.requirements.minHours} hours and {badge.nextTier.requirements.minActivities} {badge.nextTier.requirements.minActivities === 1 ? 'activity' : 'activities'}
+                <div className="flex flex-wrap gap-1">
+                  {earnedTiers.map((tier) => (
+                    <Badge key={tier.tier} className={`text-xs px-2 py-1 ${getTierBadgeColor(tier.tier)}`}>
+                      {getTierIcon(tier.tier)} {tier.name}
+                    </Badge>
+                  ))}
                 </div>
               </div>
             )}
@@ -309,6 +477,66 @@ export function BadgeProgress() {
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {/* Overall Rank Progress */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-600 flex items-center justify-center">
+                <Image
+                  src={getRankBadgeImage(badgeData.rankProgress.currentRank.rank)}
+                  alt={badgeData.rankProgress.currentRank.name}
+                  width={32}
+                  height={32}
+                  className="w-8 h-8"
+                />
+              </div>
+              <div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Current Rank</div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {badgeData.rankProgress.currentRank.name}
+                </div>
+              </div>
+            </div>
+            {badgeData.rankProgress.nextRank && (
+              <div className="text-right">
+                <div className="text-sm text-gray-600 dark:text-gray-400">Next Rank</div>
+                <div className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                  {badgeData.rankProgress.nextRank.name}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Rank Progress Bars */}
+          {badgeData.rankProgress.nextRank && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600 dark:text-gray-400">Impact Score</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {badgeData.rankProgress.currentProgress.score} / {badgeData.rankProgress.nextRank.requirements.minScore}
+                </span>
+              </div>
+              <Progress value={badgeData.rankProgress.nextRank.progress.score} className="h-2" />
+              
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600 dark:text-gray-400">Volunteer Hours</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {badgeData.rankProgress.currentProgress.hours} / {badgeData.rankProgress.nextRank.requirements.minHours}
+                </span>
+              </div>
+              <Progress value={badgeData.rankProgress.nextRank.progress.hours} className="h-2" />
+              
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600 dark:text-gray-400">SDG Badges</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {badgeData.rankProgress.currentProgress.badges} / {badgeData.rankProgress.nextRank.requirements.minBadges}
+                </span>
+              </div>
+              <Progress value={badgeData.rankProgress.nextRank.progress.badges} className="h-2" />
+            </div>
+          )}
+        </div>
+
         {/* Summary Stats */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
@@ -317,8 +545,10 @@ export function BadgeProgress() {
                 <Trophy className="w-4 h-4 text-green-600 dark:text-green-400" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">{badgeData.earnedBadges}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">Earned</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">
+              {badgeData.sdgBadges.reduce((total, badge) => total + badge.tiers.filter(tier => tier.earned).length, 0)}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">SDG Badges Earned</div>
           </div>
           <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
             <div className="flex items-center justify-center mb-2">
@@ -326,7 +556,9 @@ export function BadgeProgress() {
                 <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">{badgeData.inProgress.length}</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">
+              {badgeData.sdgBadges.filter(badge => badge.tiers.some(tier => !tier.earned && tier.progress.percentage > 0)).length}
+            </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 text-center">In Progress</div>
           </div>
         </div>
@@ -345,71 +577,28 @@ export function BadgeProgress() {
           </Link>
         </div>
 
-        {/* Badge Filter Pills */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => setActiveTab('progress')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-              activeTab === 'progress'
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            In Progress
-          </button>
-          <button
-            onClick={() => setActiveTab('earned')}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-              activeTab === 'earned'
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            Recently Earned
-          </button>
-        </div>
 
         {/* Badge Content */}
         <div className="space-y-3">
-          {activeTab === 'progress' && (
+          {badgeData.sdgBadges.length > 0 ? (
             <>
-            {badgeData.inProgress.length > 0 ? (
-              <>
-                {badgeData.inProgress.slice(0, 3).map((badge) => renderBadgeCard(badge, true))}
-                {badgeData.inProgress.length > 3 && (
-                  <div className="text-center">
-                    <Link href="/profile?tab=badges">
-                      <Button variant="outline" size="sm">
-                        View {badgeData.inProgress.length - 3} More
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Target className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm">No badges in progress</p>
-                <p className="text-xs">Join events to start earning badges</p>
-              </div>
-            )}
+              {badgeData.sdgBadges.slice(0, 3).map((sdgBadge) => renderSDGBadgeCard(sdgBadge))}
+              {badgeData.sdgBadges.length > 3 && (
+                <div className="text-center">
+                  <Link href="/profile/badges">
+                    <Button variant="outline" size="sm">
+                      View {badgeData.sdgBadges.length - 3} More SDGs
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </>
-          )}
-
-          {activeTab === 'earned' && (
-            <>
-            {badgeData.recentlyEarned.length > 0 ? (
-              <>
-                {badgeData.recentlyEarned.map((badge) => renderBadgeCard(badge, false))}
-              </>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Trophy className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm">No badges earned yet</p>
-                <p className="text-xs">Complete verified activities to earn your first badge</p>
-              </div>
-            )}
-            </>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Target className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm">No SDG badges yet</p>
+              <p className="text-xs">Join events to start earning SDG badges</p>
+            </div>
           )}
         </div>
 

@@ -10,6 +10,7 @@ import { ProfileTypeSelector } from './ProfileTypeSelector';
 import { IndividualRegistrationForm } from './IndividualRegistrationForm';
 import { OrganizationRegistrationForm } from './OrganizationRegistrationForm';
 import { SDGSelector } from '@/components/ui/sdg-selector';
+import { getSDGColor } from '@/lib/utils';
 
 interface FormData {
   // Individual fields
@@ -285,17 +286,20 @@ const ReviewStep = React.memo(function ReviewStep({ onDataChange, formData }: { 
             </div>
           </div>
 
-          {formData?.sdgFocus && Array.isArray(formData.sdgFocus) && formData.sdgFocus.length > 0 ? (
+          {((formData?.sdgFocus && Array.isArray(formData.sdgFocus) && formData.sdgFocus.length > 0) || 
+            (formData?.sdgInterests && Array.isArray(formData.sdgInterests) && formData.sdgInterests.length > 0)) ? (
             <div>
               <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
                 <span className="text-green-600 mr-2">🌍</span>
                 SDG Focus Areas
               </h4>
               <div className="flex flex-wrap gap-2">
-                {formData.sdgFocus.map((sdgId: number) => (
+                {((formData.sdgFocus && Array.isArray(formData.sdgFocus)) ? formData.sdgFocus : 
+                  (formData.sdgInterests && Array.isArray(formData.sdgInterests)) ? formData.sdgInterests : []).map((sdgId: number) => (
                   <span 
                     key={sdgId}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-white"
+                    style={{ backgroundColor: getSDGColor(sdgId) }}
                   >
                     SDG {sdgId}
                   </span>
