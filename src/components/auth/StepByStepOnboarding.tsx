@@ -524,8 +524,11 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
       
       // Append all form data with proper formatting
       Object.entries(allFormData).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && key !== 'privacy' && key !== 'sdgInterests') {
-          if (Array.isArray(value)) {
+        if (key !== 'privacy' && key !== 'sdgInterests') {
+          if (value === undefined || value === null) {
+            // Include optional fields even if undefined/null to ensure proper validation
+            submitData.append(key, '');
+          } else if (Array.isArray(value)) {
             submitData.append(key, JSON.stringify(value));
           } else if (typeof value === 'boolean') {
             submitData.append(key, value.toString());
@@ -548,6 +551,34 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
       // Add profileType for organizations
       if (selectedProfileType && selectedProfileType !== UserType.INDIVIDUAL) {
         submitData.append('profileType', selectedProfileType);
+        
+        // Ensure all required organization fields are present
+        const requiredOrgFields = [
+          'organizationName', 'type', 'city', 'country', 'description',
+          'contactPersonName', 'contactPersonRole', 'contactPersonEmail',
+          'website', 'registrationNumber', 'industry', 'companySize',
+          'contactPersonPhone', 'sdgFocus'
+        ];
+        
+        requiredOrgFields.forEach(field => {
+          if (!submitData.has(field)) {
+            submitData.append(field, '');
+          }
+        });
+      }
+
+      // Ensure all required individual fields are present
+      if (selectedProfileType === UserType.INDIVIDUAL) {
+        const requiredIndividualFields = [
+          'firstName', 'lastName', 'dateOfBirth', 'nationality', 'city', 'state', 'country',
+          'organization', 'occupation', 'bio', 'languages', 'website', 'showEmail', 'isPublic', 'sdgFocus'
+        ];
+        
+        requiredIndividualFields.forEach(field => {
+          if (!submitData.has(field)) {
+            submitData.append(field, '');
+          }
+        });
       }
 
       // Submit to the appropriate registration API based on profile type

@@ -26,7 +26,9 @@ const registrationSchema = z.object({
       return [];
     }
   }).pipe(z.array(z.string())),
-  website: z.string().url().optional().or(z.literal('')),
+  website: z.string().optional().refine((val) => !val || val === '' || z.string().url().safeParse(val).success, {
+    message: 'Invalid url'
+  }),
   showEmail: z.string().transform((str) => str === 'true'),
   isPublic: z.string().transform((str) => str === 'true'),
   sdgFocus: z.string().optional().transform((str) => {
