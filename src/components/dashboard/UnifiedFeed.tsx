@@ -107,7 +107,6 @@ interface FeedItem {
   userName?: string;
   userAvatar?: string;
   userTitle?: string;
-  userScore?: number;
   userType?: string;
   
   interactions?: {
@@ -560,11 +559,6 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                         {item.userTitle && (
                           <Badge className="text-xs px-2 py-0.5 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
                             {item.userTitle}
-                          </Badge>
-                        )}
-                        {item.userScore && (
-                          <Badge className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
-                            {item.userScore} pts
                           </Badge>
                         )}
                       </div>

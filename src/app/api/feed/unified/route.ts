@@ -84,8 +84,7 @@ export async function GET(request: NextRequest) {
           userId: post.user.id,
           userName: post.user.name || `${post.user.firstName || ''} ${post.user.lastName || ''}`.trim(),
           userAvatar: post.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user.name || 'User')}&background=random`,
-          userTitle: post.user.tier || 'Community Member',
-          userScore: post.user.impactScore || 0,
+          userTitle: post.user.tier,
           userType: post.user.userType
         }),
         // Organization info (if org post)
@@ -198,8 +197,7 @@ export async function GET(request: NextRequest) {
             userId: post.user.id,
             userName: post.user.name || `${post.user.firstName || ''} ${post.user.lastName || ''}`.trim(),
             userAvatar: post.user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user.name || 'User')}&background=random`,
-            userTitle: post.user.tier || 'Community Member',
-            userScore: post.user.impactScore || 0,
+            userTitle: post.user.tier,
             userType: post.user.userType
           }),
           // Organization info (if org post)
