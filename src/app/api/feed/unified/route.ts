@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
               image: true,
               occupation: true,
               impactScore: true,
-              userType: true
+              userType: true,
+              tier: true
             }
           },
           organization: {
@@ -148,7 +149,8 @@ export async function GET(request: NextRequest) {
                 image: true,
                 occupation: true,
                 impactScore: true,
-                userType: true
+                userType: true,
+                tier: true
               }
             },
             organization: {

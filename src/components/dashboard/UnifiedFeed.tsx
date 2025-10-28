@@ -600,12 +600,6 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                             {formatUserTier(item.userTitle)}
                           </Badge>
                         )}
-                        {/* Debug info - remove after testing */}
-                        {process.env.NODE_ENV === 'development' && (
-                          <div className="text-xs text-red-500">
-                            Debug: userTitle={item.userTitle || 'undefined'}
-                          </div>
-                        )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {formatTimeAgo(item.timestamp)}
