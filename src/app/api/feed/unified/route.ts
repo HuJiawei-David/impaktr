@@ -17,11 +17,34 @@ export async function GET(request: NextRequest) {
     let feedItems: any[] = [];
 
     if (type === 'all' || type === 'organizations') {
-      // Get organization posts - temporarily disabled due to schema issue
-      // TODO: Fix OrganizationPost model access issue
-      const orgPosts: any[] = [];
+      // Get organization posts
+      const orgPosts = await prisma.organizationPost.findMany({
+        take: type === 'organizations' ? limit : Math.ceil(limit / 2),
+        skip: type === 'organizations' ? offset : Math.ceil(offset / 2),
+        include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              slug: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
       feedItems.push(...orgPosts.map(post => ({
-        ...post,
+        id: post.id,
+        content: post.content,
+        postType: post.postType,
+        images: post.images,
+        videos: post.videos,
+        documents: post.documents,
+        organization: post.organization,
+        createdAt: post.createdAt,
         feedType: 'organization_post',
         timestamp: post.createdAt
       })));
@@ -56,10 +79,38 @@ export async function GET(request: NextRequest) {
       const orgIds = followingOrgs.map(f => f.followingOrgId).filter((id): id is string => id !== null);
 
       if (orgIds.length > 0) {
-        // TODO: Fix OrganizationPost model access issue
-        const followingPosts: any[] = [];
+        const followingPosts = await prisma.organizationPost.findMany({
+          where: {
+            organizationId: {
+              in: orgIds
+            }
+          },
+          take: limit,
+          skip: offset,
+          include: {
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+                slug: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        });
+
         feedItems.push(...followingPosts.map(post => ({
-          ...post,
+          id: post.id,
+          content: post.content,
+          postType: post.postType,
+          images: post.images,
+          videos: post.videos,
+          documents: post.documents,
+          organization: post.organization,
+          createdAt: post.createdAt,
           feedType: 'organization_post',
           timestamp: post.createdAt
         })));
