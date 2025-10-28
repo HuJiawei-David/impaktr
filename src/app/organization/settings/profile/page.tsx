@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { industries, companySizes } from '@/constants/industries';
 import { countries } from '@/constants/countries';
@@ -300,11 +301,12 @@ export default function OrganizationProfileSettingsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
+                  <PhoneInput
                     id="phone"
-                    {...register('phone')}
-                    placeholder="+60 12 345 6789"
+                    label="Phone"
+                    value={watch('phone') || ''}
+                    onChange={(value) => setValue('phone', value)}
+                    placeholder="Enter phone number"
                   />
                 </div>
               </div>

@@ -12,6 +12,7 @@ import {
   MapPin, 
   Globe, 
   Mail,
+  Phone,
   Edit3,
   Share2,
   Download,
@@ -46,6 +47,7 @@ interface UserProfile {
     country: string;
   };
   website: string;
+  phone?: string;
   languages: string[];
   occupation: string;
   organization: string;
@@ -161,6 +163,7 @@ export default function ProfilePage() {
           bio: profile.bio,
           location: profile.location,
           website: profile.website,
+          phone: profile.phone,
           languages: profile.languages,
           occupation: profile.occupation,
           organization: profile.organization,
@@ -257,6 +260,16 @@ export default function ProfilePage() {
                       >
                         <Globe className="w-4 h-4 mr-1.5" />
                         Website
+                      </a>
+                    )}
+                    
+                    {profile.phone && (
+                      <a
+                        href={`tel:${profile.phone}`}
+                        className="flex items-center text-sm text-primary hover:underline font-medium"
+                      >
+                        <Phone className="w-4 h-4 mr-1.5" />
+                        Phone
                       </a>
                     )}
                     

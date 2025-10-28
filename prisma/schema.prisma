@@ -139,6 +139,7 @@ model Organization {
   volunteerHours       Float                      @default(0)
   website              String?
   type                 String?
+  sdgFocusAreas        Int[]                     // Store original SDG focus areas from registration
   tier                 OrganizationTier           @default(REGISTERED)
   campaigns            Campaign[]
   corporateBadges      CorporateBadgeEarned[]

@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { countries } from '@/constants/countries';
 import { languages } from '@/constants/languages';
+import { PhoneInput } from '@/components/ui/phone-input';
 
 interface IndividualRegistrationData {
   firstName: string;
@@ -33,6 +34,7 @@ interface IndividualRegistrationData {
   bio?: string;
   languages: string[];
   website?: string;
+  phone?: string;
   showEmail: boolean;
   isPublic: boolean;
 }
@@ -86,7 +88,7 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
     const city = watch('city');
     const state = watch('state');
     
-    return firstName && lastName && dateOfBirth && nationality && country && city && state;
+    return firstName && dateOfBirth && nationality && country && city && state;
   };
 
   // Add validation rules for Select fields
@@ -238,12 +240,11 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                   />
                 </div>
                 <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Label htmlFor="lastName">Last Name</Label>
                   <Input
                     id="lastName"
-                    {...register('lastName', { required: 'Last name is required' })}
-                    error={errors.lastName?.message || (hasFieldError('lastName') ? 'Last name is required' : undefined)}
-                    className={hasFieldError('lastName') ? 'border-red-500 focus:border-red-500' : ''}
+                    {...register('lastName')}
+                    placeholder="Enter last name (optional)"
                   />
                 </div>
               </div>
@@ -397,6 +398,16 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                   placeholder="https://your-website.com"
                 />
               </div>
+
+              <div>
+                <PhoneInput
+                  id="phone"
+                  label="Phone Number (Optional)"
+                  value={watch('phone') || ''}
+                  onChange={(value) => setValue('phone', value)}
+                  placeholder="Enter phone number"
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -446,7 +457,9 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
           <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
             <CardHeader>
               <CardTitle className="flex items-center text-gray-900 dark:text-white">
-                <Upload className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
+                <div className="text-blue-600 dark:text-blue-400 mr-2">
+                  <Upload className="w-5 h-5" />
+                </div>
                 Profile Picture
               </CardTitle>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
@@ -496,8 +509,8 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                     className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer bg-gray-50 dark:bg-gray-900/50 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500 group"
                   >
                     <div className="flex flex-col items-center justify-center p-4 text-center">
-                      <div className="w-10 h-10 mb-3 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800/60 transition-colors">
-                        <Upload className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <div className="w-10 h-10 mb-3 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors text-blue-600 dark:text-blue-400">
+                        <Upload className="w-5 h-5" />
                       </div>
                       <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         Choose a photo

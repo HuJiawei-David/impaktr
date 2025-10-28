@@ -65,6 +65,7 @@ interface OrganizationWithRelations {
   city?: string;
   country?: string;
   website?: string;
+  sdgFocusAreas?: number[];
   members: OrganizationMember[];
   events: OrganizationEvent[];
   opportunities: OrganizationOpportunity[];
@@ -223,11 +224,13 @@ export async function GET(
       }
     });
 
-    // Get SDG focus areas from badges
-    const sdgBadges = organization.corporateBadges
-      ?.map(cb => cb.badge)
-      .filter(badge => badge.sdgNumber !== null)
-      .map(badge => badge.sdgNumber) || [];
+    // Get SDG focus areas from registration (preferred) or from earned badges
+    const sdgFocusAreas = organization.sdgFocusAreas && organization.sdgFocusAreas.length > 0 
+      ? organization.sdgFocusAreas 
+      : organization.corporateBadges
+          ?.map(cb => cb.badge)
+          .filter(badge => badge.sdgNumber !== null)
+          .map(badge => badge.sdgNumber) || [];
 
     // Calculate additional stats
     const memberCount = organization._count.members;
@@ -260,7 +263,7 @@ export async function GET(
       topVolunteers,
       recentEvents,
       badges: organization.corporateBadges?.map(cb => cb.badge) || [],
-      sdgs: sdgBadges.length > 0 ? sdgBadges : [1, 4, 8, 11, 13, 17], // Use actual SDGs or fallback to mock
+      sdgs: sdgFocusAreas, // Use actual SDG focus areas from registration or earned badges
       isFollowing,
       esgData // Add real ESG data
     };

@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SDGSelector } from '@/components/ui/sdg-selector';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { countries } from '@/constants/countries';
 import { languages } from '@/constants/languages';
 import { getInitials } from '@/lib/utils';
@@ -45,6 +46,7 @@ interface UserProfile {
     country: string;
   };
   website: string;
+  phone?: string;
   languages: string[];
   occupation: string;
   organization: string;
@@ -76,6 +78,7 @@ interface ProfileFormData {
   occupation: string;
   organization: string;
   website: string;
+  phone?: string;
   city: string;
   state: string;
   country: string;
@@ -109,6 +112,7 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
       occupation: profile.occupation || '',
       organization: profile.organization || '',
       website: profile.website || '',
+      phone: profile.phone || '',
       city: profile.location?.city || '',
       state: profile.location?.state || '',
       country: profile.location?.country || '',
@@ -361,6 +365,16 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                         className="pl-10"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <PhoneInput
+                      id="phone"
+                      label="Phone Number"
+                      value={watch('phone') || ''}
+                      onChange={(value) => setValue('phone', value)}
+                      placeholder="Enter phone number"
+                    />
                   </div>
                 </CardContent>
               </Card>

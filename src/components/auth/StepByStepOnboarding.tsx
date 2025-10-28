@@ -27,7 +27,8 @@ interface FormData {
   organizationName?: string;
   type?: string;
   description?: string;
-  contactPersonName?: string;
+  contactPersonFirstName?: string;
+  contactPersonLastName?: string;
   contactPersonRole?: string;
   contactPersonEmail?: string;
   contactPersonPhone?: string;
@@ -63,7 +64,12 @@ interface PreferencesData {
 interface OnboardingStep {
   id: string;
   title: string;
-  component: React.ComponentType<{ onDataChange?: (data: FormData | PreferencesData) => void; formData?: FormData }>;
+  component: React.ComponentType<{ 
+    onDataChange?: (data: FormData | PreferencesData) => void; 
+    formData?: FormData;
+    profileType?: UserType;
+    [key: string]: unknown;
+  }>;
   props?: Record<string, unknown>;
   validation?: () => boolean;
 }
@@ -74,7 +80,13 @@ interface StepByStepOnboardingProps {
 }
 
 // Preferences Step Component
-const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { onDataChange?: (data: PreferencesData) => void }) {
+const PreferencesStep = React.memo(function PreferencesStep({ 
+  onDataChange, 
+  profileType 
+}: { 
+  onDataChange?: (data: PreferencesData) => void;
+  profileType?: UserType;
+}) {
   const [preferences, setPreferences] = useState({
     notifications: {
       email: true,
@@ -188,25 +200,27 @@ const PreferencesStep = React.memo(function PreferencesStep({ onDataChange }: { 
         </div>
       </div>
 
-      {/* SDG Interests */}
-      <div>
-        <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-          UN Sustainable Development Goals
-        </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-          Select the SDGs you&apos;re most passionate about (optional)
-        </p>
-        <SDGSelector
-          selectedSDGs={preferences.sdgInterests}
-          onSelectionChange={(sdgs) => {
-            setPreferences(prev => ({ ...prev, sdgInterests: sdgs }));
-          }}
-          maxSelection={17}
-          showDescription={true}
-          compact={false}
-          showSelectAll={true}
-        />
-      </div>
+      {/* SDG Interests - Only for individuals */}
+      {profileType === UserType.INDIVIDUAL && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+            UN Sustainable Development Goals
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Select the SDGs you&apos;re most passionate about (optional)
+          </p>
+          <SDGSelector
+            selectedSDGs={preferences.sdgInterests}
+            onSelectionChange={(sdgs) => {
+              setPreferences(prev => ({ ...prev, sdgInterests: sdgs }));
+            }}
+            maxSelection={17}
+            showDescription={true}
+            compact={false}
+            showSelectAll={true}
+          />
+        </div>
+      )}
     </div>
   );
 });
@@ -411,8 +425,8 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
       if (!data.country) {
         errors.push('Country is required');
       }
-      if (!data.contactPersonName?.trim()) {
-        errors.push('Contact person name is required');
+      if (!(data.contactPersonFirstName as string)?.trim()) {
+        errors.push('Contact person first name is required');
       }
       if (!data.contactPersonRole?.trim()) {
         errors.push('Contact person role is required');
@@ -463,6 +477,9 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
         id: 'preferences',
         title: 'Preferences',
         component: PreferencesStep,
+        props: {
+          profileType: selectedProfileType,
+        },
       },
       {
         id: 'review',
@@ -507,14 +524,19 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
   const handleComplete = async () => {
     setIsLoading(true);
     try {
-      // Collect all form data including SDG interests
+      // Collect all form data
       const allFormData = {
         ...formData,
-        // Ensure SDG interests are included in the final submission
-        sdgFocus: formData.sdgInterests || [],
-        // Include other preferences
+        // Include preferences for both individuals and organizations
         isPublic: formData.privacy?.isPublic ?? true,
         showEmail: formData.privacy?.showEmail ?? false,
+        // For individuals: include SDG interests from preferences
+        // For organizations: sdgFocus is already included from registration form
+        ...(selectedProfileType === UserType.INDIVIDUAL ? {
+          sdgFocus: formData.sdgInterests || [],
+        } : {
+          // For organizations, sdgFocus is already included from registration form
+        }),
       };
 
       console.log('Submitting form data:', allFormData);
@@ -555,7 +577,7 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
         // Ensure all required organization fields are present
         const requiredOrgFields = [
           'organizationName', 'type', 'city', 'country', 'description',
-          'contactPersonName', 'contactPersonRole', 'contactPersonEmail',
+          'contactPersonFirstName', 'contactPersonRole', 'contactPersonEmail',
           'website', 'registrationNumber', 'industry', 'companySize',
           'contactPersonPhone', 'sdgFocus'
         ];
@@ -656,15 +678,12 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
 
     // Only spread props if they exist
     if ('props' in step && step.props) {
-      const StepComponent = step.component;
+      const StepComponent = step.component as React.ComponentType<Record<string, unknown>>;
       return <StepComponent {...step.props} onDataChange={handleFormDataChange} />;
     }
 
-    // For steps without props (like PreferencesStep, ReviewStep)
+    // For steps without props (like ReviewStep)
     const StepComponent = step.component;
-    if (step.id === 'preferences') {
-      return <StepComponent onDataChange={handleFormDataChange} />;
-    }
     if (step.id === 'review') {
       return <StepComponent formData={formData} />;
     }

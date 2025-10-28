@@ -15,11 +15,33 @@ const organizationRegistrationSchema = z.object({
   type: z.string().min(1, 'Organization type is required'),
   city: z.string().min(1, 'City is required'),
   country: z.string().min(1, 'Country is required'),
-  website: z.string().optional().refine((val) => !val || val === '' || z.string().url().safeParse(val).success, {
-    message: 'Invalid url'
+  website: z.string().optional().refine((val) => {
+    // Allow null, undefined, empty string, or whitespace-only strings
+    if (!val || val.trim() === '') return true;
+    
+    // Trim the value
+    const trimmedVal = val.trim();
+    
+    // Check if it's a valid URL
+    try {
+      // If it doesn't start with http:// or https://, try adding https://
+      let urlToTest = trimmedVal;
+      if (!trimmedVal.startsWith('http://') && !trimmedVal.startsWith('https://')) {
+        urlToTest = 'https://' + trimmedVal;
+      }
+      
+      const url = new URL(urlToTest);
+      // Ensure it has a valid protocol
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, {
+    message: 'Please enter a valid URL (e.g., https://example.com) or leave empty'
   }),
   description: z.string().min(1, 'Description is required'),
-  contactPersonName: z.string().min(1, 'Contact person name is required'),
+  contactPersonFirstName: z.string().min(1, 'Contact person first name is required'),
+  contactPersonLastName: z.string().optional(),
   contactPersonRole: z.string().min(1, 'Contact person role is required'),
   contactPersonEmail: z.string().email('Valid email is required'),
   contactPersonPhone: z.string().optional(),
@@ -57,8 +79,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Debug: Log all form data
+    console.log('[Registration] All form data:', Object.fromEntries(formData.entries()));
+    console.log('[Registration] Extracted data:', data);
+
     // Validate the data
     console.log('[Registration] Validating data...');
+    console.log('[Registration] Website field value:', data.website);
     const validatedData = organizationRegistrationSchema.parse(data);
 
     // Check if user exists
@@ -131,6 +158,8 @@ export async function POST(request: NextRequest) {
         city: validatedData.city,
         country: validatedData.country,
         phone: validatedData.contactPersonPhone,
+        email: validatedData.contactPersonEmail, // Store contact person email
+        sdgFocusAreas: validatedData.sdgFocus, // Store original SDG focus areas
       },
     });
 
