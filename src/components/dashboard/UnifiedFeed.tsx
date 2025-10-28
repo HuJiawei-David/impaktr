@@ -37,8 +37,21 @@ import { CreatePost } from '@/components/organization/CreatePost';
 
 interface FeedItem {
   id: string;
-  feedType: 'organization_post' | 'user_achievement';
+  feedType: 'organization_post' | 'user_post';
   timestamp: string;
+  
+  // Common post fields
+  content?: string;
+  type?: string;
+  visibility?: string;
+  mediaUrls?: string[];
+  imageUrl?: string;
+  tags?: string[];
+  location?: string;
+  sdg?: string;
+  isPinned?: boolean;
+  createdAt: string;
+  updatedAt: string;
   
   // Organization post fields
   organizationId?: string;
@@ -46,14 +59,8 @@ interface FeedItem {
     id: string;
     name: string;
     logo?: string;
-    tier: string;
+    slug?: string;
   };
-  author?: {
-    id: string;
-    name: string;
-    image?: string;
-  };
-  content?: string;
   postType?: string;
   images?: string[];
   videos?: string[];
@@ -64,9 +71,7 @@ interface FeedItem {
     startDate: string;
     imageUrl?: string;
   };
-  location?: string;
   sdgs?: number[];
-  tags?: string[];
   hoursReported?: number;
   peopleReached?: number;
   volunteersCount?: number;
@@ -97,30 +102,19 @@ interface FeedItem {
     reactions: number;
   };
 
-  // User achievement fields
+  // User post fields
   userId?: string;
   userName?: string;
   userAvatar?: string;
   userTitle?: string;
-  type?: string;
-  achievement?: {
-    sdgNumber?: number;
-    badgeName?: string;
-    tierLevel?: number;
-    hours?: number;
-    activities?: number;
-    description?: string;
-    milestone?: string;
-    certificateName?: string;
-    organization?: string;
-  };
+  userScore?: number;
+  userType?: string;
+  
   interactions?: {
     likes: number;
     comments: number;
     shares: number;
-    kudos: number;
     userHasLiked: boolean;
-    userHasKudos: boolean;
   };
 }
 
@@ -522,43 +516,32 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                     <button 
                       onClick={() => handleReaction(item.id, 'LIKE')}
                       className={`flex items-center space-x-1 transition-colors ${
-                        userReactions[item.id] === 'LIKE' 
+                        item.interactions?.userHasLiked 
                           ? 'text-red-600' 
                           : 'text-gray-500 hover:text-red-600'
                       }`}
                     >
                       <Heart className="w-4 h-4" />
-                      <span>{item.likes || 0}</span>
+                      <span>{item.interactions?.likes || 0}</span>
                     </button>
                     <button className="flex items-center space-x-1 text-gray-500 hover:text-blue-600 transition-colors">
                       <MessageCircle className="w-4 h-4" />
-                      <span>{item._count?.comments || 0}</span>
+                      <span>{item.interactions?.comments || 0}</span>
                     </button>
                     <button 
                       onClick={() => handleShare(item.id)}
                       className="flex items-center space-x-1 text-gray-500 hover:text-green-600 transition-colors"
                     >
                       <Share2 className="w-4 h-4" />
-                      <span>{item.shares || 0}</span>
-                    </button>
-                    <button 
-                      onClick={() => handleReaction(item.id, 'KUDOS')}
-                      className={`flex items-center space-x-1 transition-colors ${
-                        userReactions[item.id] === 'KUDOS' 
-                          ? 'text-yellow-600' 
-                          : 'text-gray-500 hover:text-yellow-600'
-                      }`}
-                    >
-                      <Star className="w-4 h-4" />
-                      <span>{item.kudos || 0}</span>
+                      <span>{item.interactions?.shares || 0}</span>
                     </button>
                   </div>
                 </div>
               </div>
             ) : (
-              // User Achievement
+              // User Post
               <div>
-                {/* Achievement Header */}
+                {/* Post Header */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
                     <Avatar className="w-10 h-10">
@@ -579,7 +562,11 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                             {item.userTitle}
                           </Badge>
                         )}
-                        {getAchievementIcon(item.type || '')}
+                        {item.userScore && (
+                          <Badge className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                            {item.userScore} pts
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         {formatTimeAgo(item.timestamp)}
@@ -609,41 +596,70 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                   </DropdownMenu>
                 </div>
 
-                {/* Achievement Content */}
-                <div className="mb-4 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                  <h5 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
-                    {item.achievement?.badgeName || item.achievement?.milestone || item.achievement?.certificateName}
-                  </h5>
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    {item.achievement?.description}
+                {/* Post Content */}
+                {item.content && (
+                  <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+                    {item.content}
                   </p>
-                  {item.achievement?.sdgNumber && (
-                    <div className="mt-2">
-                      {(() => {
-                        const sdg = getSDGById(item.achievement.sdgNumber);
-                        return sdg ? (
-                          <Badge
-                            variant="outline"
-                            className="text-xs px-2 py-1"
-                            style={{ borderColor: sdg.color }}
-                          >
-                            <Image src={sdg.image} alt="" width={12} height={12} className="w-3 h-3 mr-1" />
-                            SDG {sdg.id}
-                          </Badge>
-                        ) : null;
-                      })()}
-                    </div>
-                  )}
-                </div>
+                )}
 
-                {/* Achievement Interactions */}
+                {/* Images */}
+                {item.mediaUrls && item.mediaUrls.length > 0 && (
+                  <div className="mb-4">
+                    {item.mediaUrls.length === 1 ? (
+                      <Image
+                        src={item.mediaUrls[0]}
+                        alt="Post image"
+                        width={600}
+                        height={400}
+                        className="w-full h-auto rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {item.mediaUrls.slice(0, 4).map((image, index) => (
+                          <Image
+                            key={index}
+                            src={image}
+                            alt={`Post image ${index + 1}`}
+                            width={300}
+                            height={200}
+                            className="w-full h-32 rounded-lg object-cover"
+                          />
+                        ))}
+                        {item.mediaUrls.length > 4 && (
+                          <div className="w-full h-32 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                            <span className="text-gray-500 dark:text-gray-400">
+                              +{item.mediaUrls.length - 4} more
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tags */}
+                {item.tags && item.tags.length > 0 && (
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    {item.tags.map((tag, index) => (
+                      <Badge key={index} variant="outline" className="text-xs px-2 py-1">
+                        #{tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Post Interactions */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="flex items-center space-x-6">
-                    <button className={`flex items-center space-x-1 transition-colors ${
-                      item.interactions?.userHasLiked 
-                        ? 'text-red-600' 
-                        : 'text-gray-500 hover:text-red-600'
-                    }`}>
+                    <button 
+                      onClick={() => handleReaction(item.id, 'LIKE')}
+                      className={`flex items-center space-x-1 transition-colors ${
+                        item.interactions?.userHasLiked 
+                          ? 'text-red-600' 
+                          : 'text-gray-500 hover:text-red-600'
+                      }`}
+                    >
                       <Heart className="w-4 h-4" />
                       <span>{item.interactions?.likes || 0}</span>
                     </button>
@@ -651,17 +667,12 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                       <MessageCircle className="w-4 h-4" />
                       <span>{item.interactions?.comments || 0}</span>
                     </button>
-                    <button className="flex items-center space-x-1 text-gray-500 hover:text-green-600 transition-colors">
+                    <button 
+                      onClick={() => handleShare(item.id)}
+                      className="flex items-center space-x-1 text-gray-500 hover:text-green-600 transition-colors"
+                    >
                       <Share2 className="w-4 h-4" />
                       <span>{item.interactions?.shares || 0}</span>
-                    </button>
-                    <button className={`flex items-center space-x-1 transition-colors ${
-                      item.interactions?.userHasKudos 
-                        ? 'text-yellow-600' 
-                        : 'text-gray-500 hover:text-yellow-600'
-                    }`}>
-                      <Star className="w-4 h-4" />
-                      <span>{item.interactions?.kudos || 0}</span>
                     </button>
                   </div>
                 </div>
