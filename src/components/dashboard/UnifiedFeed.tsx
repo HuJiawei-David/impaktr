@@ -558,7 +558,7 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                           </h4>
                         </Link>
                         {item.userTitle && (
-                          <Badge className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                          <Badge className="text-xs px-2 py-0.5 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
                             {item.userTitle}
                           </Badge>
                         )}
@@ -642,7 +642,7 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                 {item.tags && item.tags.length > 0 && (
                   <div className="mb-4 flex flex-wrap gap-2">
                     {item.tags.map((tag, index) => (
-                      <Badge key={index} variant="outline" className="text-xs px-2 py-1">
+                      <Badge key={index} variant="outline" className="text-xs px-2 py-1 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                         #{tag}
                       </Badge>
                     ))}
