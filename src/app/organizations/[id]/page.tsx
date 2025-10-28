@@ -279,10 +279,10 @@ interface Organization {
 
 const getTierColor = (tier: string) => {
   const tierMap: Record<string, string> = {
-    'REGISTERED': 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800',
-    'PARTICIPANT': 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
+    'IMPACT_STARTER': 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800',
+    'COMMUNITY_BUILDER': 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
+    'IMPACT_DRIVER': 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30',
     'COMMUNITY_ALLY': 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
-    'CONTRIBUTOR': 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30',
     'CSR_PRACTITIONER': 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30',
     'CSR_LEADER': 'text-pink-600 bg-pink-100 dark:text-pink-400 dark:bg-pink-900/30',
     'ESG_CHAMPION': 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30',
@@ -290,7 +290,7 @@ const getTierColor = (tier: string) => {
     'INDUSTRY_BENCHMARK': 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30',
     'GLOBAL_IMPACT_LEADER': 'text-purple-600 bg-gradient-to-r from-purple-100 to-pink-100 dark:text-purple-300 dark:from-purple-900/30 dark:to-pink-900/30',
   };
-  return tierMap[tier] || tierMap['REGISTERED'];
+  return tierMap[tier] || tierMap['IMPACT_STARTER'];
 };
 
 const formatTierName = (tier: string) => {

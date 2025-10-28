@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         type: validatedData.profileType || 'CORPORATE',
         slug: validatedData.organizationName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
-        subscriptionTier: 'REGISTERED',
+        subscriptionTier: 'IMPACT_STARTER',
         esgScore: 0,
       },
     });

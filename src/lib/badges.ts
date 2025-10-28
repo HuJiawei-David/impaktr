@@ -494,7 +494,7 @@ export async function updateOrganizationTier(organizationId: string): Promise<vo
   const sdgDiversity = uniqueSDGs.size;
 
   // Find highest tier that organization qualifies for
-  let newTier: OrganizationTier = OrganizationTier.REGISTERED;
+  let newTier: OrganizationTier = OrganizationTier.IMPACT_STARTER;
   
   const tierEntries = Object.entries(ORGANIZATION_TIER_REQUIREMENTS) as [OrganizationTier, OrganizationTierRequirements][];
   for (const [tier, requirements] of tierEntries) {

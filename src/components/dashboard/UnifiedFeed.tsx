@@ -60,6 +60,8 @@ interface FeedItem {
     name: string;
     logo?: string;
     slug?: string;
+    tier?: string;
+    type?: string;
   };
   postType?: string;
   images?: string[];
@@ -283,6 +285,38 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
     }
   };
 
+  const formatOrgTier = (tier: string) => {
+    switch (tier) {
+      case 'IMPACT_STARTER': return 'Impact Starter';
+      case 'COMMUNITY_BUILDER': return 'Community Builder';
+      case 'IMPACT_DRIVER': return 'Impact Driver';
+      case 'COMMUNITY_ALLY': return 'Community Ally';
+      case 'CSR_PRACTITIONER': return 'CSR Practitioner';
+      case 'CSR_LEADER': return 'CSR Leader';
+      case 'ESG_CHAMPION': return 'ESG Champion';
+      case 'TRUSTED_PARTNER': return 'Trusted Partner';
+      case 'INDUSTRY_BENCHMARK': return 'Industry Benchmark';
+      case 'GLOBAL_IMPACT_LEADER': return 'Global Impact Leader';
+      default: return tier;
+    }
+  };
+
+  const formatUserTier = (tier: string) => {
+    switch (tier) {
+      case 'HELPER': return 'Helper';
+      case 'SUPPORTER': return 'Supporter';
+      case 'CONTRIBUTOR': return 'Contributor';
+      case 'BUILDER': return 'Builder';
+      case 'ADVOCATE': return 'Advocate';
+      case 'CHANGEMAKER': return 'Changemaker';
+      case 'MENTOR': return 'Mentor';
+      case 'LEADER': return 'Leader';
+      case 'AMBASSADOR': return 'Ambassador';
+      case 'GLOBAL_CITIZEN': return 'Global Citizen';
+      default: return tier;
+    }
+  };
+
   if (loading && feedItems.length === 0) {
     return (
       <div className="space-y-4">
@@ -354,6 +388,11 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                             {item.organization?.name}
                           </h4>
                         </Link>
+                        {item.organization?.tier && (
+                          <Badge className="text-xs px-2 py-0.5 bg-blue-600 dark:bg-blue-700 text-white border-0">
+                            {formatOrgTier(item.organization.tier)}
+                          </Badge>
+                        )}
                         {item.postType && (
                           <Badge className={`text-xs px-2 py-0.5 ${getPostTypeColor(item.postType)}`}>
                             {getPostTypeIcon(item.postType)}
@@ -557,9 +596,15 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
                           </h4>
                         </Link>
                         {item.userTitle && (
-                          <Badge className="text-xs px-2 py-0.5 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
-                            {item.userTitle}
+                          <Badge className="text-xs px-2 py-0.5 bg-purple-600 dark:bg-purple-700 text-white border-0">
+                            {formatUserTier(item.userTitle)}
                           </Badge>
+                        )}
+                        {/* Debug info - remove after testing */}
+                        {process.env.NODE_ENV === 'development' && (
+                          <div className="text-xs text-red-500">
+                            Debug: userTitle={item.userTitle || 'undefined'}
+                          </div>
                         )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">

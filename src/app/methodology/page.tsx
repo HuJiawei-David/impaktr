@@ -22,7 +22,8 @@ import {
   BookOpen, 
   ChevronDown, 
   ChevronUp,
-  Users
+  Users,
+  Building2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -670,11 +671,18 @@ export default function MethodologyPage() {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <p className="text-lg">
-                      Impaktr offers 68 SDG-specific badges (17 SDGs × 4 tiers) plus 10 overall rank badges, recognizing your expertise in specific impact areas.
+                      Impaktr offers separate badge systems for individuals and organizations, recognizing different types of impact and engagement.
                     </p>
 
+                    {/* Individual Badge System */}
                     <div className="space-y-4">
-                      <h3 className="font-semibold text-xl">SDG Badge Tiers (Individuals):</h3>
+                      <h3 className="font-semibold text-xl flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        Individual Badge System
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Individuals earn 68 SDG-specific badges (17 SDGs × 4 tiers) plus 10 overall rank badges based on personal impact and participation.
+                      </p>
                       
                       <div className="grid md:grid-cols-2 gap-4">
                         <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-2 border-green-300">
@@ -729,7 +737,7 @@ export default function MethodologyPage() {
                       <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-6 mt-6">
                         <h4 className="font-semibold mb-3 flex items-center gap-2">
                           <Activity className="w-5 h-5 text-blue-600" />
-                          Badge Progress Calculation
+                          Individual Badge Progress Calculation
                         </h4>
                         <div className="space-y-3 text-sm">
                           <p className="font-mono bg-white dark:bg-gray-800 p-3 rounded">
@@ -741,36 +749,7 @@ export default function MethodologyPage() {
                         </div>
                       </div>
 
-                      <h3 className="font-semibold text-xl mt-8">Organization Badge Requirements:</h3>
-                      
-                      <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg p-6 mb-6">
-                        <h4 className="font-semibold mb-3 flex items-center gap-2">
-                          <Users className="w-5 h-5 text-purple-600" />
-                          Organization SDG Badge Requirements
-                        </h4>
-                        <p className="text-sm mb-4">Organizations earn the same 68 SDG badges but with higher thresholds reflecting collective effort:</p>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
-                            <div className="font-semibold mb-1">SUPPORTER</div>
-                            <div className="text-sm text-muted-foreground">50 hours, 2 activities</div>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
-                            <div className="font-semibold mb-1">BUILDER</div>
-                            <div className="text-sm text-muted-foreground">200 hours, 8 activities</div>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
-                            <div className="font-semibold mb-1">CHAMPION</div>
-                            <div className="text-sm text-muted-foreground">500 hours, 20 activities</div>
-                          </div>
-                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
-                            <div className="font-semibold mb-1">GUARDIAN</div>
-                            <div className="text-sm text-muted-foreground">1000 hours, 50 activities</div>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-3">Hours are cumulative across all employees for that SDG area.</p>
-                      </div>
-
-                      <h3 className="font-semibold text-xl mt-8">Overall Rank Progression:</h3>
+                      <h4 className="font-semibold text-lg mt-8">Individual Overall Rank Progression:</h4>
                       
                       <div className="space-y-2">
                         {[
@@ -801,6 +780,73 @@ export default function MethodologyPage() {
                             </CardContent>
                           </Card>
                         ))}
+                      </div>
+                    </div>
+
+                    {/* Organization Badge System */}
+                    <div className="space-y-4 mt-12">
+                      <h3 className="font-semibold text-xl flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-purple-600" />
+                        Organization Badge System
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Organizations earn the same 68 SDG-specific badges but with higher thresholds reflecting collective effort and organizational impact.
+                      </p>
+                      
+                      <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg p-6">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <Users className="w-5 h-5 text-purple-600" />
+                          Organization SDG Badge Requirements
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">SUPPORTER</div>
+                            <div className="text-sm text-muted-foreground">50 hours, 2 activities</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">BUILDER</div>
+                            <div className="text-sm text-muted-foreground">200 hours, 8 activities</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">CHAMPION</div>
+                            <div className="text-sm text-muted-foreground">500 hours, 20 activities</div>
+                          </div>
+                          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg">
+                            <div className="font-semibold mb-1">GUARDIAN</div>
+                            <div className="text-sm text-muted-foreground">1000 hours, 50 activities</div>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-3">Hours are cumulative across all employees for that SDG area.</p>
+                      </div>
+
+                      <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg p-6">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2">
+                          <Trophy className="w-5 h-5 text-orange-600" />
+                          Organization Tier Progression
+                        </h4>
+                        <p className="text-sm mb-4">Organizations progress through tiers based on collective impact and organizational maturity:</p>
+                        <div className="space-y-2">
+                          {[
+                            { tier: 'Impact Starter', description: 'New organizations beginning their impact journey' },
+                            { tier: 'Community Builder', description: 'Organizations actively building community connections' },
+                            { tier: 'Impact Driver', description: 'Organizations driving significant local impact' },
+                            { tier: 'Community Ally', description: 'Trusted community partners with sustained engagement' },
+                            { tier: 'CSR Practitioner', description: 'Organizations with formal CSR programs' },
+                            { tier: 'CSR Leader', description: 'Industry leaders in corporate social responsibility' },
+                            { tier: 'ESG Champion', description: 'Organizations excelling in environmental, social, and governance practices' },
+                            { tier: 'Trusted Partner', description: 'Strategic partners with proven track record' },
+                            { tier: 'Industry Benchmark', description: 'Organizations setting industry standards for impact' },
+                            { tier: 'Global Impact Leader', description: 'Organizations with worldwide impact and influence' }
+                          ].map((tier, index) => (
+                            <div key={index} className="flex items-center gap-3 p-2 bg-white dark:bg-gray-800 rounded">
+                              <div className="font-bold text-sm w-8">{index + 1}.</div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-sm">{tier.tier}</div>
+                                <div className="text-xs text-muted-foreground">{tier.description}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </CardContent>

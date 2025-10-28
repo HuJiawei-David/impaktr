@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
             name: name,
             type: userType,
             email: email,
-            tier: 'REGISTERED',
-            subscriptionTier: 'REGISTERED',
+            tier: 'IMPACT_STARTER',
+            subscriptionTier: 'IMPACT_STARTER',
             subscriptionStatus: 'active',
           },
         });

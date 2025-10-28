@@ -268,10 +268,10 @@ export async function updateOrganizationTier(orgId: string) {
     }
 
     const tiers = [
-      { name: 'REGISTERED', threshold: 0 },
-      { name: 'PARTICIPANT', threshold: 100 },
-      { name: 'COMMUNITY_ALLY', threshold: 500 },
-      { name: 'CONTRIBUTOR', threshold: 1000 },
+      { name: 'IMPACT_STARTER', threshold: 0 },
+      { name: 'COMMUNITY_BUILDER', threshold: 100 },
+      { name: 'IMPACT_DRIVER', threshold: 500 },
+      { name: 'COMMUNITY_ALLY', threshold: 1000 },
       { name: 'CSR_PRACTITIONER', threshold: 2500 },
       { name: 'CSR_LEADER', threshold: 5000 },
       { name: 'ESG_CHAMPION', threshold: 10000 },

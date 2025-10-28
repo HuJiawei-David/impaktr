@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               logo: true,
-              slug: true
+              slug: true,
+              tier: true,
+              type: true
             }
           },
           likes: {
@@ -154,7 +156,9 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 logo: true,
-                slug: true
+                slug: true,
+                tier: true,
+                type: true
               }
             },
             likes: {

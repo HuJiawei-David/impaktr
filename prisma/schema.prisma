@@ -140,7 +140,7 @@ model Organization {
   website              String?
   type                 String?
   sdgFocusAreas        Int[]                     // Store original SDG focus areas from registration
-  tier                 OrganizationTier           @default(REGISTERED)
+  tier                 OrganizationTier           @default(IMPACT_STARTER)
   campaigns            Campaign[]
   corporateBadges      CorporateBadgeEarned[]
   donations            Donation[]
@@ -1521,10 +1521,10 @@ enum IndividualRank {
 }
 
 enum OrganizationTier {
-  REGISTERED
-  PARTICIPANT
+  IMPACT_STARTER
+  COMMUNITY_BUILDER
+  IMPACT_DRIVER
   COMMUNITY_ALLY
-  CONTRIBUTOR
   CSR_PRACTITIONER
   CSR_LEADER
   ESG_CHAMPION
