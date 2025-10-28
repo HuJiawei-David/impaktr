@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Award, TrendingUp, Target, ChevronRight, Star, Trophy, CheckCircle } from 'lucide-react';
+import { Award, TrendingUp, Target, ChevronRight, Star, Trophy, CheckCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -332,105 +332,91 @@ export function BadgeProgress() {
     const earnedTiers = sdgBadge.tiers.filter(tier => tier.earned);
     const currentTier = earnedTiers.length > 0 ? earnedTiers[earnedTiers.length - 1] : null;
     const nextTier = sdgBadge.tiers.find(tier => !tier.earned);
+    const totalHours = sdgBadge.tiers.reduce((sum, tier) => sum + tier.progress.hours, 0);
     
     return (
-      <Card key={sdgBadge.sdgNumber} className="hover:shadow-md transition-shadow bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-        <CardContent className="p-4">
-          <div className="space-y-3">
-            {/* SDG Badge Image and Name */}
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-lg flex-shrink-0 overflow-hidden">
-                {currentTier ? (
-                  <Image
-                    src={getSDGBadgeImage(sdgBadge.sdgNumber, currentTier.tier)}
-                    alt={`${currentTier.name} - SDG ${sdgBadge.sdgNumber}`}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400 text-xs">No Badge</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold text-sm flex items-center">
-                  SDG {sdgBadge.sdgNumber}: {sdgBadge.sdgName}
-                  {earnedTiers.length > 0 && <Star className="w-3 h-3 ml-1 text-yellow-500 fill-current" />}
-                </h4>
-                <div className="flex items-center gap-2 mt-1">
-                  {currentTier ? (
-                    <Badge className={`text-xs px-3 py-1 ${getTierBadgeColor(currentTier.tier)}`}>
-                      {getTierIcon(currentTier.tier)} {currentTier.name}
-                    </Badge>
-                  ) : (
-                    <Badge className="text-xs px-3 py-1 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-                      No Badge Yet
-                    </Badge>
-                  )}
-                  {earnedTiers.length > 0 && (
-                    <Badge variant="success" className="text-xs px-2 py-1 flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      {earnedTiers.length} earned
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-                <div className="font-semibold text-gray-900 dark:text-white">
-                  {sdgBadge.tiers.reduce((sum, tier) => sum + tier.progress.hours, 0)}h
-                </div>
-                <div className="text-gray-500 dark:text-gray-400">Total Hours</div>
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-                <div className="font-semibold text-gray-900 dark:text-white">
-                  {sdgBadge.tiers.reduce((sum, tier) => sum + tier.progress.activities, 0)}
-                </div>
-                <div className="text-gray-500 dark:text-gray-400">Activities</div>
-              </div>
-            </div>
-
-            {/* Progress towards next tier */}
-            {nextTier && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-500 dark:text-gray-400">Progress to {nextTier.name}</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {Math.round(nextTier.progress.percentage)}%
-                  </span>
-                </div>
-                <Progress value={nextTier.progress.percentage} className="h-2" />
-                
-                {/* Requirements */}
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Need {nextTier.requirements.minHours - nextTier.progress.hours} more hours and {nextTier.requirements.minActivities - nextTier.progress.activities} more activities
-                </div>
+      <div key={sdgBadge.sdgNumber} className="group relative bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-4 hover:shadow-lg transition-all duration-200 hover:border-purple-300 dark:hover:border-purple-700">
+        {/* Header: Badge Icon + Title */}
+        <div className="flex items-start gap-3 mb-3">
+          <div className="relative w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden shadow-sm">
+            {currentTier ? (
+              <Image
+                src={getSDGBadgeImage(sdgBadge.sdgNumber, currentTier.tier)}
+                alt={`${currentTier.name} - SDG ${sdgBadge.sdgNumber}`}
+                width={56}
+                height={56}
+                className="w-full h-full object-cover"
+              />
+            ) : sdgInfo ? (
+              <Image 
+                src={sdgInfo.image} 
+                alt={`SDG ${sdgBadge.sdgNumber}`}
+                width={56}
+                height={56}
+                className="w-full h-full object-cover opacity-40"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                <Award className="w-6 h-6 text-gray-400" />
               </div>
             )}
-
-            {/* Earned tiers display */}
             {earnedTiers.length > 0 && (
-              <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="text-xs font-semibold text-green-800 dark:text-green-200 mb-2">
-                  Earned Badges:
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {earnedTiers.map((tier) => (
-                    <Badge key={tier.tier} className={`text-xs px-2 py-1 ${getTierBadgeColor(tier.tier)}`}>
-                      {getTierIcon(tier.tier)} {tier.name}
-                    </Badge>
-                  ))}
-                </div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center shadow-md">
+                <Star className="w-3 h-3 text-white fill-white" />
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm text-gray-900 dark:text-white leading-tight mb-1">
+              SDG {sdgBadge.sdgNumber}
+            </h4>
+            <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight line-clamp-1">
+              {sdgBadge.sdgName}
+            </p>
+            <div className="mt-1.5">
+              {currentTier ? (
+                <Badge className={`text-xs px-2 py-0.5 ${getTierBadgeColor(currentTier.tier)}`}>
+                  {currentTier.name}
+                </Badge>
+              ) : (
+                <Badge className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-0">
+                  Not Started
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Bar with Percentage */}
+        {nextTier && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-600 dark:text-gray-400">Next: {nextTier.name}</span>
+              <span className="font-semibold text-purple-600 dark:text-purple-400">
+                {Math.round(nextTier.progress.percentage)}%
+              </span>
+            </div>
+            <Progress value={nextTier.progress.percentage} className="h-1.5" />
+          </div>
+        )}
+
+        {/* Stats Row: Compact Two-Column */}
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
+          <div className="flex items-center gap-1.5 text-xs">
+            <div className="w-6 h-6 rounded-md bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+              <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+            </div>
+            <span className="font-semibold text-gray-900 dark:text-white">{totalHours}h</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <div className="w-6 h-6 rounded-md bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
+              <Trophy className="w-3 h-3 text-green-600 dark:text-green-400" />
+            </div>
+            <span className="font-semibold text-gray-900 dark:text-white">{earnedTiers.length}/4</span>
+          </div>
+        </div>
+      </div>
     );
   };
 
