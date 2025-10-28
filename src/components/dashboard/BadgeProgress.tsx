@@ -465,37 +465,28 @@ export function BadgeProgress() {
       <CardContent className="space-y-4">
         {/* Overall Rank Progress */}
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-600 flex items-center justify-center">
-                <Image
-                  src={getRankBadgeImage(badgeData.rankProgress.currentRank.rank)}
-                  alt={badgeData.rankProgress.currentRank.name}
-                  width={32}
-                  height={32}
-                  className="w-8 h-8"
-                />
-              </div>
-              <div>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Current Rank</div>
-                <div className="text-lg font-bold text-gray-900 dark:text-white">
-                  {badgeData.rankProgress.currentRank.name}
-                </div>
+          {/* Current Rank */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-600 flex items-center justify-center shadow-md">
+              <Image
+                src={getRankBadgeImage(badgeData.rankProgress.currentRank.rank)}
+                alt={badgeData.rankProgress.currentRank.name}
+                width={40}
+                height={40}
+                className="w-10 h-10"
+              />
+            </div>
+            <div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Current Rank</div>
+              <div className="text-xl font-bold text-gray-900 dark:text-white">
+                {badgeData.rankProgress.currentRank.name}
               </div>
             </div>
-            {badgeData.rankProgress.nextRank && (
-              <div className="text-right">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Next Rank</div>
-                <div className="text-sm font-semibold text-purple-600 dark:text-purple-400">
-                  {badgeData.rankProgress.nextRank.name}
-                </div>
-              </div>
-            )}
           </div>
           
           {/* Rank Progress Bars */}
           {badgeData.rankProgress.nextRank && (
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-600 dark:text-gray-400">Impact Score</span>
                 <span className="font-medium text-gray-900 dark:text-white">
@@ -519,6 +510,17 @@ export function BadgeProgress() {
                 </span>
               </div>
               <Progress value={badgeData.rankProgress.nextRank.progress.badges} className="h-2" />
+
+              {/* Next Rank - Below Progress Bars */}
+              <div className="flex items-center justify-between pt-3 mt-3 border-t border-purple-200 dark:border-purple-800">
+                <span className="text-xs text-gray-600 dark:text-gray-400">Next Rank</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                    {badgeData.rankProgress.nextRank.name}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
             </div>
           )}
         </div>
