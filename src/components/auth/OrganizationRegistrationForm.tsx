@@ -38,10 +38,13 @@ interface OrganizationRegistrationData {
   sdgFocus: number[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FormDataUpdate = Record<string, any>;
+
 interface OrganizationRegistrationFormProps {
   profileType: UserType;
   isStepMode?: boolean;
-  onDataChange?: (data: any) => void;
+  onDataChange?: (data: FormDataUpdate) => void;
   validationErrors?: string[];
 }
 
@@ -531,7 +534,7 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                 Organization Logo
               </CardTitle>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Add your organization's logo to help others recognize your brand. This will be visible on your public profile.
+                Add your organization&apos;s logo to help others recognize your brand. This will be visible on your public profile.
               </p>
             </CardHeader>
             <CardContent>
@@ -541,6 +544,7 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
                   <div className="relative group">
                     <div className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600 overflow-hidden transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500">
                       {logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={URL.createObjectURL(logo)}
                           alt="Logo preview"
