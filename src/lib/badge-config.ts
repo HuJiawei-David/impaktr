@@ -139,9 +139,9 @@ export interface OrganizationTierBadgeConfig {
 
 export const ORGANIZATION_TIER_BADGES: OrganizationTierBadgeConfig[] = [
   {
-    tier: OrganizationTier.REGISTERED,
-    name: 'Registered',
-    description: 'Welcome to the impact journey',
+    tier: OrganizationTier.IMPACT_STARTER,
+    name: 'Impact Starter',
+    description: 'New organizations beginning their impact journey',
     icon: 'building',
     minEmployeeParticipation: 0,
     minAverageScore: 0,
@@ -150,9 +150,9 @@ export const ORGANIZATION_TIER_BADGES: OrganizationTierBadgeConfig[] = [
     color: 'from-gray-400 to-gray-500'
   },
   {
-    tier: OrganizationTier.PARTICIPANT,
-    name: 'Participant',
-    description: 'Participating in social impact initiatives',
+    tier: OrganizationTier.COMMUNITY_BUILDER,
+    name: 'Community Builder',
+    description: 'Organizations actively building community connections',
     icon: 'handshake',
     minEmployeeParticipation: 5,
     minAverageScore: 10,
@@ -172,9 +172,9 @@ export const ORGANIZATION_TIER_BADGES: OrganizationTierBadgeConfig[] = [
     color: 'from-blue-400 to-blue-500'
   },
   {
-    tier: OrganizationTier.CONTRIBUTOR,
-    name: 'Contributor',
-    description: 'Contributing significantly to social causes',
+    tier: OrganizationTier.IMPACT_DRIVER,
+    name: 'Impact Driver',
+    description: 'Organizations driving significant local impact',
     icon: 'hand-heart',
     minEmployeeParticipation: 20,
     minAverageScore: 25,
