@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, MapPin, Users, Plus, Clock, Trash2, Eye } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface Event {
   id: string;
@@ -39,6 +40,9 @@ export default function EventManager({ events, organizationId, onEventDeleted }:
     endDate: '',
     maxParticipants: '',
   });
+  
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
 
   const handleCreate = async () => {
     try {
@@ -75,28 +79,36 @@ export default function EventManager({ events, organizationId, onEventDeleted }:
     }
   };
 
-  const handleDeleteEvent = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteEvent = (eventId: string) => {
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+    
+    showConfirm({
+      title: 'Delete Event',
+      message: `Are you sure you want to delete "${event.title}"? This action cannot be undone and all event data will be permanently removed.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/events/${eventId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/events/${eventId}`, {
-        method: 'DELETE',
-      });
+          if (!response.ok) {
+            throw new Error('Failed to delete event');
+          }
 
-      if (!response.ok) {
-        throw new Error('Failed to delete event');
+          toast.success('Event deleted successfully');
+          if (onEventDeleted) {
+            onEventDeleted();
+          }
+        } catch (error) {
+          console.error('Delete event error:', error);
+          toast.error('Failed to delete event. Please try again.');
+        }
       }
-
-      toast.success('Event deleted successfully');
-      if (onEventDeleted) {
-        onEventDeleted();
-      }
-    } catch (error) {
-      console.error('Delete event error:', error);
-      toast.error('Failed to delete event. Please try again.');
-    }
+    });
   };
 
   const sdgOptions = [
@@ -116,6 +128,7 @@ export default function EventManager({ events, organizationId, onEventDeleted }:
   ];
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -298,5 +311,9 @@ export default function EventManager({ events, organizationId, onEventDeleted }:
         )}
       </CardContent>
     </Card>
+
+    {/* Confirm Dialog */}
+    <ConfirmDialog />
+    </>
   );
 }

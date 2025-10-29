@@ -40,6 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { formatTimeAgo, getInitials, formatHours } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface Participant {
   id: string;
@@ -105,6 +106,9 @@ export function ParticipantsList({
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
   const [sortBy, setSortBy] = useState<string>('joinedDate');
   const [activeTab, setActiveTab] = useState('all');
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
@@ -220,24 +224,34 @@ export function ParticipantsList({
     }
   };
 
-  const handleRemoveParticipant = async (participantId: string) => {
-    if (!confirm('Are you sure you want to remove this participant?')) return;
+  const handleRemoveParticipant = (participantId: string) => {
+    const participant = participants.find(p => p.id === participantId);
+    if (!participant) return;
+    
+    showConfirm({
+      title: 'Remove Participant',
+      message: `Are you sure you want to remove ${participant.user.name} from this event?`,
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/events/${eventId}/participants/${participantId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/events/${eventId}/participants/${participantId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        toast.success('Participant removed');
-        fetchParticipants();
-      } else {
-        throw new Error('Failed to remove participant');
+          if (response.ok) {
+            toast.success('Participant removed');
+            fetchParticipants();
+          } else {
+            throw new Error('Failed to remove participant');
+          }
+        } catch (error) {
+          console.error('Error removing participant:', error);
+          toast.error('Failed to remove participant');
+        }
       }
-    } catch (error) {
-      console.error('Error removing participant:', error);
-      toast.error('Failed to remove participant');
-    }
+    });
   };
 
   const handleSendMessage = async (participantId: string, message: string) => {
@@ -677,6 +691,9 @@ export function ParticipantsList({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }

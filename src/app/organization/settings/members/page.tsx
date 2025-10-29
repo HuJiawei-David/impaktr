@@ -33,6 +33,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'react-hot-toast';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface Member {
   id: string;
@@ -71,6 +72,9 @@ export default function OrganizationMembersSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
   const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
@@ -149,25 +153,33 @@ export default function OrganizationMembersSettingsPage() {
     }
   };
 
-  const handleRemoveMember = async (memberId: string) => {
-    if (!confirm('Are you sure you want to remove this member? This action cannot be undone.')) {
-      return;
-    }
+  const handleRemoveMember = (memberId: string) => {
+    const member = organizationData?.members.find(m => m.id === memberId);
+    if (!member) return;
+    
+    showConfirm({
+      title: 'Remove Member',
+      message: `Are you sure you want to remove ${member.user.name} from the organization? This action cannot be undone.`,
+      confirmText: 'Remove',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/organization/members/${memberId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/organization/members/${memberId}`, {
-        method: 'DELETE',
-      });
+          if (!response.ok) {
+            throw new Error('Failed to remove member');
+          }
 
-      if (!response.ok) {
-        throw new Error('Failed to remove member');
+          toast.success('Member removed successfully');
+          fetchOrganizationData(); // Refresh data
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to remove member');
+        }
       }
-
-      toast.success('Member removed successfully');
-      fetchOrganizationData(); // Refresh data
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to remove member');
-    }
+    });
   };
 
   const filteredMembers = organizationData?.members.filter(member => {
@@ -481,6 +493,9 @@ export default function OrganizationMembersSettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }

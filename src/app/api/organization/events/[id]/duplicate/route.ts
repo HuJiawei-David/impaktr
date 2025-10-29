@@ -87,6 +87,8 @@ export async function POST(
 
   } catch (error) {
     console.error('Error duplicating event:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    }, { status: 500 });
   }
 }

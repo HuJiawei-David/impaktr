@@ -43,6 +43,7 @@ import EnvironmentalForm from '../forms/EnvironmentalForm';
 import SocialForm from '../forms/SocialForm';
 import GovernanceForm from '../forms/GovernanceForm';
 import BatchUploadForm from '../forms/BatchUploadForm';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface ESGMetric {
   id?: string;
@@ -106,6 +107,9 @@ function EnhancedESGDataEntryContent() {
   
   const [activeTab, setActiveTab] = useState('environmental');
   
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
+  
   // Handle back navigation based on where user came from
   const handleBackNavigation = useCallback(() => {
     // Go back to ESG main page with data-collection tab active
@@ -155,52 +159,64 @@ function EnhancedESGDataEntryContent() {
     }
   }, []);
 
-  const deleteValidationRecord = useCallback(async (validationId: string) => {
-    if (!organizationId) {
-      console.error('No organization ID available');
-      return;
-    }
+  const deleteValidationRecord = useCallback((validationId: string) => {
+    const record = validationHistory.find(r => r.id === validationId);
+    if (!record) return;
     
-    console.log('Attempting to delete validation record:', validationId);
-    console.log('Organization ID:', organizationId);
-    
-    try {
-      const url = `/api/organizations/esg-validation/${validationId}`;
-      console.log('Making DELETE request to:', url);
-      
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-      
-      if (response.ok) {
-        // Remove the deleted record from local state
-        setValidationHistory(prev => prev.filter(record => record.id !== validationId));
-        console.log('Successfully deleted validation record');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Failed to delete validation record:', response.status, errorData);
+    showConfirm({
+      title: 'Delete Validation Record',
+      message: `Are you sure you want to delete this validation record? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'delete',
+      onConfirm: async () => {
+        if (!organizationId) {
+          console.error('No organization ID available');
+          return;
+        }
         
-        // Show user-friendly error message
-        if (response.status === 404) {
-          console.error('Validation record not found');
-        } else if (response.status === 403) {
-          console.error('Access denied - you do not have permission to delete this record');
-        } else if (response.status === 401) {
-          console.error('Unauthorized - please log in again');
-        } else {
-          console.error('Server error occurred while deleting validation record');
+        console.log('Attempting to delete validation record:', validationId);
+        console.log('Organization ID:', organizationId);
+        
+        try {
+          const url = `/api/organizations/esg-validation/${validationId}`;
+          console.log('Making DELETE request to:', url);
+          
+          const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          console.log('Response status:', response.status);
+          console.log('Response ok:', response.ok);
+          
+          if (response.ok) {
+            // Remove the deleted record from local state
+            setValidationHistory(prev => prev.filter(record => record.id !== validationId));
+            console.log('Successfully deleted validation record');
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Failed to delete validation record:', response.status, errorData);
+            
+            // Show user-friendly error message
+            if (response.status === 404) {
+              console.error('Validation record not found');
+            } else if (response.status === 403) {
+              console.error('Access denied - you do not have permission to delete this record');
+            } else if (response.status === 401) {
+              console.error('Unauthorized - please log in again');
+            } else {
+              console.error('Server error occurred while deleting validation record');
+            }
+          }
+        } catch (error) {
+          console.error('Error deleting validation record:', error);
         }
       }
-    } catch (error) {
-      console.error('Error deleting validation record:', error);
-    }
-  }, [organizationId]);
+    });
+  }, [organizationId, validationHistory, showConfirm]);
 
   useEffect(() => {
     if (session?.user) {
@@ -922,6 +938,9 @@ function EnhancedESGDataEntryContent() {
           </CardContent>
         </Card>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }

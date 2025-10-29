@@ -37,6 +37,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'react-hot-toast';
 import { getSDGById, getSDGColor } from '@/constants/sdgs';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface Event {
   id: string;
@@ -45,7 +46,12 @@ interface Event {
   startDate: string;
   endDate?: string;
   registrationDeadline?: string;
-  location: string;
+  location: {
+    address?: string;
+    city: string;
+    coordinates?: { lat: number; lng: number };
+    isVirtual: boolean;
+  } | string;
   maxParticipants?: number;
   currentParticipants: number;
   status: string;
@@ -109,6 +115,9 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -220,38 +229,48 @@ export default function EventDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to duplicate event');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to duplicate event' }));
+        throw new Error(errorData.error || 'Failed to duplicate event');
       }
 
       const data = await response.json();
       toast.success('Event duplicated successfully');
-      router.push(`/organization/events/${data.eventId}/edit`);
+      // Redirect to events list page to see the duplicated event
+      router.push('/organization/events');
     } catch (error) {
-      toast.error('Failed to duplicate event');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to duplicate event';
+      toast.error(errorMessage);
       console.error('Error duplicating event:', error);
     }
   };
 
-  const handleDeleteEvent = async () => {
-    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      return;
-    }
+  const handleDeleteEvent = () => {
+    if (!event) return;
+    
+    showConfirm({
+      title: 'Delete Event',
+      message: `Are you sure you want to delete "${event.title}"? This action cannot be undone and all event data will be permanently removed.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/organization/events/${eventId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/organization/events/${eventId}`, {
-        method: 'DELETE',
-      });
+          if (!response.ok) {
+            throw new Error('Failed to delete event');
+          }
 
-      if (!response.ok) {
-        throw new Error('Failed to delete event');
+          toast.success('Event deleted successfully');
+          router.push('/organization/events');
+        } catch (error) {
+          toast.error('Failed to delete event');
+          console.error('Error deleting event:', error);
+        }
       }
-
-      toast.success('Event deleted successfully');
-      router.push('/organization/events');
-    } catch (error) {
-      toast.error('Failed to delete event');
-      console.error('Error deleting event:', error);
-    }
+    });
   };
 
   const handleStatusChange = async (newStatus: string) => {
@@ -323,11 +342,26 @@ export default function EventDetailPage() {
     );
   }
 
-  const sdgNumbers = event.sdg ? event.sdg.split(',').map(sdg => {
-    // Extract number from SDG string (e.g., "SDG3" -> 3)
-    const match = sdg.match(/\d+/);
-    return match ? parseInt(match[0], 10) : null;
-  }).filter(num => num !== null) : [];
+  const sdgNumbers = event.sdg ? (() => {
+    try {
+      // Try to parse as JSON array first
+      if (typeof event.sdg === 'string' && event.sdg.startsWith('[')) {
+        const parsed = JSON.parse(event.sdg);
+        return Array.isArray(parsed) ? parsed.filter((num: any) => num !== null && !isNaN(num)) : [];
+      }
+      // Otherwise, try split by comma
+      return event.sdg.split(',').map(sdg => {
+        const match = sdg.match(/\d+/);
+        return match ? parseInt(match[0], 10) : null;
+      }).filter(num => num !== null);
+    } catch {
+      // If parsing fails, try split by comma
+      return event.sdg.split(',').map(sdg => {
+        const match = sdg.match(/\d+/);
+        return match ? parseInt(match[0], 10) : null;
+      }).filter(num => num !== null);
+    }
+  })() : [];
   const participationRate = event.maxParticipants ? (event.currentParticipants / event.maxParticipants) * 100 : 0;
 
   return (
@@ -497,7 +531,14 @@ export default function EventDetailPage() {
                     <MapPin className="w-5 h-5 text-gray-400" />
                     <div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">Location</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{event.location}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {typeof event.location === 'string' 
+                          ? event.location 
+                          : event.location?.isVirtual 
+                            ? 'Virtual Event' 
+                            : event.location?.city || event.location?.address || 'Location TBD'
+                        }
+                      </p>
                     </div>
                   </div>
 
@@ -992,6 +1033,9 @@ export default function EventDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }

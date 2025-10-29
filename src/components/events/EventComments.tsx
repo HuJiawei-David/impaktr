@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatTimeAgo, getInitials } from '@/lib/utils';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface Comment {
   id: string;
@@ -63,6 +64,9 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
   const [replyText, setReplyText] = useState('');
   const [editingComment, setEditingComment] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  
+  // Confirm dialog
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     fetchComments();
@@ -193,20 +197,30 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
     }
   };
 
-  const handleDeleteComment = async (commentId: string) => {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
+  const handleDeleteComment = (commentId: string) => {
+    const comment = comments.find(c => c.id === commentId);
+    if (!comment) return;
+    
+    showConfirm({
+      title: 'Delete Comment',
+      message: 'Are you sure you want to delete this comment? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'delete',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/events/${eventId}/comments/${commentId}`, {
+            method: 'DELETE',
+          });
 
-    try {
-      const response = await fetch(`/api/events/${eventId}/comments/${commentId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setComments(prev => prev.filter(comment => comment.id !== commentId));
+          if (response.ok) {
+            setComments(prev => prev.filter(comment => comment.id !== commentId));
+          }
+        } catch (error) {
+          console.error('Error deleting comment:', error);
+        }
       }
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-    }
+    });
   };
 
   const renderComment = (comment: Comment, isReply: boolean = false) => (
@@ -391,6 +405,7 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
   );
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
@@ -485,5 +500,9 @@ export function EventComments({ eventId, isParticipant = false, canComment = tru
         )}
       </CardContent>
     </Card>
+
+    {/* Confirm Dialog */}
+    <ConfirmDialog />
+  </>
   );
 }

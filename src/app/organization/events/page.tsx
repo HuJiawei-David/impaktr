@@ -51,6 +51,8 @@ interface Event {
   status: string;
   sdg: number[];
   isPublic: boolean;
+  coverImage?: string | null;
+  imageUrl?: string | null;
 }
 
 interface OrganizationData {
@@ -388,111 +390,132 @@ export default function OrganizationEventsPage() {
 
         {/* Events List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map((event) => (
-            <Card 
-              key={event.id} 
-              className="hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => router.push(`/organization/events/${event.id}`)}
-            >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg mb-2">{event.title}</CardTitle>
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Badge className={getStatusColor(event.status)}>
-                        {getStatusDisplay(event.status)}
-                      </Badge>
-                      <Badge className={getTypeColor(event.isPublic)}>
-                        {event.isPublic ? 'Public' : 'Private'}
-                      </Badge>
-                    </div>
+          {filteredEvents.map((event) => {
+            const eventImageUrl = event.coverImage || event.imageUrl || '/default-event-cover.svg';
+            
+            return (
+              <Card 
+                key={event.id} 
+                className="hover:shadow-lg transition-shadow cursor-pointer overflow-hidden"
+                onClick={() => router.push(`/organization/events/${event.id}`)}
+              >
+                {/* Event Cover Image */}
+                <div className="relative w-full h-48 bg-gradient-to-br from-blue-500 to-purple-600">
+                  <img
+                    src={eventImageUrl}
+                    alt={event.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to default image if the image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/default-event-cover.svg';
+                    }}
+                  />
+                  {/* Status and Type Badges Overlay */}
+                  <div className="absolute top-3 left-3 flex items-center space-x-2">
+                    <Badge className={`${getStatusColor(event.status)} shadow-md`}>
+                      {getStatusDisplay(event.status)}
+                    </Badge>
+                    <Badge className={`${getTypeColor(event.isPublic)} shadow-md`}>
+                      {event.isPublic ? 'Public' : 'Private'}
+                    </Badge>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Filter className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/organization/events/${event.id}`);
-                      }}>
-                        <Eye className="w-4 h-4 mr-3" />
-                        View Event
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/organization/events/${event.id}/edit`);
-                      }}>
-                        <Edit className="w-4 h-4 mr-3" />
-                        Edit Event
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
-                        handleDuplicateEvent(event.id);
-                      }}>
-                        <Copy className="w-4 h-4 mr-3" />
-                        Duplicate Event
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={(e) => {
+                  {/* Actions Menu Overlay */}
+                  <div className="absolute top-3 right-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="secondary"
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()}
+                          className="shadow-md"
+                        >
+                          <Filter className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteEvent(event.id, event.title);
-                        }}
-                        className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      >
-                        <Trash2 className="w-4 h-4 mr-3" />
-                        Delete Event
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {event.description}
-                </p>
-                
-                <div className="space-y-2">
-                  <div className="flex items-center text-sm">
-                    <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span>{new Date(event.startDate).toLocaleDateString()}</span>
-                    {event.endDate && (
-                      <span className="mx-1">-</span>
-                    )}
-                    {event.endDate && (
-                      <span>{new Date(event.endDate).toLocaleDateString()}</span>
-                    )}
+                          router.push(`/organization/events/${event.id}`);
+                        }}>
+                          <Eye className="w-4 h-4 mr-3" />
+                          View Event
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/organization/events/${event.id}/edit`);
+                        }}>
+                          <Edit className="w-4 h-4 mr-3" />
+                          Edit Event
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleDuplicateEvent(event.id);
+                        }}>
+                          <Copy className="w-4 h-4 mr-3" />
+                          Duplicate Event
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEvent(event.id, event.title);
+                          }}
+                          className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <Trash2 className="w-4 h-4 mr-3" />
+                          Delete Event
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
+                </div>
+
+                <CardHeader>
+                  <CardTitle className="text-lg line-clamp-1">{event.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                    {event.description}
+                  </p>
                   
-                  {event.location && (
+                  <div className="space-y-2">
                     <div className="flex items-center text-sm">
-                      <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
-                      <span className="truncate">
-                        {typeof event.location === 'string' 
-                          ? event.location 
-                          : event.location?.city || 'Location TBD'
-                        }
+                      <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <span>{new Date(event.startDate).toLocaleDateString()}</span>
+                      {event.endDate && (
+                        <span className="mx-1">-</span>
+                      )}
+                      {event.endDate && (
+                        <span>{new Date(event.endDate).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    
+                    {event.location && (
+                      <div className="flex items-center text-sm">
+                        <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
+                        <span className="truncate">
+                          {typeof event.location === 'string' 
+                            ? event.location 
+                            : event.location?.isVirtual 
+                              ? 'Virtual Event' 
+                              : event.location?.city || event.location?.address || 'Location TBD'
+                          }
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center text-sm">
+                      <Users className="w-4 h-4 mr-2 text-muted-foreground" />
+                      <span>
+                        {event.currentParticipants}
+                        {event.maxParticipants && ` / ${event.maxParticipants}`} participants
                       </span>
                     </div>
-                  )}
-                  
-                  <div className="flex items-center text-sm">
-                    <Users className="w-4 h-4 mr-2 text-muted-foreground" />
-                    <span>
-                      {event.currentParticipants}
-                      {event.maxParticipants && ` / ${event.maxParticipants}`} participants
-                    </span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
           
           {filteredEvents.length === 0 && (
             <div className="col-span-full text-center py-12">

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local uploads (fallback when AWS S3 is not configured)
+/public/uploads
