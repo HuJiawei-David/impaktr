@@ -98,6 +98,11 @@ model User {
   postComments             PostComment[]
   postReactions            PostReaction[]
   commentReactions         CommentReaction[]
+  connectionsRequested     Connection[]             @relation("ConnectionsRequested")
+  connectionsReceived      Connection[]             @relation("ConnectionsReceived")
+  userRecommendations      Recommendation[]         @relation("UserRecommendations")
+  authorRecommendations    Recommendation[]         @relation("AuthorRecommendations")
+  certificates             Certificate[]
 
   @@map("users")
 }
@@ -393,6 +398,7 @@ model Event {
   bookmarks             EventBookmark[]
   comments              EventComment[]
   images                EventImage[]
+  certificates          Certificate[]
   campaign              Campaign?             @relation(fields: [campaignId], references: [id])
   organizationLocation  OrganizationLocation? @relation(fields: [locationId], references: [id])
   organization          Organization?         @relation(fields: [organizationId], references: [id])
@@ -548,6 +554,42 @@ model Follow {
   @@unique([followerId, followingId])
   @@unique([followerId, followingOrgId])
   @@map("follows")
+}
+
+model Connection {
+  id          String           @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      ConnectionStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  requester User @relation("ConnectionsRequested", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("ConnectionsReceived", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@map("connections")
+}
+
+model Recommendation {
+  id           String   @id @default(cuid())
+  userId       String   // The user being recommended
+  authorId     String   // The user writing the recommendation
+  authorType   String   // 'individual' or 'organization'
+  text         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation("UserRecommendations", fields: [userId], references: [id], onDelete: Cascade)
+  author       User     @relation("AuthorRecommendations", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, authorId])
+  @@map("recommendations")
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 model Share {
@@ -811,6 +853,8 @@ model Certificate {
   metadata       Json?
   revokedAt      DateTime?
   createdAt      DateTime             @default(now())
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event          Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
   template       CertificateTemplate? @relation(fields: [templateId], references: [id])
 
   @@index([userId])
