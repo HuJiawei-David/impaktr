@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus, EventCategory } from '@/types/enums';
 import { Prisma } from '@prisma/client';
-import { uploadToS3 } from '@/lib/aws';
+import { uploadToS3, FileSystemError } from '@/lib/aws';
 
 const createEventSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
@@ -362,31 +362,67 @@ export async function POST(request: NextRequest) {
       } catch (uploadError) {
         console.error(`Error uploading image ${i + 1}:`, uploadError);
         const errorMessage = uploadError instanceof Error ? uploadError.message : 'Unknown error';
-        uploadErrors.push(`Image ${i + 1} (${file.name}): ${errorMessage}`);
+        const isFileSystemError = uploadError instanceof FileSystemError || 
+          errorMessage.includes('ENOENT') || 
+          errorMessage.includes('EACCES') || 
+          errorMessage.includes('EROFS') || 
+          errorMessage.includes('read-only') ||
+          errorMessage.includes('File system');
+        
+        if (isFileSystemError) {
+          uploadErrors.push(`Image ${i + 1} (${file.name}): [FileSystemError] ${errorMessage}`);
+        } else {
+          uploadErrors.push(`Image ${i + 1} (${file.name}): ${errorMessage}`);
+        }
         // Continue with other images even if one fails
       }
     }
+    
+    // Separate file system errors from validation errors
+    const fileSystemErrors = uploadErrors.filter(err => 
+      err.includes('[FileSystemError]') ||
+      err.includes('ENOENT') || 
+      err.includes('EACCES') || 
+      err.includes('EROFS') || 
+      err.includes('read-only') ||
+      err.includes('File system')
+    );
+    const validationErrors = uploadErrors.filter(err => 
+      !err.includes('[FileSystemError]') &&
+      !err.includes('ENOENT') && 
+      !err.includes('EACCES') && 
+      !err.includes('EROFS') && 
+      !err.includes('read-only') &&
+      !err.includes('File system')
+    );
     
     // Log upload summary and handle errors
     if (uploadErrors.length > 0) {
       console.warn(`Image upload completed with ${uploadErrors.length} error(s):`, uploadErrors);
       
-      // If all uploads failed and we had images, return error
-      if (imageUrls.length === 0 && imageFiles.length > 0) {
-        console.error('All image uploads failed.');
-        
-        // Return validation errors (format or size issues)
+      // If there are validation errors (format or size issues), return error
+      if (validationErrors.length > 0) {
+        console.error('Validation errors found:', validationErrors);
         return NextResponse.json(
           { 
             error: 'Image upload failed',
-            details: uploadErrors.join('; ')
+            details: validationErrors.join('; ')
           },
           { status: 400 }
         );
       }
       
+      // If all uploads failed due to file system errors (like in Vercel), allow event creation without images
+      if (imageUrls.length === 0 && imageFiles.length > 0 && fileSystemErrors.length > 0) {
+        console.warn('All image uploads failed due to file system errors (likely read-only filesystem). Continuing without images.');
+        console.warn('File system errors:', fileSystemErrors);
+        // Continue event creation without images - don't return error
+      }
+      
       // If some uploads failed but some succeeded, we'll continue but log warnings
-      console.warn(`Partial success: ${imageUrls.length} of ${imageFiles.length} images uploaded successfully`);
+      if (imageUrls.length > 0 && fileSystemErrors.length > 0) {
+        console.warn(`Partial success: ${imageUrls.length} of ${imageFiles.length} images uploaded successfully. Some failed due to file system errors.`);
+      }
     } else if (imageUrls.length > 0) {
       console.log(`Successfully uploaded ${imageUrls.length} image(s)`);
     }
