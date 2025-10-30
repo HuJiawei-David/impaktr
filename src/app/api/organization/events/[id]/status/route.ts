@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { EventStatus } from '@/types/events';
+import { EventStatus } from '@/types/enums';
 import { OrganizationMember, Participation } from '@prisma/client';
 import { calculateImpaktrScore } from '@/lib/scoring';
 
@@ -117,6 +117,8 @@ export async function PUT(
       where: { id },
       data: {
         status,
+        // When publishing/activating an event, ensure it becomes public
+        ...(status === EventStatus.ACTIVE ? { isPublic: true } : {}),
       },
       include: {
         organization: true,
