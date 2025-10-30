@@ -5,13 +5,23 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus } from '@/types/events';
-import { Prisma } from '@prisma/client';
+// Avoid importing Prisma types to prevent enum export mismatches
+
+const sessionSchema = z.object({
+  startAt: z.string().datetime(),
+  endAt: z.string().datetime(),
+  breakMin: z.number().int().min(0).optional(),
+  label: z.string().optional()
+});
 
 const createEventSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().min(1).max(2000),
-  startDate: z.string().transform((str) => new Date(str)),
-  endDate: z.string().transform((str) => new Date(str)).optional(),
+  timezone: z.string().optional(),
+  sessions: z.array(sessionSchema).min(1).optional(),
+  // legacy fallback
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   location: z.object({
     address: z.string().optional(),
     city: z.string(),
@@ -20,14 +30,14 @@ const createEventSchema = z.object({
       lng: z.number(),
     }).optional(),
     isVirtual: z.boolean().default(false),
-  }),
-  maxParticipants: z.number().positive().optional(),
-  sdgTags: z.array(z.number().min(1).max(17)),
-  skills: z.array(z.string()),
-  intensity: z.number().min(0.8).max(1.2).default(1.0),
-  verificationType: z.string().default('ORGANIZER'), // Using string since VerificationType doesn't exist
+  }).optional(),
+  maxParticipants: z.number().positive().optional().nullable(),
+  sdgTags: z.array(z.number().min(1).max(17)).optional(),
+  skills: z.array(z.string()).optional(),
+  intensity: z.number().min(0.8).max(1.2).optional(),
+  verificationType: z.string().default('ORGANIZER').optional(),
   organizationId: z.string().optional(),
-  isPublic: z.boolean().default(true),
+  isPublic: z.boolean().optional(),
 });
 
 const querySchema = z.object({
@@ -50,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: Prisma.EventWhereInput = {
+    const where: any = {
       isPublic: true, // Only show public events
     };
 
@@ -83,12 +93,10 @@ export async function GET(request: NextRequest) {
       where.organizationId = organizationId;
     }
 
-    if (startDate) {
-      where.startDate = { gte: startDate };
-    }
-
-    if (endDate) {
-      where.startDate = { lte: endDate };
+    if (startDate || endDate) {
+      where.startDate = {};
+      if (startDate) where.startDate.gte = startDate;
+      if (endDate) where.startDate.lte = endDate;
     }
 
     const [events, total] = await Promise.all([
@@ -129,7 +137,7 @@ export async function GET(request: NextRequest) {
           where: { userId },
           select: { eventId: true }
         });
-        userBookmarks = bookmarks.map(b => b.eventId);
+        userBookmarks = bookmarks.map((b: { eventId: string }) => b.eventId);
       } catch (error) {
         // Bookmark query failed - default to empty array
         userBookmarks = [];
@@ -137,7 +145,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform events to include bookmark status and correct participant count
-    const eventsWithBookmarks = events.map(event => ({
+    const eventsWithBookmarks = events.map((event: { id: string; _count: { participations: number } }) => ({
       ...event,
       isBookmarked: userBookmarks.includes(event.id),
       currentParticipants: event._count.participations // Use the count of VERIFIED participations
@@ -176,7 +184,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = createEventSchema.parse(body);
+    const parsed = createEventSchema.parse(body);
+    const sessions = (parsed.sessions && parsed.sessions.length)
+      ? parsed.sessions
+      : (parsed.startDate && parsed.endDate)
+        ? [{ startAt: parsed.startDate, endAt: parsed.endDate, breakMin: 0, label: 'Day 1' }]
+        : [];
+    if (!sessions.length) {
+      return NextResponse.json({ error: 'At least one session is required' }, { status: 400 });
+    }
+    if (!sessions.every(s => new Date(s.endAt) > new Date(s.startAt))) {
+      return NextResponse.json({ error: 'Each session endAt must be after startAt' }, { status: 400 });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -187,11 +206,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has permission to create events for organization
-    if (validatedData.organizationId) {
+    if (parsed.organizationId) {
       const membership = await prisma.organizationMember.findUnique({
         where: {
           organizationId_userId: {
-            organizationId: validatedData.organizationId,
+            organizationId: parsed.organizationId,
             userId: user.id,
           }
         }
@@ -205,22 +224,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const startDate = new Date(Math.min(...sessions.map(s => new Date(s.startAt).getTime())));
+    const endDate = new Date(Math.max(...sessions.map(s => new Date(s.endAt).getTime())));
+    const totalHours = sessions.reduce((sum, s) => {
+      const ms = new Date(s.endAt).getTime() - new Date(s.startAt).getTime();
+      const hours = Math.max(0, ms / 36e5 - (s.breakMin ?? 0) / 60);
+      return sum + hours;
+    }, 0);
+
     const event = await prisma.event.create({
       data: {
-        title: validatedData.title,
-        description: validatedData.description,
-        startDate: validatedData.startDate,
-        endDate: validatedData.endDate || validatedData.startDate,
-        location: validatedData.location?.city || 'Virtual Event',
-        maxParticipants: validatedData.maxParticipants,
-        organizerId: user.id, // creatorId field doesn't exist, using organizerId instead
-        status: 'DRAFT', // Using string literal since EventStatus.DRAFT doesn't exist
-        type: 'VOLUNTEERING', // Default type
-        sdg: validatedData.sdgTags?.[0]?.toString() || null,
-        isPublic: validatedData.isPublic,
+        title: parsed.title,
+        description: parsed.description,
+        startDate,
+        endDate,
+        totalHours,
+        timezone: parsed.timezone || null,
+        location: parsed.location?.city || 'Virtual Event',
+        maxParticipants: parsed.maxParticipants,
+        organizerId: user.id,
+        status: 'DRAFT',
+        type: 'VOLUNTEERING',
+        sdg: parsed.sdgTags?.[0]?.toString() || null,
+        isPublic: parsed.isPublic ?? true,
+        sessions: {
+          create: sessions.map(s => ({
+            startAt: new Date(s.startAt),
+            endAt: new Date(s.endAt),
+            breakMin: s.breakMin ?? 0,
+            label: s.label || null
+          }))
+        }
       },
       include: {
         organization: true,
+        sessions: true,
       },
     });
 

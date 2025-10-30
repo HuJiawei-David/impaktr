@@ -178,19 +178,29 @@ export async function GET(
       }
     });
 
-    // Get top volunteers by hours
+    // Get top volunteers by hours (from THIS organization's events only, individuals only)
     const topVolunteersData = await prisma.user.findMany({
       where: {
-        id: {
-          in: organization.members.map(m => m.userId)
+        userType: 'INDIVIDUAL', // Only individuals
+        participations: {
+          some: {
+            event: {
+              organizationId: id // Only events from THIS organization
+            },
+            status: 'VERIFIED'
+          }
         }
       },
       select: {
         id: true,
         name: true,
         image: true,
+        impactScore: true,
         participations: {
           where: {
+            event: {
+              organizationId: id // Only count hours from THIS organization's events
+            },
             status: 'VERIFIED'
           },
           select: {
@@ -208,7 +218,7 @@ export async function GET(
         name: user.name,
         image: user.image,
         avatar: user.image,
-        impactScore: Math.floor(Math.random() * 1000) + 100, // Mock impact score
+        impactScore: user.impactScore || 0, // Use real impact score
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         totalHours: user.participations.reduce((sum: number, p: any) => sum + (p.hours || 0), 0),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -220,6 +230,62 @@ export async function GET(
 
     // Get recent events (upcoming ones for sidebar)
     const recentEvents = organization.events.filter(event => event.status === 'UPCOMING').slice(0, 3);
+
+    // Additionally, fetch separate upcoming and past events lists for Events tab
+    const [upcomingEvents, pastEvents] = await Promise.all([
+      prisma.event.findMany({
+        where: {
+          organizationId: id,
+          status: { in: ['UPCOMING', 'ONGOING'] }
+        },
+        orderBy: { startDate: 'asc' },
+        take: 12,
+        select: {
+          id: true,
+          title: true,
+          startDate: true,
+          endDate: true,
+          location: true,
+          status: true,
+          imageUrl: true,
+          sdg: true,
+          organization: {
+            select: { id: true, name: true, logo: true }
+          },
+          _count: {
+            select: {
+              participations: { where: { status: 'VERIFIED' } }
+            }
+          }
+        }
+      }),
+      prisma.event.findMany({
+        where: {
+          organizationId: id,
+          status: 'COMPLETED'
+        },
+        orderBy: { startDate: 'desc' },
+        take: 12,
+        select: {
+          id: true,
+          title: true,
+          startDate: true,
+          endDate: true,
+          location: true,
+          status: true,
+          imageUrl: true,
+          sdg: true,
+          organization: {
+            select: { id: true, name: true, logo: true }
+          },
+          _count: {
+            select: {
+              participations: { where: { status: 'VERIFIED' } }
+            }
+          }
+        }
+      })
+    ]);
 
     // Get follower count
     const followerCount = await prisma.follow.count({
@@ -266,6 +332,8 @@ export async function GET(
       followerCount,
       topVolunteers,
       recentEvents,
+      upcomingEvents,
+      pastEvents,
       badges: organization.corporateBadges?.map(cb => cb.badge) || [],
       sdgs: sdgFocusAreas, // Use actual SDG focus areas from registration or earned badges
       isFollowing,

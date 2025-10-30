@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSession } from 'next-auth/react';
 import { Award, TrendingUp, Target, ChevronRight, Star, Trophy, CheckCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -91,194 +92,63 @@ interface BadgeProgressData {
 }
 
 export function BadgeProgress() {
+  const { data: session } = useSession();
   const [badgeData, setBadgeData] = useState<BadgeProgressData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchBadgeProgress();
-  }, []);
+    if (session?.user?.id) {
+      fetchBadgeProgress();
+    }
+  }, [session]);
 
   const fetchBadgeProgress = async () => {
+    if (!session?.user?.id) return;
+    
     try {
-      // This would be replaced with actual API call
-      // const response = await fetch('/api/users/badges/progress');
-      // const data = await response.json();
+      setIsLoading(true);
+      const response = await fetch(`/api/badges?type=individual&userId=${session.user.id}`);
       
-  // Mock data matching the real API structure
-  const mockData: BadgeProgressData = {
-    rankProgress: {
-      currentRank: {
-        rank: IndividualRank.SUPPORTER,
-        name: 'Supporter',
-        icon: 'heart'
-      },
-      nextRank: {
-        rank: IndividualRank.CONTRIBUTOR,
-        name: 'Contributor',
-        requirements: {
-          minScore: 100,
-          minHours: 25,
-          minBadges: 3
-        },
-        progress: {
-          score: 75,
-          hours: 80,
-          badges: 67
-        }
-      },
-      currentProgress: {
-        score: 75,
-        hours: 20,
-        badges: 2
+      if (!response.ok) {
+        throw new Error('Failed to fetch badge progress');
       }
-    },
-    sdgBadges: [
-      {
-        sdgNumber: 1,
-        sdgName: 'No Poverty',
-        icon: 'coins',
-        color: 'from-red-600 to-red-700',
-        tiers: [
-          {
-            tier: BadgeTier.SUPPORTER,
-            name: 'Supporter',
-            description: 'Supporting poverty alleviation efforts',
-            requirements: { minHours: 10, minActivities: 2 },
-            progress: { hours: 8, activities: 2, percentage: 100 },
-            earned: true
-          },
-          {
-            tier: BadgeTier.BUILDER,
-            name: 'Advocate',
-            description: 'Advocating for poverty elimination',
-            requirements: { minHours: 50, minActivities: 8 },
-            progress: { hours: 8, activities: 2, percentage: 16 },
-            earned: false
-          },
-          {
-            tier: BadgeTier.CHAMPION,
-            name: 'Builder',
-            description: 'Building sustainable poverty solutions',
-            requirements: { minHours: 150, minActivities: 20 },
-            progress: { hours: 8, activities: 2, percentage: 5 },
-            earned: false
-          },
-          {
-            tier: BadgeTier.GUARDIAN,
-            name: 'Poverty Fighter',
-            description: 'Fighting poverty with exceptional dedication',
-            requirements: { minHours: 400, minActivities: 50 },
-            progress: { hours: 8, activities: 2, percentage: 2 },
-            earned: false
-          }
-        ]
-      },
-      {
-        sdgNumber: 4,
-        sdgName: 'Quality Education',
-        icon: 'graduation-cap',
-        color: 'from-red-700 to-red-800',
-        tiers: [
-          {
-            tier: BadgeTier.SUPPORTER,
-            name: 'Tutor',
-            description: 'Tutoring and mentoring learners',
-            requirements: { minHours: 10, minActivities: 2 },
-            progress: { hours: 12, activities: 3, percentage: 100 },
-            earned: true
-          },
-          {
-            tier: BadgeTier.BUILDER,
-            name: 'Mentor',
-            description: 'Mentoring future leaders',
-            requirements: { minHours: 50, minActivities: 8 },
-            progress: { hours: 12, activities: 3, percentage: 24 },
-            earned: false
-          },
-          {
-            tier: BadgeTier.CHAMPION,
-            name: 'Knowledge Builder',
-            description: 'Building knowledge ecosystems',
-            requirements: { minHours: 150, minActivities: 20 },
-            progress: { hours: 12, activities: 3, percentage: 8 },
-            earned: false
-          },
-          {
-            tier: BadgeTier.GUARDIAN,
-            name: 'Education Leader',
-            description: 'Leading educational transformation',
-            requirements: { minHours: 400, minActivities: 50 },
-            progress: { hours: 12, activities: 3, percentage: 3 },
-            earned: false
-          }
-        ]
-      },
-      {
-        sdgNumber: 13,
-        sdgName: 'Climate Action',
-        icon: 'thermometer',
-        color: 'from-green-700 to-green-800',
-        tiers: [
-          {
-            tier: BadgeTier.SUPPORTER,
-            name: 'Climate Ally',
-            description: 'Supporting climate action',
-            requirements: { minHours: 10, minActivities: 2 },
-            progress: { hours: 5, activities: 1, percentage: 50 },
-            earned: false
-          },
-          {
-            tier: BadgeTier.BUILDER,
-            name: 'Climate Builder',
-            description: 'Building climate solutions',
-            requirements: { minHours: 50, minActivities: 8 },
-            progress: { hours: 5, activities: 1, percentage: 10 },
-            earned: false
-          },
-          {
-            tier: BadgeTier.CHAMPION,
-            name: 'Climate Champion',
-            description: 'Championing climate action',
-            requirements: { minHours: 150, minActivities: 20 },
-            progress: { hours: 5, activities: 1, percentage: 3 },
-            earned: false
-          },
-          {
-            tier: BadgeTier.GUARDIAN,
-            name: 'Climate Guardian',
-            description: 'Protecting our climate',
-            requirements: { minHours: 400, minActivities: 50 },
-            progress: { hours: 5, activities: 1, percentage: 1 },
-            earned: false
-          }
-        ]
-      }
-    ],
-    stats: {
-      recentlyEarned: [
-        {
-          name: 'No Poverty Supporter',
-          earnedAt: new Date('2024-01-15'),
-          icon: 'coins'
-        },
-        {
-          name: 'Quality Education Tutor',
-          earnedAt: new Date('2024-01-10'),
-          icon: 'graduation-cap'
-        }
-      ],
-      closeToEarning: [
-        {
-          sdgNumber: 13,
-          sdgName: 'Climate Action',
-          tierName: 'Climate Ally',
-          progress: 50
-        }
-      ]
-    }
-  };
       
-      setBadgeData(mockData);
+      const data = await response.json();
+      
+      // Transform API response to match BadgeProgressData structure
+      const badgeProgressData: BadgeProgressData = {
+        rankProgress: {
+          currentRank: {
+            rank: data.currentRank.rank,
+            name: data.currentRank.name,
+            icon: data.currentRank.icon
+          },
+          nextRank: data.nextRank ? {
+            rank: data.nextRank.rank,
+            name: data.nextRank.name,
+            requirements: data.nextRank.requirements,
+            progress: data.nextRank.progress
+          } : null,
+          currentProgress: data.currentProgress
+        },
+        sdgBadges: data.sdgBadges.map((sdg: any) => ({
+          sdgNumber: sdg.sdgNumber,
+          sdgName: sdg.sdgName,
+          icon: sdg.icon,
+          color: sdg.color,
+          tiers: sdg.tiers.map((tier: any) => ({
+            tier: tier.tier,
+            name: tier.name,
+            description: tier.description,
+            requirements: tier.requirements,
+            progress: tier.progress,
+            earned: tier.earned
+          }))
+        })),
+        stats: data.stats
+      };
+      
+      setBadgeData(badgeProgressData);
     } catch (error) {
       console.error('Error fetching badge progress:', error);
     } finally {

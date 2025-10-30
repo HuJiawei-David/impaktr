@@ -11,6 +11,7 @@ const createOrgCertificateSchema = z.object({
   participantId: z.string(),
   eventId: z.string(),
   templateType: z.enum(['standard', 'premium', 'custom']).default('standard'),
+  customTitle: z.string().optional(),
   customMessage: z.string().optional(),
   additionalData: z.object({}).optional(),
 });
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { participantId, eventId, customMessage } = createOrgCertificateSchema.parse(body);
+    const { participantId, eventId, customTitle, customMessage } = createOrgCertificateSchema.parse(body);
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id }
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: participantId,
         type: 'organization_issued',
-        title: `${event.title} - Certificate of Appreciation`,
+        title: customTitle || `${event.title} - Certificate of Appreciation`,
         description:
           `Certificate issued by ${certificateData.organizationName} for participation in ${event.title}` +
           (customMessage && customMessage.trim().length > 0 ? `\n\nNote: ${customMessage.trim()}` : ''),

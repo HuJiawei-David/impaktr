@@ -320,55 +320,72 @@ async function updateBadgeProgress(
  * Update user's rank based on their achievements
  */
 async function updateUserRank(userId: string): Promise<void> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      badges: {
-        include: { badge: true }
-      },
-      participations: {
-        where: { status: ParticipationStatus.VERIFIED }
-      }
-    }
-  });
-
-  if (!user) return;
-
-  const earnedBadges = user.badges.length;
-  const verifiedHours = user.participations.reduce((sum, p) => 
-    sum + (p.hours || 0), 0);
-  const impaktrScore = user.impactScore;
-
-  let newRank: IndividualRank = IndividualRank.HELPER;
-
-  // Find highest rank that user qualifies for
-  const rankEntries = Object.entries(RANK_REQUIREMENTS) as [IndividualRank, RankRequirements][];
-  for (const [rank, requirements] of rankEntries) {
-    if (impaktrScore >= requirements.minScore &&
-        verifiedHours >= requirements.minHours &&
-        earnedBadges >= requirements.minBadges) {
-      newRank = rank;
-    }
-  }
-
-  // Update user rank if it changed
-  if (newRank !== user.tier) {
-    await prisma.user.update({
+  try {
+    const user = await prisma.user.findUnique({
       where: { id: userId },
-      data: { tier: newRank }
-    });
-
-    // Create rank achievement
-    await prisma.achievement.create({
-      data: {
-        userId,
-        type: 'rank_up',
-        title: `Promoted to ${getRankDisplayName(newRank)}`,
-        description: `Congratulations! You've been promoted to ${getRankDisplayName(newRank)} for your outstanding social impact contributions.`,
-        points: 25,
-        verifiedAt: new Date(),
+      include: {
+        badges: {
+          include: { badge: true }
+        },
+        participations: {
+          where: { status: ParticipationStatus.VERIFIED }
+        }
       }
     });
+
+    if (!user) {
+      console.error(`updateUserRank: User not found for userId ${userId}`);
+      return;
+    }
+
+    const earnedBadges = user.badges.length;
+    const verifiedHours = user.participations.reduce((sum: number, p: { hours: number | null }) => 
+      sum + (p.hours || 0), 0);
+    const impaktrScore = user.impactScore;
+
+    let newRank: IndividualRank = IndividualRank.HELPER;
+
+    // Find highest rank that user qualifies for
+    const rankEntries = Object.entries(RANK_REQUIREMENTS) as [IndividualRank, RankRequirements][];
+    for (const [rank, requirements] of rankEntries) {
+      if (impaktrScore >= requirements.minScore &&
+          verifiedHours >= requirements.minHours &&
+          earnedBadges >= requirements.minBadges) {
+        newRank = rank;
+      }
+    }
+
+    // Update user rank if it changed
+    if (newRank !== user.tier) {
+      console.log(`updateUserRank: Updating ${userId} from ${user.tier} to ${newRank} (score: ${impaktrScore}, hours: ${verifiedHours}, badges: ${earnedBadges})`);
+      
+      await prisma.user.update({
+        where: { id: userId },
+        data: { tier: newRank }
+      });
+
+      // Create rank achievement (only if rank increased, not decreased)
+      const currentRankIndex = INDIVIDUAL_RANK_BADGES.findIndex(b => b.rank === user.tier);
+      const newRankIndex = INDIVIDUAL_RANK_BADGES.findIndex(b => b.rank === newRank);
+      
+      if (newRankIndex > currentRankIndex) {
+        await prisma.achievement.create({
+          data: {
+            userId,
+            type: 'rank_up',
+            title: `Promoted to ${getRankDisplayName(newRank)}`,
+            description: `Congratulations! You've been promoted to ${getRankDisplayName(newRank)} for your outstanding social impact contributions.`,
+            points: 25,
+            verifiedAt: new Date(),
+          }
+        });
+      }
+    } else {
+      console.log(`updateUserRank: ${userId} rank unchanged (${user.tier}) - score: ${impaktrScore}, hours: ${verifiedHours}, badges: ${earnedBadges}`);
+    }
+  } catch (error) {
+    console.error(`updateUserRank: Error updating rank for userId ${userId}:`, error);
+    throw error;
   }
 }
 
@@ -472,20 +489,24 @@ export async function updateOrganizationTier(organizationId: string): Promise<vo
 
   // Calculate organization metrics
   const activeMembers = organization.members.filter(
-    member => member.user.participations.length > 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (member: any) => member.user.participations.length > 0
   ).length;
   
   const employeeParticipationRate = (activeMembers / totalMembers) * 100;
   
-  const totalScore = organization.members.reduce((sum, member) => 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const totalScore = organization.members.reduce((sum: number, member: any) => 
     sum + member.user.impactScore, 0);
   const averageScore = totalScore / totalMembers;
 
   const totalEvents = organization.events.length;
 
   const uniqueSDGs = new Set();
-  organization.members.forEach(member => {
-    member.user.participations.forEach(p => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  organization.members.forEach((member: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    member.user.participations.forEach((p: any) => {
       if (p.event.sdg) {
         uniqueSDGs.add(parseInt(p.event.sdg));
       }

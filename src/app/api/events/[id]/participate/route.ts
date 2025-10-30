@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { ParticipationStatus } from '@/types/events';
 
 const participateSchema = z.object({
-  hoursCommitted: z.number().positive(),
+  hoursCommitted: z.number().positive().optional(),
   notes: z.string().optional(),
 });
 
@@ -90,11 +90,14 @@ export async function POST(
     // This would normally check against user's verified skills
     const skillMultiplier = 1.0; // Default for now
 
+    // derive hours from event totalHours if not provided
+    let derivedHours = typeof event?.totalHours === 'number' ? event.totalHours : 0;
+
     const participation = await prisma.participation.create({
       data: {
         userId: user.id,
         eventId: id,
-        hours: hoursCommitted, // hoursCommitted field doesn't exist, using hours instead
+        hours: typeof hoursCommitted === 'number' ? hoursCommitted : derivedHours,
         feedback: notes, // notes field doesn't exist, using feedback instead
         // skillMultiplier field doesn't exist in Participation model
         status: ParticipationStatus.PENDING,
@@ -171,11 +174,17 @@ export async function PUT(
       );
     }
 
+    // compute hours from event dates if not provided
+    let newHours = validatedData.hoursActual;
+    if (newHours === undefined && typeof participation.event?.totalHours === 'number') {
+      newHours = participation.event.totalHours;
+    }
+
     const updatedParticipation = await prisma.participation.update({
       where: { id: participation.id },
       data: {
         feedback: validatedData.notes, // notes field doesn't exist, using feedback instead
-        hours: validatedData.hoursActual || 0, // hoursActual field doesn't exist, using hours instead
+        hours: newHours ?? 0, // use derived hours if available
         // proofImages and qualityRating fields don't exist in Participation model
       },
       include: {

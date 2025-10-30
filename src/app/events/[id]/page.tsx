@@ -105,6 +105,14 @@ interface Event {
   createdAt: string;
   status: 'DRAFT' | 'ACTIVE' | 'UPCOMING' | 'COMPLETED' | 'CANCELLED';
   requiresApproval: boolean;
+  totalHours?: number;
+  sessions?: Array<{
+    id?: string;
+    label?: string | null;
+    startAt: string;
+    endAt: string;
+    breakMin?: number | null;
+  }>;
   customFields?: Array<{
     name: string;
     type: string;
@@ -705,6 +713,31 @@ export default function EventDetailPage() {
                     <CardTitle>What to Expect</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {event.sessions && event.sessions.length > 0 && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">Schedule</div>
+                          <div className="text-sm text-muted-foreground">Total: {(event.totalHours || 0).toFixed(1)} hours</div>
+                        </div>
+                        <div className="space-y-2">
+                          {event.sessions.map((s, idx) => {
+                            const hours = Math.max(0, ((new Date(s.endAt).getTime() - new Date(s.startAt).getTime()) / 36e5) - ((s.breakMin ?? 0) / 60));
+                            return (
+                              <div key={s.id || idx} className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                  <div className="text-muted-foreground">{s.label || `Session ${idx + 1}`}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div>{new Date(s.startAt).toLocaleString()} – {new Date(s.endAt).toLocaleString()}</div>
+                                  <div className="text-xs text-muted-foreground">{hours.toFixed(1)} h{(s.breakMin ?? 0) > 0 ? ` (−${s.breakMin} min break)` : ''}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
@@ -713,10 +746,7 @@ export default function EventDetailPage() {
                         <div>
                           <div className="font-medium">Duration</div>
                           <div className="text-sm text-muted-foreground">
-                            {event.endDate 
-                              ? `${Math.ceil((new Date(event.endDate).getTime() - new Date(event.startDate).getTime()) / (1000 * 60 * 60))} hours`
-                              : '2-3 hours estimated'
-                            }
+                            {typeof event.totalHours === 'number' ? `${event.totalHours.toFixed(1)} hours` : '—'}
                           </div>
                         </div>
                       </div>

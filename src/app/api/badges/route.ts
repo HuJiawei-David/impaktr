@@ -10,6 +10,8 @@ import {
   getSDGBadgeRequirements
 } from '@/lib/badge-config';
 import { BadgeTier, ParticipationStatus } from '@prisma/client';
+import { calculateImpaktrScore } from '@/lib/scoring';
+import { checkAndAwardBadges } from '@/lib/badges';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +100,36 @@ export async function GET(request: NextRequest) {
 
       if (!user) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      // Recalculate impact score and tier dynamically (no hardcoding)
+      try {
+        const calculatedScore = await calculateImpaktrScore(user.id);
+        
+        // Update score if it has changed
+        if (calculatedScore !== user.impactScore) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { impactScore: calculatedScore }
+          });
+          user.impactScore = calculatedScore;
+        }
+
+        // Update tier/rank based on actual requirements (score, hours, badges)
+        await checkAndAwardBadges(user.id);
+        
+        // Re-fetch user to get updated tier
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { tier: true, impactScore: true }
+        });
+        if (updatedUser) {
+          user.tier = updatedUser.tier;
+          user.impactScore = updatedUser.impactScore;
+        }
+      } catch (error) {
+        console.error('Error recalculating score/tier in badges API:', error);
+        // Continue with existing score/tier if recalculation fails
       }
 
       // Calculate progress for each SDG

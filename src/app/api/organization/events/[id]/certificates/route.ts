@@ -5,7 +5,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { Prisma } from '@prisma/client';
 
 // Types for certificate data
 interface CertificateData {
@@ -26,6 +25,7 @@ const issueCertificateSchema = z.object({
   recipientId: z.string(),
   participationId: z.string().optional(),
   eventId: z.string().optional(),
+  customTitle: z.string().optional(),
   customData: z.record(z.any()).optional(),
   expirationDate: z.string().datetime().optional(),
   notes: z.string().optional(),
@@ -72,10 +72,23 @@ export async function GET(request: NextRequest) {
       where: { organizationId: organization.id },
       select: { id: true }
     });
-    const templateIds = templates.map(t => t.id);
+    const templateIds = templates.map((t: { id: string }) => t.id);
 
     const skip = (page - 1) * limit;
-    const where: Prisma.CertificateWhereInput = {
+    const where: {
+      templateId?: { in: string[] } | string;
+      userId?: string;
+      issuedAt?: { lt: Date };
+      revokedAt?: null | { not: null };
+      expiresAt?: null | { gt: Date };
+      OR?: Array<{
+        expiresAt?: null | { gt: Date };
+        title?: { contains: string; mode: 'insensitive' };
+        description?: { contains: string; mode: 'insensitive' };
+        user?: { name?: { contains: string; mode: 'insensitive' } };
+      }>;
+      user?: { name?: { contains: string; mode: 'insensitive' } };
+    } = {
       templateId: {
         in: templateIds
       }
@@ -91,8 +104,8 @@ export async function GET(request: NextRequest) {
       } else if (status === 'active') {
         where.revokedAt = null;
         where.OR = [
-          { expiresAt: null } as Prisma.CertificateWhereInput,
-          { expiresAt: { gt: new Date() } } as Prisma.CertificateWhereInput
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
         ];
       }
     }
@@ -109,7 +122,7 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { user: { name: { contains: search, mode: 'insensitive' } } } as Prisma.CertificateWhereInput
+        { user: { name: { contains: search, mode: 'insensitive' } } }
       ];
     }
 
@@ -242,7 +255,7 @@ export async function POST(request: NextRequest) {
         // participationId field doesn't exist in Certificate model
         eventId: validatedData.eventId,
         type: template.type,
-        title: template.name,
+        title: validatedData.customTitle || template.name,
         description: template.description || `Certificate issued using ${template.name} template`,
         certificateUrl,
         // shareUrl field doesn't exist in Certificate model

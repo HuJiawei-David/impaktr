@@ -74,7 +74,7 @@ const SDG_DEFINITIONS = {
 interface Event {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   startDate: string;
   endDate?: string;
   location: string | object;
@@ -89,7 +89,7 @@ interface Event {
   organization?: {
     id: string;
     name: string;
-    logo?: string;
+    logo?: string | null;
   };
   trending?: boolean;
   featured?: boolean;

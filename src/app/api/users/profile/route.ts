@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { calculateImpaktrScore } from '@/lib/scoring';
+import { checkAndAwardBadges } from '@/lib/badges';
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
                 sdg: true,
                 startDate: true,
                 type: true,
+                skills: true,
                 organization: {
                   select: {
                     id: true,
@@ -80,6 +83,40 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Profile is private' }, { status: 403 });
     }
 
+    // Recalculate impact score and tier dynamically (no hardcoding)
+    if (user.userType === 'INDIVIDUAL') {
+      try {
+        const calculatedScore = await calculateImpaktrScore(user.id);
+        
+        // Update score if it has changed
+        if (calculatedScore !== user.impactScore) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { impactScore: calculatedScore }
+          });
+          user.impactScore = calculatedScore;
+        }
+
+        // Update tier/rank based on actual requirements (score, hours, badges)
+        // This will be done by checkAndAwardBadges which calls updateUserRank
+        await checkAndAwardBadges(user.id);
+        
+        // Re-fetch user to get updated tier
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { tier: true, impactScore: true }
+        });
+        if (updatedUser) {
+          user.tier = updatedUser.tier;
+          user.impactScore = updatedUser.impactScore;
+        }
+      } catch (error) {
+        console.error(`Error recalculating score/tier for user ${user.id}:`, error);
+        // Continue with existing score/tier if recalculation fails
+        // But log the error so we can debug issues
+      }
+    }
+
     // Calculate stats
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const volunteerHours = user.participations.reduce((sum: number, p: any) => sum + (p.hours || 0), 0);
@@ -88,23 +125,60 @@ export async function GET(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const badgesEarned = user.badges.filter((b: any) => b.earnedAt).length;
 
-    // Get user's global rank
-    const rank = await prisma.user.count({
+    // Get user's global rank (using recalculated score)
+    const currentScore = user.userType === 'INDIVIDUAL' ? user.impactScore : 0;
+    const rank = user.userType === 'INDIVIDUAL' ? await prisma.user.count({
       where: {
-        impactScore: { gt: user.impactScore },
+        impactScore: { gt: currentScore },
         userType: 'INDIVIDUAL'
       }
-    }) + 1;
+    }) + 1 : undefined;
 
     // Format recent activities
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recentActivities = user.participations.map((p: any) => ({
-      id: p.id,
-      type: p.event.type,
-      title: p.event.title,
-      date: p.createdAt,
-      sdg: p.event.sdg ? parseInt(p.event.sdg) : undefined
-    }));
+    const recentActivities = user.participations.map((p: any) => {
+      let sdgNumber: number | undefined = undefined;
+      let sdgNumbers: number[] = [];
+      if (p.event?.sdg) {
+        const raw = p.event.sdg as unknown;
+        try {
+          if (typeof raw === 'string') {
+            try {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                sdgNumbers = parsed
+                  .map((s: unknown) => (typeof s === 'number' ? s : parseInt(String(s))))
+                  .filter((n: number) => !isNaN(n) && n >= 1 && n <= 17);
+              } else {
+                const n = parseInt(String(parsed));
+                if (!isNaN(n)) sdgNumbers = [n];
+              }
+            } catch {
+              const n = parseInt(raw);
+              if (!isNaN(n)) sdgNumbers = [n];
+            }
+          } else if (Array.isArray(raw)) {
+            sdgNumbers = raw
+              .map((s: unknown) => (typeof s === 'number' ? s : parseInt(String(s))))
+              .filter((n: number) => !isNaN(n) && n >= 1 && n <= 17);
+          } else if (typeof raw === 'number') {
+            sdgNumbers = [raw];
+          }
+        } catch {
+          sdgNumbers = [];
+        }
+        sdgNumber = sdgNumbers[0];
+      }
+
+      return {
+        id: p.id,
+        type: p.event?.type,
+        title: p.event?.title,
+        date: p.event?.startDate || p.createdAt,
+        sdg: sdgNumber,
+        sdgs: sdgNumbers
+      };
+    });
 
     // Format badges
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -177,42 +251,72 @@ export async function GET(request: NextRequest) {
 
     // Auto-tag skills based on SDG and event participation
     const skillsMap = new Map<string, number>();
+    const sdgParticipationMap = new Map<number, number>();
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     user.participations.forEach((p: any) => {
-      // Map SDG to skill
-      const sdgNum = p.event.sdg ? parseInt(p.event.sdg) : null;
-      if (sdgNum) {
-        const sdgSkills: Record<number, string> = {
-          1: 'Poverty Alleviation',
-          2: 'Food Security & Agriculture',
-          3: 'Healthcare Support',
-          4: 'Education & Training',
-          5: 'Gender Equality Advocacy',
-          6: 'Water & Sanitation',
-          7: 'Clean Energy',
-          8: 'Economic Development',
-          9: 'Innovation & Infrastructure',
-          10: 'Social Equity',
-          11: 'Urban Development',
-          12: 'Sustainable Consumption',
-          13: 'Environmental Conservation',
-          14: 'Marine Conservation',
-          15: 'Land Conservation',
-          16: 'Peace & Justice',
-          17: 'Partnership Building'
-        };
-        const skill = sdgSkills[sdgNum];
-        if (skill) {
+      // Use the actual skills set by the organization when creating the event
+      if (p.event.skills && Array.isArray(p.event.skills) && p.event.skills.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        p.event.skills.forEach((skill: any) => {
           skillsMap.set(skill, (skillsMap.get(skill) || 0) + 1);
-        }
+        });
       }
-      // Add community engagement for all
-      skillsMap.set('Community Engagement', (skillsMap.get('Community Engagement') || 0) + 1);
+      
+      // Count SDG participations (handle both string and array formats)
+      if (p.event.sdg) {
+        let sdgNumbers: number[] = [];
+        
+        // SDG can be stored as JSON string "[1,2,3]" or actual array or single number
+        if (typeof p.event.sdg === 'string') {
+          // Try to parse as JSON first
+          try {
+            const parsed = JSON.parse(p.event.sdg);
+            if (Array.isArray(parsed)) {
+              sdgNumbers = parsed.map((s: unknown) => {
+                if (typeof s === 'number') return s;
+                const n = parseInt(String(s));
+                return isNaN(n) ? 0 : n;
+              }).filter((n: number) => n > 0);
+            } else {
+              const num = parseInt(parsed.toString());
+              if (!isNaN(num)) {
+                sdgNumbers = [num];
+              }
+            }
+          } catch {
+            // If JSON parse fails, try direct parseInt
+            const num = parseInt(p.event.sdg);
+            if (!isNaN(num)) {
+              sdgNumbers = [num];
+            }
+          }
+        } else if (Array.isArray(p.event.sdg)) {
+          sdgNumbers = p.event.sdg.map((s: unknown) => {
+            if (typeof s === 'number') return s;
+            const n = parseInt(String(s));
+            return isNaN(n) ? 0 : n;
+          }).filter((n: number) => n > 0);
+        } else if (typeof p.event.sdg === 'number') {
+          sdgNumbers = [p.event.sdg];
+        }
+        
+        sdgNumbers.forEach((sdgNum: number) => {
+          if (sdgNum >= 1 && sdgNum <= 17) {
+            sdgParticipationMap.set(sdgNum, (sdgParticipationMap.get(sdgNum) || 0) + 1);
+          }
+        });
+      }
     });
+    
     const autoTaggedSkills = Array.from(skillsMap.entries())
       .map(([skill, eventCount]) => ({ skill, eventCount }))
       .sort((a, b) => b.eventCount - a.eventCount)
-      .slice(0, 6); // Top 6 skills
+      .slice(0, 10); // Top 10 skills
+    
+    const sdgParticipations = Array.from(sdgParticipationMap.entries())
+      .map(([sdgNumber, eventCount]) => ({ sdgNumber, eventCount }))
+      .sort((a, b) => b.eventCount - a.eventCount);
 
     // Fetch certificates with event relation
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -337,13 +441,14 @@ export async function GET(request: NextRequest) {
       },
       // New employer-focused data
       activeSince: user.createdAt,
-      streak: user.streak,
-      longestStreak: user.longestStreak,
       organizationsWorkedWith,
       sdgBreakdown,
       autoTaggedSkills,
+      sdgParticipations,
       certificateCount,
-      certificates
+      certificates,
+      // Add SDG focus for profile page
+      sdgFocus: user.sdgFocus || []
     };
 
     // If requesting current user's profile (no id param), return in dashboard format
@@ -387,7 +492,8 @@ export async function GET(request: NextRequest) {
             rank
           },
           badges,
-          recentActivities
+          recentActivities,
+          sdgBreakdown
         }
       });
     }

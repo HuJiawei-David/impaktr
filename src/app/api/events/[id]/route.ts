@@ -6,11 +6,21 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus } from '@/types/enums';
 
+const sessionSchema = z.object({
+  startAt: z.string().datetime(),
+  endAt: z.string().datetime(),
+  breakMin: z.number().int().min(0).optional(),
+  label: z.string().optional()
+});
+
 const updateEventSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().min(1).max(2000).optional(),
-  startDate: z.string().transform((str) => new Date(str)).optional(),
-  endDate: z.string().transform((str) => new Date(str)).optional().nullable(),
+  timezone: z.string().optional(),
+  sessions: z.array(sessionSchema).min(1).optional(),
+  // legacy optional fields
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   location: z.object({
     address: z.string().optional(),
     city: z.string(),
@@ -46,6 +56,7 @@ export async function GET(
             type: true
           }
         },
+        sessions: true,
         participations: {
           include: {
             user: true,
@@ -124,7 +135,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const validatedData = updateEventSchema.parse(body);
+    const parsed = updateEventSchema.parse(body);
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -164,28 +175,60 @@ export async function PUT(
       );
     }
 
+    // Load current event and sessions
+    const current = await prisma.event.findUnique({ where: { id }, include: { sessions: true } });
+    if (!current) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+
+    // Determine target sessions
+    const useSessions = parsed.sessions && parsed.sessions.length
+      ? parsed.sessions
+      : current.sessions.length
+        ? current.sessions.map((s: { startAt: Date; endAt: Date; breakMin: number | null; label: string | null }) => ({ startAt: s.startAt.toISOString(), endAt: s.endAt.toISOString(), breakMin: s.breakMin ?? 0, label: s.label || undefined }))
+        : (parsed.startDate && parsed.endDate)
+          ? [{ startAt: parsed.startDate, endAt: parsed.endDate, breakMin: 0, label: 'Day 1' }]
+          : [];
+    if (!useSessions.length) return NextResponse.json({ error: 'At least one session is required' }, { status: 400 });
+    if (!useSessions.every((s: { startAt: string; endAt: string; breakMin?: number; label?: string }) => new Date(s.endAt) > new Date(s.startAt))) {
+      return NextResponse.json({ error: 'Each session endAt must be after startAt' }, { status: 400 });
+    }
+
+    const startDate = new Date(Math.min(...useSessions.map((s: { startAt: string }) => new Date(s.startAt).getTime())));
+    const endDate = new Date(Math.max(...useSessions.map((s: { endAt: string }) => new Date(s.endAt).getTime())));
+    const totalHours = useSessions.reduce((sum: number, s: { startAt: string; endAt: string; breakMin?: number }) => {
+      const ms = new Date(s.endAt).getTime() - new Date(s.startAt).getTime();
+      const hours = Math.max(0, ms / 36e5 - (s.breakMin ?? 0) / 60);
+      return sum + hours;
+    }, 0);
+
+    // Apply updates without transaction for simpler typing
+    await prisma.eventSession.deleteMany({ where: { eventId: id } });
     const updatedEvent = await prisma.event.update({
-      where: { id: id },
+      where: { id },
       data: {
-        title: validatedData.title,
-        description: validatedData.description,
-        startDate: validatedData.startDate,
-        endDate: validatedData.endDate || validatedData.startDate,
-        location: validatedData.location?.city || 'Virtual Event',
-        maxParticipants: validatedData.maxParticipants,
-        status: validatedData.status,
-        // Other fields don't exist in Event model
+        title: parsed.title ?? current.title,
+        description: parsed.description ?? current.description,
+        startDate,
+        endDate,
+        totalHours,
+        timezone: parsed.timezone ?? current.timezone,
+        location: parsed.location?.city ?? current.location,
+        maxParticipants: parsed.maxParticipants ?? current.maxParticipants,
+        status: parsed.status ?? current.status,
+        sdg: parsed.sdgTags?.[0]?.toString() ?? current.sdg,
+        sessions: {
+          create: useSessions.map((s: { startAt: string; endAt: string; breakMin?: number; label?: string }) => ({
+            startAt: new Date(s.startAt),
+            endAt: new Date(s.endAt),
+            breakMin: s.breakMin ?? 0,
+            label: s.label || null
+          }))
+        }
       },
       include: {
         organization: true,
-        _count: {
-          select: {
-            participations: {
-              where: { status: 'VERIFIED' }
-            }
-          }
-        }
-      },
+        sessions: true,
+        _count: { select: { participations: true } }
+      }
     });
 
     return NextResponse.json({ event: updatedEvent });

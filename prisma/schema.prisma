@@ -373,6 +373,8 @@ model Event {
   organizationId        String?
   startDate             DateTime
   endDate               DateTime
+  totalHours            Float                 @default(0)
+  timezone              String?
   location              String
   maxParticipants       Int?
   currentParticipants   Int                   @default(0)
@@ -404,11 +406,27 @@ model Event {
   organization          Organization?         @relation(fields: [organizationId], references: [id])
   participations        Participation[]
   organizationPosts     OrganizationPost[]
+  sessions              EventSession[]
 
   @@index([startDate])
   @@index([type])
   @@index([isPublic])
   @@map("events")
+}
+
+model EventSession {
+  id        String   @id @default(cuid())
+  eventId   String
+  label     String?
+  startAt   DateTime
+  endAt     DateTime
+  breakMin  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_sessions")
 }
 
 model EventBookmark {

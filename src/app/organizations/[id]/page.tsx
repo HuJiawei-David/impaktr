@@ -79,12 +79,25 @@ interface Member {
 interface Event {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   startDate: string;
   endDate?: string;
   location: string | object;
   status: string;
   imageUrl?: string;
+  sdg?: string | number | number[];
+  maxParticipants?: number;
+  currentParticipants?: number;
+  interestedCount?: number;
+  participantCount?: number;
+  organization?: {
+    id: string;
+    name: string;
+    logo?: string | null;
+  };
+  _count?: {
+    participations: number;
+  };
 }
 
 interface Volunteer {
@@ -124,6 +137,8 @@ interface OrganizationWithOpportunities {
   events?: Event[];
   opportunities?: Opportunity[];
   recentEvents?: Event[];
+  upcomingEvents?: Event[];
+  pastEvents?: Event[];
   topVolunteers?: Volunteer[];
   badges?: Badge[];
   sdgs?: number[];
@@ -198,28 +213,6 @@ const SDG_DEFINITIONS = {
   16: { name: 'Peace, Justice and Strong Institutions', color: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-200' },
   17: { name: 'Partnerships for the Goals', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' }
 };
-
-// Event interface for organization events
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate?: string;
-  location: string | object;
-  maxParticipants?: number;
-  currentParticipants?: number;
-  interestedCount?: number;
-  status: string;
-  imageUrl?: string;
-  sdg: string | number | number[];
-  participantCount?: number;
-  organization?: {
-    id: string;
-    name: string;
-    logo?: string;
-  };
-}
 
 interface Organization {
   id: string;
@@ -996,10 +989,9 @@ export default function OrganizationProfilePage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      {organization.recentEvents && organization.recentEvents.length > 0 ? (
+                      {organization.upcomingEvents && organization.upcomingEvents.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {organization.recentEvents
-                            .filter(event => new Date(event.startDate) > new Date())
+                          {organization.upcomingEvents
                             .slice(0, 6)
                             .map((event) => (
                               <EventCard 
@@ -1008,20 +1000,20 @@ export default function OrganizationProfilePage() {
                                   ...event,
                                   isBookmarked: bookmarks.has(event.id),
                                   isFavorite: favorites.has(event.id),
-                                  currentParticipants: event.participantCount || event.currentParticipants || 0
+                                  currentParticipants: event._count?.participations || 0
                                 }} 
                                 onToggleFavorite={toggleFavorite}
                                 onToggleBookmark={toggleBookmark}
                                 showOrganization={false} 
                               />
                             ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8">
-                          <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                            No Upcoming Events
-                          </h3>
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                              No Upcoming Events
+                            </h3>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                             This organization doesn&apos;t have any upcoming events scheduled.
                           </p>
@@ -1047,10 +1039,9 @@ export default function OrganizationProfilePage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {organization.recentEvents && organization.recentEvents.length > 0 ? (
+                      {organization.pastEvents && organization.pastEvents.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                          {organization.recentEvents
-                            .filter(event => new Date(event.startDate) <= new Date())
+                          {organization.pastEvents
                             .slice(0, 6)
                             .map((event) => (
                               <EventCard 
@@ -1059,22 +1050,22 @@ export default function OrganizationProfilePage() {
                                   ...event,
                                   isBookmarked: bookmarks.has(event.id),
                                   isFavorite: favorites.has(event.id),
-                                  currentParticipants: event.participantCount || event.currentParticipants || 0
+                                  currentParticipants: event._count?.participations || 0
                                 }} 
                                 onToggleFavorite={toggleFavorite}
                                 onToggleBookmark={toggleBookmark}
                                 showOrganization={false} 
                               />
                             ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-6">
-                          <Clock className="w-8 h-8 mx-auto mb-3 text-gray-400" />
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            No past events to display
-                          </p>
-                        </div>
-                      )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-6">
+                            <Clock className="w-8 h-8 mx-auto mb-3 text-gray-400" />
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              No past events to display
+                            </p>
+                          </div>
+                        )}
                     </CardContent>
                   </Card>
 
@@ -1096,13 +1087,13 @@ export default function OrganizationProfilePage() {
                         </div>
                         <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                            {organization.recentEvents?.filter(e => new Date(e.startDate) > new Date()).length || 0}
+                            {organization.upcomingEvents?.length || 0}
                           </div>
                           <div className="text-sm text-gray-600 dark:text-gray-400">Upcoming</div>
                         </div>
                         <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                            {organization.recentEvents?.filter(e => new Date(e.startDate) <= new Date()).length || 0}
+                            {organization.pastEvents?.length || 0}
                           </div>
                           <div className="text-sm text-gray-600 dark:text-gray-400">Completed</div>
                         </div>
@@ -1441,9 +1432,8 @@ export default function OrganizationProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 pt-2 pb-4 px-4">
-                {organization.recentEvents && organization.recentEvents.length > 0 ? (
-                  organization.recentEvents
-                    .filter(event => new Date(event.startDate) > new Date())
+                {organization.upcomingEvents && organization.upcomingEvents.length > 0 ? (
+                  organization.upcomingEvents
                     .slice(0, 3)
                     .map((event) => (
                     <Link 
@@ -1532,7 +1522,7 @@ export default function OrganizationProfilePage() {
                   </div>
                 )}
                 
-                {organization.recentEvents && organization.recentEvents.filter(event => new Date(event.startDate) > new Date()).length > 3 && (
+                {organization.upcomingEvents && organization.upcomingEvents.length > 3 && (
                   <div className="pt-2">
                 <Link href={`/events?org=${orgId}`}>
                       <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
