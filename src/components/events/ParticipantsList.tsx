@@ -540,7 +540,12 @@ export function ParticipantsList({
                         <div className="text-right text-sm text-muted-foreground">
                           <div>Joined {formatTimeAgo(participant.createdAt)}</div>
                           {participant.verifiedAt && (
-                            <div>Verified {formatTimeAgo(participant.verifiedAt)}</div>
+                            <div>
+                              {participant.status === 'ATTENDED' || participant.status === 'VERIFIED' 
+                                ? `Attendance marked ${formatTimeAgo(participant.verifiedAt)}`
+                                : `Verified ${formatTimeAgo(participant.verifiedAt)}`
+                              }
+                            </div>
                           )}
                         </div>
 

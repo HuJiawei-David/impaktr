@@ -151,6 +151,10 @@ export async function GET(
         emergencyContact: eventWithExtras.emergencyContact,
         requiresApproval: eventWithExtras.requiresApproval || false,
         autoIssueCertificates: eventWithExtras.autoIssueCertificates !== false,
+        attendanceCode: (event as any).attendanceCode || null,
+        attendanceEnabled: (event as any).attendanceEnabled || false,
+        attendanceEnabledAt: (event as any).attendanceEnabledAt?.toISOString() || null,
+        attendanceDisabledAt: (event as any).attendanceDisabledAt?.toISOString() || null,
         participations: event.participations.map(p => {
           // Parse registration info from feedback field
           let registrationInfo: {

@@ -73,16 +73,10 @@ export function EventGallery({
 
   const fetchImages = useCallback(async () => {
     try {
-      console.log('Fetching gallery images for event:', eventId);
       const response = await fetch(`/api/events/${eventId}/gallery`);
-      console.log('Gallery API response status:', response.status);
       if (response.ok) {
         const data = await response.json();
-        console.log('Gallery images received:', data.images?.length || 0, 'images');
-        console.log('Sample image:', data.images?.[0]);
         setImages(data.images || []);
-      } else {
-        console.error('Failed to fetch gallery images:', response.statusText);
       }
     } catch (error) {
       console.error('Error fetching images:', error);
@@ -182,15 +176,6 @@ export function EventGallery({
 
   const displayImages = isPreview && maxPreviewImages ? 
     filteredImages.slice(0, maxPreviewImages) : filteredImages;
-
-  console.log('EventGallery render:', {
-    eventId,
-    imagesCount: images.length,
-    filteredCount: filteredImages.length,
-    displayCount: displayImages.length,
-    isPreview,
-    maxPreviewImages
-  });
 
   return (
     <div className="space-y-6">

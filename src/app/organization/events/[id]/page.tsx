@@ -27,7 +27,10 @@ import {
   Zap,
   Shield,
   FileText,
-  Settings
+  Settings,
+  QrCode,
+  Key,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,6 +77,10 @@ interface Event {
   requiresApproval: boolean;
   autoIssueCertificates: boolean;
   participations: Participation[];
+  attendanceCode?: string | null;
+  attendanceEnabled?: boolean;
+  attendanceEnabledAt?: string | null;
+  attendanceDisabledAt?: string | null;
 }
 
 interface Participation {
@@ -308,6 +315,32 @@ export default function EventDetailPage() {
     }
   };
 
+  const handleToggleAttendance = async (enabled: boolean) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}/attendance/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to toggle attendance' }));
+        const errorMessage = errorData.error || errorData.details || 'Failed to toggle attendance';
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      toast.success(data.message || (enabled ? 'Attendance enabled' : 'Attendance disabled'));
+      fetchEventDetails(); // Refresh data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to toggle attendance';
+      toast.error(errorMessage);
+      console.error('Error toggling attendance:', error);
+    }
+  };
+
   const handleApproveParticipation = async (participationId: string) => {
     try {
       const response = await fetch(`/api/events/${eventId}/participants/${participationId}/approve`, {
@@ -534,6 +567,28 @@ export default function EventDetailPage() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
+              {/* Attendance Management */}
+              {(event.status === 'ACTIVE' || event.status === 'UPCOMING') && (
+                event.attendanceEnabled ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleToggleAttendance(false)}
+                    className="px-4 py-2 text-orange-600 dark:text-orange-400 hover:text-orange-900 dark:hover:text-orange-100 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Disable Attendance
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleToggleAttendance(true)}
+                    className="px-4 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-100 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  >
+                    <QrCode className="w-4 h-4 mr-2" />
+                    Enable Attendance
+                  </Button>
+                )
+              )}
               {event.status === 'ACTIVE' && (
                 <Button
                   variant="outline"
@@ -840,6 +895,59 @@ export default function EventDetailPage() {
                         </p>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Attendance Management */}
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center">
+                    <QrCode className="w-4 h-4 mr-2 text-purple-600" />
+                    Attendance Management
+                  </h3>
+                  <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg border-2 border-purple-200 dark:border-purple-800">
+                    {event.attendanceEnabled ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            <span className="font-medium text-green-700 dark:text-green-300">Attendance Enabled</span>
+                          </div>
+                        </div>
+                        {event.attendanceCode && (
+                          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border-2 border-purple-300 dark:border-purple-700">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Attendance Code</p>
+                                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400 font-mono tracking-wider">
+                                  {event.attendanceCode}
+                                </p>
+                              </div>
+                              <Key className="w-8 h-8 text-purple-400" />
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              Share this code with participants to mark attendance
+                            </p>
+                          </div>
+                        )}
+                        {event.attendanceEnabledAt && (
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            Enabled at: {new Date(event.attendanceEnabledAt).toLocaleString()}
+                          </div>
+                        )}
+                        {event.attendanceDisabledAt && (
+                          <div className="text-xs text-red-600 dark:text-red-400">
+                            Disabled at: {new Date(event.attendanceDisabledAt).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-2">
+                        <p className="text-gray-600 dark:text-gray-400 mb-2">Attendance tracking is disabled</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500">
+                          Enable attendance to generate a code for participants
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

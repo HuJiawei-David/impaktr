@@ -28,7 +28,8 @@ import {
   Building2,
   Target,
   Zap,
-  X
+  X,
+  QrCode
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'react-hot-toast';
 import { formatDate, formatTimeAgo, getInitials } from '@/lib/utils';
 import { ParticipationDialog } from '@/components/events/ParticipationDialog';
@@ -46,6 +46,7 @@ import { EventComments } from '@/components/events/EventComments';
 import { ParticipantsList } from '@/components/events/ParticipantsList';
 import { EventParticipants } from '@/components/events/EventParticipants';
 import { EventGallery } from '@/components/events/EventGallery';
+import { AttendanceDialog } from '@/components/events/AttendanceDialog';
 import Link from 'next/link';
 import { getSDGById } from '@/constants/sdgs';
 import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
@@ -144,6 +145,9 @@ interface Event {
   isCreator: boolean;
   isSaved: boolean;
   canEdit: boolean;
+  attendanceEnabled?: boolean;
+  attendanceEnabledAt?: string | null;
+  attendanceDisabledAt?: string | null;
 }
 
 export default function EventDetailPage() {
@@ -160,6 +164,7 @@ export default function EventDetailPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
+  const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
   
   // Confirm dialog for canceling registration
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
@@ -424,6 +429,66 @@ export default function EventDetailPage() {
       await navigator.clipboard.writeText(window.location.href);
       toast.success('Event link copied to clipboard!');
     }
+  };
+
+  const handleMarkAttendance = async (code: string) => {
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    const response = await fetch(`/api/events/${event.id}/attendance/mark`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to mark attendance' }));
+      throw new Error(errorData.error || 'Failed to mark attendance');
+    }
+
+    const data = await response.json();
+    toast.success(data.message || 'Attendance marked successfully');
+    fetchEvent(event.id); // Refresh event data
+  };
+
+  // Check if user can mark attendance
+  const canMarkAttendance = () => {
+    if (!event || !event.userParticipation || !event.attendanceEnabled) {
+      return false;
+    }
+
+    // Check if already marked
+    if (event.userParticipation.status === 'ATTENDED' || event.userParticipation.status === 'VERIFIED') {
+      return false;
+    }
+
+    const now = new Date();
+    const startDate = new Date(event.startDate);
+
+    // Check if event has started
+    if (now < startDate) {
+      return false;
+    }
+
+    // Check if attendance is within enabled time range
+    if (event.attendanceEnabledAt) {
+      const enabledAt = new Date(event.attendanceEnabledAt);
+      if (now < enabledAt) {
+        return false;
+      }
+    }
+
+    if (event.attendanceDisabledAt) {
+      const disabledAt = new Date(event.attendanceDisabledAt);
+      if (now > disabledAt) {
+        return false;
+      }
+    }
+
+    return true;
   };
 
   const getEventStatus = () => {
@@ -847,6 +912,113 @@ export default function EventDetailPage() {
                     />
                   </CardContent>
                 </Card>
+
+                {/* Registration Progress Bar */}
+                {event.userParticipation && (
+                  (event.userParticipation.status === 'PENDING' || event.userParticipation.status === 'REGISTERED') ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Registration Progress</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-yellow-600 dark:text-yellow-400">
+                            <span className="font-medium">Status</span>
+                            <span>Awaiting approval...</span>
+                          </div>
+                          <div className="w-full bg-yellow-100 dark:bg-yellow-900/30 rounded-full h-3 overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-yellow-500 to-orange-600 h-3 rounded-full transition-all duration-500 animate-pulse" 
+                              style={{ width: '33%' }} 
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                              <span>Registration Submitted</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse" />
+                              <span>Awaiting Approval</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                              <span>Approval Confirmed</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : event.userParticipation.status === 'REJECTED' ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Registration Progress</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400">
+                            <span className="font-medium">Status</span>
+                            <span>Rejected</span>
+                          </div>
+                          <div className="w-full bg-red-100 dark:bg-red-900/30 rounded-full h-3 overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-red-500 to-rose-600 h-3 rounded-full transition-all duration-500" 
+                              style={{ width: '33%' }} 
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400 mt-2">
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                              <span>Registration Submitted</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-red-500" />
+                              <span>Rejected</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                              <span>—</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : event.userParticipation.status === 'CONFIRMED' ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Registration Progress</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs text-green-600 dark:text-green-400">
+                            <span className="font-medium">Status</span>
+                            <span>Approved, waiting for event to start</span>
+                          </div>
+                          <div className="w-full bg-green-100 dark:bg-green-900/30 rounded-full h-3 overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all duration-500" 
+                              style={{ width: '66%' }} 
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-green-600 dark:text-green-400 mt-2">
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                              <span>Registration Submitted</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                              <span>Approval Confirmed</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                              <span>Event Verification</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null
+                )}
               </div>
             )}
 
@@ -1146,33 +1318,6 @@ export default function EventDetailPage() {
                             <p className="text-sm text-yellow-700 dark:text-yellow-300">
                               Your registration has been successfully submitted. Please wait for the event administrator to review and confirm. Once approved, you will officially become a participant in the event.
                             </p>
-                            {/* Progress Bar */}
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-xs text-yellow-600 dark:text-yellow-400">
-                                <span className="font-medium">Registration Progress</span>
-                                <span>Awaiting approval...</span>
-                              </div>
-                              <div className="w-full bg-yellow-100 dark:bg-yellow-900/30 rounded-full h-3 overflow-hidden">
-                                <div 
-                                  className="bg-gradient-to-r from-yellow-500 to-orange-600 h-3 rounded-full transition-all duration-500 animate-pulse" 
-                                  style={{ width: '33%' }} 
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-yellow-600 dark:text-yellow-400 mt-2">
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                                  <span>Registration Submitted</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse" />
-                                  <span>Awaiting Approval</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
-                                  <span>Approval Confirmed</span>
-                                </div>
-                              </div>
-                            </div>
                             <div className="mt-4 p-3 bg-yellow-100/50 dark:bg-yellow-900/20 rounded-lg">
                               <p className="text-xs text-yellow-600 dark:text-yellow-400">
                                 💡 <strong>Tip:</strong> You will only be officially counted in the participant list after the administrator confirms your registration in "Registration Approval".
@@ -1202,83 +1347,64 @@ export default function EventDetailPage() {
                             <p className="text-sm text-red-700 dark:text-red-300">
                               We apologize, but your registration has been rejected by the event administrator. If you have any questions, please contact the event organizer.
                             </p>
-                            {/* Progress Bar - Stopped */}
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400">
-                                <span className="font-medium">Registration Progress</span>
-                                <span>Rejected</span>
-                              </div>
-                              <div className="w-full bg-red-100 dark:bg-red-900/30 rounded-full h-3 overflow-hidden">
-                                <div 
-                                  className="bg-gradient-to-r from-red-500 to-rose-600 h-3 rounded-full transition-all duration-500" 
-                                  style={{ width: '33%' }} 
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400 mt-2">
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                                  <span>Registration Submitted</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                                  <span>Rejected</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
-                                  <span>—</span>
-                                </div>
-                              </div>
-                            </div>
                           </div>
                         </div>
-                      ) : event.userParticipation.status === 'CONFIRMED' ? (
+                      ) : (event.userParticipation.status === 'CONFIRMED' || event.userParticipation.status === 'ATTENDED' || event.userParticipation.status === 'VERIFIED') ? (
                         <div className="p-5 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800">
                           <div className="flex items-center space-x-2 mb-4">
                             <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
                             <span className="font-semibold text-lg text-green-800 dark:text-green-200">
-                              Registration Approved!
+                              {event.userParticipation.status === 'CONFIRMED' ? 'Registration Approved!' : 'Attendance Recorded!'}
                             </span>
                           </div>
                           <div className="space-y-3">
                             <p className="text-sm text-green-700 dark:text-green-300">
-                              Congratulations! Your registration has been approved by the administrator. You are now officially a participant in the event. After the event ends, we will conduct Post-Event Verification.
+                              {event.userParticipation.status === 'CONFIRMED' 
+                                ? 'Congratulations! Your registration has been approved by the administrator. You are now officially a participant in the event. After the event ends, we will conduct Post-Event Verification.'
+                                : 'Great job! Your attendance has been successfully recorded. Thank you for participating in this event!'}
                             </p>
-                            {/* Progress Bar */}
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between text-xs text-green-600 dark:text-green-400">
-                                <span className="font-medium">Registration Progress</span>
-                                <span>Approved, waiting for event to start</span>
+                            {event.userParticipation.status === 'CONFIRMED' && (
+                              <div className="mt-4 p-3 bg-green-100/50 dark:bg-green-900/20 rounded-lg">
+                                <p className="text-xs text-green-600 dark:text-green-400">
+                                  💡 <strong>Tip:</strong> You are now officially counted in the participant list. After the event is completed, the administrator will confirm your participation in Post-Event Verification.
+                                </p>
                               </div>
-                              <div className="w-full bg-green-100 dark:bg-green-900/30 rounded-full h-3 overflow-hidden">
-                                <div 
-                                  className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all duration-500" 
-                                  style={{ width: '66%' }} 
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-green-600 dark:text-green-400 mt-2">
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                                  <span>Registration Submitted</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                                  <span>Approval Confirmed</span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
-                                  <span>Event Verification</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="mt-4 p-3 bg-green-100/50 dark:bg-green-900/20 rounded-lg">
-                              <p className="text-xs text-green-600 dark:text-green-400">
-                                💡 <strong>Tip:</strong> You are now officially counted in the participant list. After the event is completed, the administrator will confirm your participation in Post-Event Verification.
-                              </p>
-                            </div>
+                            )}
                             <div className="text-sm text-green-700 dark:text-green-300 space-y-1 pt-2 border-t border-green-200 dark:border-green-800">
                               <div>Committed Hours: {event.userParticipation.hoursCommitted} hours</div>
                               <div>Registration Time: {formatTimeAgo(event.userParticipation.joinedAt)}</div>
                             </div>
+                            
+                            {/* Mark Attendance Button */}
+                            {canMarkAttendance() && (
+                              <div className="mt-4 pt-4 border-t border-green-200 dark:border-green-800">
+                                <Button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowAttendanceDialog(true);
+                                  }}
+                                  className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white border-0 cursor-pointer"
+                                  type="button"
+                                >
+                                  <QrCode className="w-4 h-4 mr-2" />
+                                  Mark Attendance
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Already Marked Attendance */}
+                            {(event.userParticipation.status === 'ATTENDED' || event.userParticipation.status === 'VERIFIED') && (
+                              <div className="mt-4 pt-4 border-t border-green-200 dark:border-green-800">
+                                <div className="p-3 bg-emerald-100/50 dark:bg-emerald-900/20 rounded-lg flex items-center space-x-2">
+                                  <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                    Attendance marked successfully
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
                             <div className="mt-4 pt-4 border-t border-green-200 dark:border-green-800">
                               <Button
                                 variant="outline"
@@ -1306,18 +1432,6 @@ export default function EventDetailPage() {
                             )}
                             <div>Join Time: {formatTimeAgo(event.userParticipation.joinedAt)}</div>
                           </div>
-                          {event.userParticipation.status !== 'VERIFIED' && (
-                            <div className="mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-800">
-                              <Button
-                                variant="outline"
-                                onClick={handleCancelRegistration}
-                                className="w-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800"
-                              >
-                                <X className="w-4 h-4 mr-2" />
-                                Cancel Registration
-                              </Button>
-                            </div>
-                          )}
                         </div>
                       )}
                     </>
@@ -1403,6 +1517,14 @@ export default function EventDetailPage() {
             }}
           />
         )}
+
+        {/* Attendance Dialog */}
+        <AttendanceDialog
+          isOpen={showAttendanceDialog}
+          onClose={() => setShowAttendanceDialog(false)}
+          onConfirm={handleMarkAttendance}
+          eventTitle={event?.title}
+        />
       </div>
       
       {/* Confirm Dialog */}

@@ -396,6 +396,10 @@ model Event {
   requiresApproval      Boolean               @default(false)
   autoIssueCertificates Boolean               @default(true)
   registrationDeadline  DateTime?
+  attendanceCode        String?
+  attendanceEnabled     Boolean               @default(false)
+  attendanceEnabledAt   DateTime?
+  attendanceDisabledAt  DateTime?
   broadcasts            Broadcast[]
   bookmarks             EventBookmark[]
   comments              EventComment[]

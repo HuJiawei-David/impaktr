@@ -148,7 +148,12 @@ export async function GET(
       ...event,
       isBookmarked,
       currentParticipants: event._count.participations,
-      userParticipation
+      userParticipation,
+      // Include attendance fields but NOT the code (for security)
+      attendanceEnabled: (event as any).attendanceEnabled || false,
+      attendanceEnabledAt: (event as any).attendanceEnabledAt?.toISOString() || null,
+      attendanceDisabledAt: (event as any).attendanceDisabledAt?.toISOString() || null,
+      // DO NOT include attendanceCode - participants should not see it online
     };
 
     return NextResponse.json({ event: eventWithBookmark });
