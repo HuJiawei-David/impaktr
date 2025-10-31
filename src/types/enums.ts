@@ -8,11 +8,13 @@ export enum UserType {
 }
 
 export enum ParticipationStatus {
+  REGISTERED = 'REGISTERED',
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',
   ATTENDED = 'ATTENDED',
   CANCELLED = 'CANCELLED',
   VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
 }
 
 export enum EventStatus {

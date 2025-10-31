@@ -131,8 +131,10 @@ export default function EventRegisterPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to register for event');
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.error || 'Failed to register for event';
+        console.error('Registration error:', errorData);
+        throw new Error(errorMessage);
       }
 
       toast.success(
@@ -141,7 +143,8 @@ export default function EventRegisterPage() {
           : 'Successfully registered for the event!'
       );
       
-      router.push('/profile?tab=events');
+      // Redirect to event detail page to show progress bar
+      router.push(`/events/${event.id}`);
     } catch (error) {
       console.error('Error registering for event:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to register for event');

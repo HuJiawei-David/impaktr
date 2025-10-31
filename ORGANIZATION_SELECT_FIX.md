@@ -1,18 +1,18 @@
-# 组织选择下拉菜单修复
+# Organization Selection Dropdown Fix
 
-## 问题描述
+## Problem Description
 
-在 `/organization/events/create` 页面的"Create for Organization (Optional)"下拉菜单中，只显示"Create as Individual"选项，没有显示用户所属的组织。
+On the `/organization/events/create` page, the "Create for Organization (Optional)" dropdown menu only shows "Create as Individual" option and does not display the organizations the user belongs to.
 
-## 根本原因
+## Root Cause
 
-**缺失的 API 端点**: 前端代码调用 `/api/users/organizations` 端点来获取用户所属的组织列表，但这个 API 端点不存在，导致 `organizations` 数组始终为空。
+**Missing API Endpoint**: The frontend code calls the `/api/users/organizations` endpoint to get the list of organizations the user belongs to, but this API endpoint does not exist, causing the `organizations` array to always be empty.
 
-## 修复内容
+## Fix Implementation
 
-### 1. 创建缺失的 API 端点
+### 1. Create Missing API Endpoint
 
-**新建文件**: `src/app/api/users/organizations/route.ts`
+**New File**: `src/app/api/users/organizations/route.ts`
 
 ```typescript
 import { NextRequest, NextResponse } from 'next/server';
@@ -83,21 +83,21 @@ export async function GET(request: NextRequest) {
 }
 ```
 
-**功能说明**:
-- 获取当前登录用户的所有组织成员身份
-- 只返回用户具有 `admin` 或 `owner` 角色的组织
-- 返回组织的基本信息（ID、名称、Logo、类型等）
+**Function Description**:
+- Gets all organization memberships for the currently logged-in user
+- Only returns organizations where the user has `admin` or `owner` role
+- Returns basic organization information (ID, name, Logo, type, etc.)
 
-### 2. 改进前端组织选择组件
+### 2. Improve Frontend Organization Selection Component
 
-**文件**: `src/app/organization/events/create/page.tsx`
+**File**: `src/app/organization/events/create/page.tsx`
 
-#### 2.1 添加加载状态
+#### 2.1 Add Loading State
 ```typescript
 const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false);
 ```
 
-#### 2.2 改进 API 调用逻辑
+#### 2.2 Improve API Call Logic
 ```typescript
 const fetchUserOrganizations = async () => {
   setIsLoadingOrganizations(true);
@@ -124,7 +124,7 @@ const fetchUserOrganizations = async () => {
 };
 ```
 
-#### 2.3 改进下拉菜单 UI
+#### 2.3 Improve Dropdown Menu UI
 ```typescript
 <Select onValueChange={(value) => setValue('organizationId', value === 'individual' ? undefined : value)}>
   <SelectTrigger>
@@ -169,58 +169,58 @@ const fetchUserOrganizations = async () => {
 )}
 ```
 
-## 改进点
+## Improvements
 
-1. **加载状态**: 显示加载指示器，让用户知道正在获取组织列表
-2. **错误处理**: 添加错误提示，当 API 调用失败时显示 toast 消息
-3. **调试信息**: 添加 console.log 帮助调试
-4. **用户反馈**: 当没有组织时显示说明文字
-5. **权限过滤**: 只显示用户有管理权限的组织
+1. **Loading State**: Shows loading indicator so users know the organization list is being fetched
+2. **Error Handling**: Added error notifications that display toast messages when API calls fail
+3. **Debug Information**: Added console.log to help with debugging
+4. **User Feedback**: Shows explanatory text when no organizations are found
+5. **Permission Filtering**: Only shows organizations where user has admin privileges
 
-## 测试步骤
+## Testing Steps
 
-### 1. 启动开发服务器
+### 1. Start Development Server
 ```bash
 npm run dev
 ```
 
-### 2. 测试场景
+### 2. Test Scenarios
 
-#### 场景 A: 用户是组织管理员
-1. 登录一个有组织管理员权限的用户
-2. 访问 `/organization/events/create`
-3. 在 "Create for Organization" 下拉菜单中应该看到：
+#### Scenario A: User is Organization Admin
+1. Log in as a user with organization admin privileges
+2. Visit `/organization/events/create`
+3. In the "Create for Organization" dropdown menu, you should see:
    - "Create as Individual"
-   - 用户管理的组织名称
+   - Names of organizations managed by the user
 
-#### 场景 B: 用户不是组织管理员
-1. 登录一个普通用户（不是任何组织的管理员）
-2. 访问 `/organization/events/create`
-3. 在 "Create for Organization" 下拉菜单中应该看到：
+#### Scenario B: User is Not Organization Admin
+1. Log in as a regular user (not an admin of any organization)
+2. Visit `/organization/events/create`
+3. In the "Create for Organization" dropdown menu, you should see:
    - "Create as Individual"
-   - "No organizations found" (禁用状态)
-   - 下方显示说明文字
+   - "No organizations found" (disabled state)
+   - Explanatory text displayed below
 
-#### 场景 C: API 错误
-1. 如果 API 调用失败，应该显示 toast 错误消息
-2. 控制台应该显示详细的错误信息
+#### Scenario C: API Error
+1. If the API call fails, a toast error message should be displayed
+2. The console should display detailed error information
 
-## 权限要求
+## Permission Requirements
 
-用户必须满足以下条件才能在组织选择下拉菜单中看到组织：
+Users must meet the following conditions to see organizations in the organization selection dropdown:
 
-1. **已登录**: 用户必须有有效的 session
-2. **组织成员**: 用户必须是至少一个组织的成员
-3. **管理权限**: 用户在组织中必须有 `admin` 或 `owner` 角色
+1. **Logged In**: User must have a valid session
+2. **Organization Member**: User must be a member of at least one organization
+3. **Admin Privileges**: User must have `admin` or `owner` role in the organization
 
-## 相关 API 端点
+## Related API Endpoints
 
-- `GET /api/users/organizations` - 获取用户有管理权限的组织列表
-- `POST /api/organization/events` - 创建事件（需要组织管理员权限）
+- `GET /api/users/organizations` - Get list of organizations where user has admin privileges
+- `POST /api/organization/events` - Create event (requires organization admin privileges)
 
-## 数据库查询
+## Database Query
 
-API 端点执行以下 Prisma 查询：
+The API endpoint executes the following Prisma query:
 
 ```typescript
 const user = await prisma.user.findUnique({
@@ -243,25 +243,25 @@ const user = await prisma.user.findUnique({
 });
 ```
 
-然后过滤出用户有 `admin` 或 `owner` 角色的组织。
+Then filters out organizations where the user has `admin` or `owner` role.
 
-## 后续改进建议
+## Future Improvement Suggestions
 
-1. **缓存**: 可以考虑缓存组织列表，避免每次页面加载都调用 API
-2. **实时更新**: 当用户加入新组织或角色变更时，实时更新下拉菜单
-3. **搜索**: 如果组织很多，可以添加搜索功能
-4. **组织创建**: 添加"创建新组织"选项，让用户可以直接创建组织
+1. **Caching**: Consider caching the organization list to avoid API calls on every page load
+2. **Real-time Updates**: Update the dropdown menu in real-time when users join new organizations or roles change
+3. **Search**: If there are many organizations, add search functionality
+4. **Organization Creation**: Add "Create New Organization" option to allow users to create organizations directly
 
-## 故障排除
+## Troubleshooting
 
-如果组织仍然不显示，请检查：
+If organizations still don't display, check:
 
-1. **用户权限**: 确保用户是组织的 `admin` 或 `owner`
-2. **API 响应**: 查看浏览器控制台的 API 响应
-3. **数据库**: 确保 `OrganizationMember` 表中的数据正确
-4. **Session**: 确保用户已正确登录
+1. **User Permissions**: Ensure the user is an `admin` or `owner` of the organization
+2. **API Response**: Check the API response in the browser console
+3. **Database**: Ensure data in the `OrganizationMember` table is correct
+4. **Session**: Ensure the user is properly logged in
 
-使用以下命令检查用户权限：
+Use the following command to check user permissions:
 ```bash
 node check-event-create-permission.js <user-email>
 ```

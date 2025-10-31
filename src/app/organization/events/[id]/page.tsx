@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
 import { toast } from 'react-hot-toast';
 import { getSDGById, getSDGColor } from '@/constants/sdgs';
 import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
@@ -83,6 +84,12 @@ interface Participation {
   verifiedAt?: string;
   hours?: number;
   feedback?: string;
+  registrationInfo?: {
+    motivation?: string;
+    skills?: string;
+    notes?: string;
+    hoursCommitted?: number;
+  };
   user: {
     id: string;
     name: string;
@@ -114,7 +121,7 @@ export default function EventDetailPage() {
   const [stats, setStats] = useState<EventStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('registration-approval');
   
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
@@ -202,17 +209,23 @@ export default function EventDetailPage() {
 
   const getParticipationStatusColor = (status: string) => {
     switch (status) {
-      case 'VERIFIED': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'REJECTED': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+      case 'REGISTERED': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+      case 'CONFIRMED': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
+      case 'VERIFIED': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+      case 'ATTENDED': return 'bg-teal-100 text-teal-800 dark:bg-teal-900/20 dark:text-teal-300';
+      case 'REJECTED': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
     }
   };
 
   const getParticipationStatusIcon = (status: string) => {
     switch (status) {
+      case 'REGISTERED': return <Clock className="w-4 h-4" />;
+      case 'CONFIRMED': return <CheckCircle className="w-4 h-4" />;
       case 'VERIFIED': return <CheckCircle className="w-4 h-4" />;
       case 'PENDING': return <AlertCircle className="w-4 h-4" />;
+      case 'ATTENDED': return <CheckCircle className="w-4 h-4" />;
       case 'REJECTED': return <XCircle className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;
     }
@@ -295,21 +308,116 @@ export default function EventDetailPage() {
     }
   };
 
-  const handleVerifyParticipation = async (participationId: string) => {
+  const handleApproveParticipation = async (participationId: string) => {
     try {
-      const response = await fetch(`/api/organization/events/${eventId}/participations/${participationId}/verify`, {
+      const response = await fetch(`/api/events/${eventId}/participants/${participationId}/approve`, {
         method: 'POST',
       });
 
       if (!response.ok) {
-        throw new Error('Failed to verify participation');
+        let errorData: any = {};
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            errorData = await response.json();
+          } else {
+            const text = await response.text();
+            errorData = text ? { error: text } : { error: `HTTP ${response.status}: ${response.statusText}` };
+          }
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        
+        console.error('Approve participation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
+        
+        const errorMessage = errorData.error || errorData.details || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
       }
 
-      toast.success('Participation verified successfully');
+      const result = await response.json();
+      toast.success(result.message || 'Registration approved successfully');
       fetchEventDetails(); // Refresh data
     } catch (error) {
-      toast.error('Failed to verify participation');
-      console.error('Error verifying participation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to approve participation';
+      toast.error(errorMessage);
+      console.error('Error approving participation:', error);
+    }
+  };
+
+  const handleRejectParticipation = async (participationId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}/participants/${participationId}/reject`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        // Clone response to read as text without consuming the original
+        const clonedResponse = response.clone();
+        let errorData: any = {};
+        
+        try {
+          // Read response as text first to check if it's empty
+          const responseText = await clonedResponse.text();
+          
+          if (responseText && responseText.trim() !== '' && responseText.trim() !== '{}') {
+            try {
+              errorData = JSON.parse(responseText);
+            } catch (jsonError) {
+              // Not valid JSON, use text as error
+              errorData = { error: responseText };
+            }
+          }
+          
+          // If we still have an empty object, provide helpful default
+          if (!errorData.error && !errorData.details && !errorData.message) {
+            if (responseText && responseText.trim() === '{}') {
+              errorData = { 
+                error: `HTTP ${response.status}: ${response.statusText}`,
+                details: 'Server returned an empty JSON object. This may indicate a database configuration issue. Check server logs for details.'
+              };
+            } else if (!responseText || responseText.trim() === '') {
+              errorData = { 
+                error: `HTTP ${response.status}: ${response.statusText}`,
+                details: 'Server returned an empty response. This may indicate a database configuration issue or server error. Please ensure the database migration has been applied: npx prisma migrate deploy'
+              };
+            } else {
+              errorData = { 
+                error: `HTTP ${response.status}: ${response.statusText}`,
+                details: responseText.substring(0, 200)
+              };
+            }
+          }
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorData = { 
+            error: `HTTP ${response.status}: ${response.statusText}`,
+            details: 'Unable to read error response from server. Check server logs for details.'
+          };
+        }
+        
+        console.error('Reject participation failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          keys: Object.keys(errorData)
+        });
+        
+        const errorMessage = errorData.error || errorData.details || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      toast.success(result.message || 'Registration rejected');
+      fetchEventDetails(); // Refresh data
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to reject participation';
+      toast.error(errorMessage);
+      console.error('Error rejecting participation:', error);
     }
   };
 
@@ -786,7 +894,7 @@ export default function EventDetailPage() {
             </Card>
           </div>
 
-          {/* Right Column - Stats & Participants */}
+          {/* Right Column - Stats */}
           <div className="space-y-6">
             {/* Event Stats */}
             <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-800">
@@ -862,174 +970,341 @@ export default function EventDetailPage() {
                 )}
               </CardContent>
             </Card>
+          </div>
+        </div>
 
-            {/* Participants */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="space-y-3">
-                  {/* Title */}
-                  <CardTitle className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-gray-900 dark:text-white">Participants ({event.participations?.length || 0})</span>
-                  </CardTitle>
-                  
-                  {/* Pills for filtering */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setActiveTab('overview')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        activeTab === 'overview'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('verified')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        activeTab === 'verified'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      Verified
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('pending')}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                        activeTab === 'pending'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      Pending
-                    </button>
-                  </div>
-                </div>
+        {/* Participants Section - Centered with ESG Table Design */}
+        <div className="mt-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <span className="w-3 h-3 bg-green-500 rounded-full mr-3"></span>
+                  Participants ({event.participations?.filter(p => p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED').length || 0})
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Manage event participants, approve registrations, and verify attendance
+                </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {activeTab === 'overview' && (
+                <div className="space-y-4">
+                  {/* Pills for filtering */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setActiveTab('registration-approval')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        activeTab === 'registration-approval'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      Registration Approval ({event.participations?.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED').length || 0})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('participant-management')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        activeTab === 'participant-management'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      Participant Management ({event.participations?.filter(p => p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED').length || 0})
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('post-event-verification')}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        activeTab === 'post-event-verification'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      Post-Event Verification ({event.participations?.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length || 0})
+                    </button>
+                  </div>
+
+                  {/* Participants List - ESG Table Design */}
+                  {activeTab === 'registration-approval' && (
                     <>
-                    {event.participations && event.participations.length > 0 ? (
-                      event.participations.slice(0, 5).map((participation) => (
-                        <div key={participation.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="w-8 h-8">
-                              <AvatarImage src={participation.user.image} />
-                              <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs">
-                                {participation.user.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {participation.user.name}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                Score: {participation.user.impactScore}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge className={getParticipationStatusColor(participation.status)}>
-                              {getParticipationStatusIcon(participation.status)}
-                              <span className="ml-1">{participation.status}</span>
-                            </Badge>
-                            {participation.status === 'PENDING' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleVerifyParticipation(participation.id)}
-                                className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-100"
-                              >
-                                <CheckCircle className="w-3 h-3" />
-                              </Button>
-                            )}
-                          </div>
+                      {event.participations && event.participations.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED').length > 0 ? (
+                        <div className="space-y-4">
+                          {event.participations.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED').map((participation, index) => (
+                            <Card key={participation.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="font-medium">Participant {index + 1}</h4>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {/* Name */}
+                                  <div className="space-y-2">
+                                    <Label>Name</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.user.name}
+                                    </p>
+                                  </div>
+
+                                  {/* Email */}
+                                  <div className="space-y-2">
+                                    <Label>Email</Label>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      {participation.user.email}
+                                    </p>
+                                  </div>
+
+                                  {/* Impact Score */}
+                                  <div className="space-y-2">
+                                    <Label>Impact Score</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.user.impactScore.toFixed(1)}
+                                    </p>
+                                  </div>
+
+                                  {/* Joined Date */}
+                                  <div className="space-y-2">
+                                    <Label>Joined Date</Label>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })}
+                                    </p>
+                                  </div>
+
+                                  {/* Registration Information */}
+                                  {participation.registrationInfo && (
+                                    <>
+                                      {participation.registrationInfo.hoursCommitted && (
+                                        <div className="space-y-2">
+                                          <Label>Hours Committed</Label>
+                                          <p className="text-sm text-gray-900 dark:text-white">
+                                            {participation.registrationInfo.hoursCommitted} hours
+                                          </p>
+                                        </div>
+                                      )}
+                                      {participation.registrationInfo.motivation && (
+                                        <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                                          <Label>Motivation</Label>
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                            {participation.registrationInfo.motivation}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {participation.registrationInfo.skills && (
+                                        <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                                          <Label>Relevant Skills</Label>
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                            {participation.registrationInfo.skills}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+
+                                  {/* Actions */}
+                                  {(participation.status === 'PENDING' || participation.status === 'REGISTERED') && (
+                                    <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                                      <Label>Actions</Label>
+                                      <div className="flex items-center space-x-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleApproveParticipation(participation.id)}
+                                          className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-100 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                        >
+                                          <CheckCircle className="w-4 h-4 mr-1" />
+                                          Approve
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleRejectParticipation(participation.id)}
+                                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-100 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        >
+                                          <XCircle className="w-4 h-4 mr-1" />
+                                          Reject
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>No participants yet</p>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>No registrations pending approval</p>
+                        </div>
+                      )}
                     </>
                   )}
-                  
-                  {activeTab === 'verified' && (
+
+                  {activeTab === 'post-event-verification' && (
                     <>
-                    {event.participations?.filter(p => p.status === 'VERIFIED').map((participation) => (
-                      <div key={participation.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={participation.user.image} />
-                            <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs">
-                              {participation.user.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {participation.user.name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {participation.hours || 0} hours • Score: {participation.user.impactScore}
-                            </p>
-                          </div>
+                      {event.participations && event.participations.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length > 0 ? (
+                        <div className="space-y-4">
+                          {event.participations.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').map((participation, index) => (
+                            <Card key={participation.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="font-medium">Participant {index + 1}</h4>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {/* Name */}
+                                  <div className="space-y-2">
+                                    <Label>Name</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.user.name}
+                                    </p>
+                                  </div>
+
+                                  {/* Hours */}
+                                  <div className="space-y-2">
+                                    <Label>Hours</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.hours || 0}
+                                    </p>
+                                  </div>
+
+                                  {/* Impact Score */}
+                                  <div className="space-y-2">
+                                    <Label>Impact Score</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.user.impactScore.toFixed(1)}
+                                    </p>
+                                  </div>
+
+                                  {/* Joined Date */}
+                                  <div className="space-y-2">
+                                    <Label>Joined Date</Label>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          Verified
-                        </Badge>
-                      </div>
-                    ))}
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>No participants verified yet</p>
+                        </div>
+                      )}
                     </>
                   )}
-                  
-                  {activeTab === 'pending' && (
+
+                  {activeTab === 'participant-management' && (
                     <>
-                    {event.participations?.filter(p => p.status === 'PENDING').map((participation) => (
-                      <div key={participation.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={participation.user.image} />
-                            <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs">
-                              {participation.user.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {participation.user.name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Joined: {new Date(participation.joinedAt).toLocaleDateString()}
-                            </p>
-                          </div>
+                      {event.participations && event.participations.filter(p => p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED').length > 0 ? (
+                        <div className="space-y-4">
+                          {event.participations.filter(p => p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED').map((participation, index) => (
+                            <Card key={participation.id}>
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h4 className="font-medium">Participant {index + 1}</h4>
+                                  {participation.status !== 'VERIFIED' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        showConfirm({
+                                          title: 'Delete Participant',
+                                          message: `Are you sure you want to remove ${participation.user.name} from this event? This action cannot be undone.`,
+                                          confirmText: 'Delete',
+                                          cancelText: 'Cancel',
+                                          type: 'warning',
+                                          onConfirm: async () => {
+                                            try {
+                                              const response = await fetch(`/api/events/${eventId}/participants/${participation.id}`, {
+                                                method: 'DELETE',
+                                              });
+
+                                              if (!response.ok) {
+                                                const errorData = await response.json().catch(() => ({ error: 'Failed to delete participant' }));
+                                                throw new Error(errorData.error || 'Failed to delete participant');
+                                              }
+
+                                              toast.success('Participant removed successfully');
+                                              fetchEventDetails();
+                                            } catch (error) {
+                                              const errorMessage = error instanceof Error ? error.message : 'Failed to delete participant';
+                                              toast.error(errorMessage);
+                                              console.error('Error deleting participant:', error);
+                                            }
+                                          }
+                                        });
+                                      }}
+                                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                      title="Delete Participant"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                  {/* Name */}
+                                  <div className="space-y-2">
+                                    <Label>Name</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.user.name}
+                                    </p>
+                                  </div>
+
+                                  {/* Hours */}
+                                  <div className="space-y-2">
+                                    <Label>Hours</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.hours || 0}
+                                    </p>
+                                  </div>
+
+                                  {/* Impact Score */}
+                                  <div className="space-y-2">
+                                    <Label>Impact Score</Label>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {participation.user.impactScore.toFixed(1)}
+                                    </p>
+                                  </div>
+
+                                  {/* Joined Date */}
+                                  <div className="space-y-2">
+                                    <Label>Joined Date</Label>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                            <AlertCircle className="w-3 h-3 mr-1" />
-                            Pending
-                          </Badge>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleVerifyParticipation(participation.id)}
-                            className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-100"
-                          >
-                            <CheckCircle className="w-3 h-3" />
-                          </Button>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>No approved participants to manage</p>
                         </div>
-                      </div>
-                    ))}
+                      )}
                     </>
                   )}
                 </div>
               </CardContent>
             </Card>
+            </div>
           </div>
         </div>
       </div>

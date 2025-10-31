@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -113,6 +114,8 @@ export const EventCard = ({
   onToggleBookmark,
   showOrganization = true 
 }: EventCardProps) => {
+  const router = useRouter();
+
   // Parse location data to handle both string and object formats
   let locationData;
   if (typeof event.location === 'string') {
@@ -153,9 +156,20 @@ export const EventCard = ({
   // Get the main image
   const mainImage = event.imageUrl || (event.images && event.images.length > 0 ? event.images[0] : null);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('a, button')) {
+      return;
+    }
+    router.push(`/events/${event.id}`);
+  };
+
   return (
-    <Link href={`/events/${event.id}`}>
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
+    <Card 
+      className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col"
+      onClick={handleCardClick}
+    >
         <div className="relative h-48 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
           {mainImage ? (
             <Image 
@@ -237,7 +251,16 @@ export const EventCard = ({
                   <Building2 className="w-3 h-3 text-white" />
                 </div>
               )}
-              <Link href={`/organizations/${event.organization.id}`} className="text-sm text-gray-600 dark:text-gray-400 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+              <Link 
+                href={`/organizations/${event.organization.id}`} 
+                className="text-sm text-gray-600 dark:text-gray-400 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                }}
+              >
                 {event.organization.name}
               </Link>
             </div>
@@ -299,6 +322,5 @@ export const EventCard = ({
           )}
         </CardContent>
       </Card>
-    </Link>
   );
 };

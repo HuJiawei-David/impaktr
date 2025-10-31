@@ -48,6 +48,7 @@ import { EventParticipants } from '@/components/events/EventParticipants';
 import { EventGallery } from '@/components/events/EventGallery';
 import Link from 'next/link';
 import { getSDGById } from '@/constants/sdgs';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 const getOrganizationTypeDisplay = (type?: string | null) => {
   if (!type) return 'Organization';
@@ -135,7 +136,7 @@ interface Event {
   }>;
   userParticipation?: {
     id: string;
-    status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+    status: 'REGISTERED' | 'PENDING' | 'CONFIRMED' | 'ATTENDED' | 'CANCELLED' | 'VERIFIED' | 'REJECTED';
     hoursCommitted: number;
     hoursActual?: number;
     joinedAt: string;
@@ -159,6 +160,9 @@ export default function EventDetailPage() {
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
+  
+  // Confirm dialog for canceling registration
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
 
   const fetchEvent = useCallback(async (eventId: string) => {
     try {
@@ -262,6 +266,13 @@ export default function EventDetailPage() {
           status: p.status,
           joinedAt: p.joinedAt
         })) || [],
+        userParticipation: rawEvent.userParticipation ? {
+          id: rawEvent.userParticipation.id,
+          status: rawEvent.userParticipation.status,
+          hoursCommitted: rawEvent.userParticipation.hoursCommitted || 0,
+          hoursActual: rawEvent.userParticipation.hoursActual,
+          joinedAt: rawEvent.userParticipation.joinedAt
+        } : undefined,
         isCreator: user?.id === rawEvent.organizerId,
         isSaved: false,
         canEdit: user?.id === rawEvent.organizerId
@@ -346,6 +357,37 @@ export default function EventDetailPage() {
     } finally {
       setIsJoining(false);
     }
+  };
+
+  const handleCancelRegistration = () => {
+    if (!event || !event.userParticipation) return;
+
+    showConfirm({
+      title: 'Cancel Registration',
+      message: `Are you sure you want to cancel your registration for "${event.title}"? This action cannot be undone.`,
+      confirmText: 'Cancel Registration',
+      cancelText: 'Keep Registration',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/events/${event.id}/participate`, {
+            method: 'DELETE',
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Failed to cancel registration' }));
+            throw new Error(errorData.error || 'Failed to cancel registration');
+          }
+
+          toast.success('Registration cancelled successfully');
+          fetchEvent(event.id); // Refresh event data
+        } catch (error) {
+          console.error('Error cancelling registration:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Failed to cancel registration';
+          toast.error(errorMessage);
+        }
+      }
+    });
   };
 
   const handleBookmark = async () => {
@@ -1091,21 +1133,194 @@ export default function EventDetailPage() {
                 <div className="space-y-4">
                   {/* Participation Status */}
                   {event.userParticipation ? (
-                    <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                        <span className="font-medium text-green-800 dark:text-green-200">
-                          You&apos;re participating!
-                        </span>
-                      </div>
-                      <div className="text-sm text-green-700 dark:text-green-300">
-                        Status: {event.userParticipation.status}
-                        <br />
-                        Committed: {event.userParticipation.hoursCommitted} hours
-                        <br />
-                        Joined: {formatTimeAgo(event.userParticipation.joinedAt)}
-                      </div>
-                    </div>
+                    <>
+                      {(event.userParticipation.status === 'PENDING' || event.userParticipation.status === 'REGISTERED') ? (
+                        <div className="p-5 rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 border-2 border-yellow-200 dark:border-yellow-800">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                            <span className="font-semibold text-lg text-yellow-800 dark:text-yellow-200">
+                              Registration Submitted, Awaiting Admin Approval
+                            </span>
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                              Your registration has been successfully submitted. Please wait for the event administrator to review and confirm. Once approved, you will officially become a participant in the event.
+                            </p>
+                            {/* Progress Bar */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-xs text-yellow-600 dark:text-yellow-400">
+                                <span className="font-medium">Registration Progress</span>
+                                <span>Awaiting approval...</span>
+                              </div>
+                              <div className="w-full bg-yellow-100 dark:bg-yellow-900/30 rounded-full h-3 overflow-hidden">
+                                <div 
+                                  className="bg-gradient-to-r from-yellow-500 to-orange-600 h-3 rounded-full transition-all duration-500 animate-pulse" 
+                                  style={{ width: '33%' }} 
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                                  <span>Registration Submitted</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-pulse" />
+                                  <span>Awaiting Approval</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                                  <span>Approval Confirmed</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 p-3 bg-yellow-100/50 dark:bg-yellow-900/20 rounded-lg">
+                              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                                💡 <strong>Tip:</strong> You will only be officially counted in the participant list after the administrator confirms your registration in "Registration Approval".
+                              </p>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-yellow-200 dark:border-yellow-800">
+                              <Button
+                                variant="outline"
+                                onClick={handleCancelRegistration}
+                                className="w-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800"
+                              >
+                                <X className="w-4 h-4 mr-2" />
+                                Cancel Registration
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : event.userParticipation.status === 'REJECTED' ? (
+                        <div className="p-5 rounded-lg bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/20 dark:to-rose-950/20 border-2 border-red-200 dark:border-red-800">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <X className="w-5 h-5 text-red-600 dark:text-red-400" />
+                            <span className="font-semibold text-lg text-red-800 dark:text-red-200">
+                              Registration Rejected
+                            </span>
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-sm text-red-700 dark:text-red-300">
+                              We apologize, but your registration has been rejected by the event administrator. If you have any questions, please contact the event organizer.
+                            </p>
+                            {/* Progress Bar - Stopped */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400">
+                                <span className="font-medium">Registration Progress</span>
+                                <span>Rejected</span>
+                              </div>
+                              <div className="w-full bg-red-100 dark:bg-red-900/30 rounded-full h-3 overflow-hidden">
+                                <div 
+                                  className="bg-gradient-to-r from-red-500 to-rose-600 h-3 rounded-full transition-all duration-500" 
+                                  style={{ width: '33%' }} 
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-red-600 dark:text-red-400 mt-2">
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                                  <span>Registration Submitted</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-red-500" />
+                                  <span>Rejected</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                                  <span>—</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : event.userParticipation.status === 'CONFIRMED' ? (
+                        <div className="p-5 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-2 border-green-200 dark:border-green-800">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            <span className="font-semibold text-lg text-green-800 dark:text-green-200">
+                              Registration Approved!
+                            </span>
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-sm text-green-700 dark:text-green-300">
+                              Congratulations! Your registration has been approved by the administrator. You are now officially a participant in the event. After the event ends, we will conduct Post-Event Verification.
+                            </p>
+                            {/* Progress Bar */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-xs text-green-600 dark:text-green-400">
+                                <span className="font-medium">Registration Progress</span>
+                                <span>Approved, waiting for event to start</span>
+                              </div>
+                              <div className="w-full bg-green-100 dark:bg-green-900/30 rounded-full h-3 overflow-hidden">
+                                <div 
+                                  className="bg-gradient-to-r from-green-500 to-emerald-600 h-3 rounded-full transition-all duration-500" 
+                                  style={{ width: '66%' }} 
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-green-600 dark:text-green-400 mt-2">
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                                  <span>Registration Submitted</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                                  <span>Approval Confirmed</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                                  <span>Event Verification</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 p-3 bg-green-100/50 dark:bg-green-900/20 rounded-lg">
+                              <p className="text-xs text-green-600 dark:text-green-400">
+                                💡 <strong>Tip:</strong> You are now officially counted in the participant list. After the event is completed, the administrator will confirm your participation in Post-Event Verification.
+                              </p>
+                            </div>
+                            <div className="text-sm text-green-700 dark:text-green-300 space-y-1 pt-2 border-t border-green-200 dark:border-green-800">
+                              <div>Committed Hours: {event.userParticipation.hoursCommitted} hours</div>
+                              <div>Registration Time: {formatTimeAgo(event.userParticipation.joinedAt)}</div>
+                            </div>
+                            <div className="mt-4 pt-4 border-t border-green-200 dark:border-green-800">
+                              <Button
+                                variant="outline"
+                                onClick={handleCancelRegistration}
+                                className="w-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800"
+                              >
+                                <X className="w-4 h-4 mr-2" />
+                                Cancel Registration
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border-2 border-emerald-200 dark:border-emerald-800">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <CheckCircle className="w-5 h-5 text-emerald-600" />
+                            <span className="font-medium text-emerald-800 dark:text-emerald-200">
+                              Participation Status: {event.userParticipation.status}
+                            </span>
+                          </div>
+                          <div className="text-sm text-emerald-700 dark:text-emerald-300 space-y-1">
+                            <div>Committed Hours: {event.userParticipation.hoursCommitted} hours</div>
+                            {event.userParticipation.hoursActual && (
+                              <div>Actual Hours: {event.userParticipation.hoursActual} hours</div>
+                            )}
+                            <div>Join Time: {formatTimeAgo(event.userParticipation.joinedAt)}</div>
+                          </div>
+                          {event.userParticipation.status !== 'VERIFIED' && (
+                            <div className="mt-4 pt-4 border-t border-emerald-200 dark:border-emerald-800">
+                              <Button
+                                variant="outline"
+                                onClick={handleCancelRegistration}
+                                className="w-full text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800"
+                              >
+                                <X className="w-4 h-4 mr-2" />
+                                Cancel Registration
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   ) : isEventCompleted ? (
                     <div className="text-center p-4 bg-muted rounded-lg border-2 border-gray-300 dark:border-gray-700">
                       <CheckCircle className="w-8 h-8 mx-auto mb-2 text-gray-500" />
@@ -1189,6 +1404,9 @@ export default function EventDetailPage() {
           />
         )}
       </div>
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </div>
   );
 }

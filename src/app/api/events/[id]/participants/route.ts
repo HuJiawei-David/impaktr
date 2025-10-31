@@ -41,8 +41,13 @@ export async function GET(
     const participations = await prisma.participation.findMany({
       where: {
         eventId,
-        // If not organizer, only show verified participants
-        ...((!isOrganizer && { status: 'VERIFIED' }) || {})
+        // If not organizer, only show CONFIRMED and VERIFIED participants (actual participants)
+        // If organizer, show all statuses for management
+        ...((!isOrganizer && { 
+          status: { 
+            in: ['CONFIRMED', 'VERIFIED'] 
+          } 
+        }) || {})
       },
       include: {
         user: {

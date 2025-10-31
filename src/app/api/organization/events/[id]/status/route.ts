@@ -135,11 +135,12 @@ export async function PUT(
 
     // Handle status-specific actions
     if (status === EventStatus.COMPLETED) {
-      // Auto-verify pending participations when event is marked complete
+      // Auto-verify pending and confirmed participations when event is marked complete
+      // This ensures all approved participants appear in Post-Event Verification
       await prisma.participation.updateMany({
         where: {
           eventId: id,
-          status: 'PENDING'
+          status: { in: ['PENDING', 'CONFIRMED'] }
         },
         data: {
           status: 'VERIFIED',

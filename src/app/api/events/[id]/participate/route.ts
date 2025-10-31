@@ -4,11 +4,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { ParticipationStatus } from '@/types/events';
+import { ParticipationStatus } from '@prisma/client';
 
 const participateSchema = z.object({
   hoursCommitted: z.number().positive().optional(),
   notes: z.string().optional(),
+  motivation: z.string().optional(),
+  skills: z.string().optional(),
 });
 
 const updateParticipationSchema = z.object({
@@ -30,7 +32,26 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { hoursCommitted, notes } = participateSchema.parse(body);
+    const { hoursCommitted, notes, motivation, skills } = participateSchema.parse(body);
+    
+    // Store registration info as structured JSON in feedback field
+    // This allows us to parse it later for display in admin approval section
+    const registrationInfo: {
+      motivation?: string;
+      skills?: string;
+      notes?: string;
+      hoursCommitted?: number;
+    } = {};
+    
+    if (motivation) registrationInfo.motivation = motivation;
+    if (skills) registrationInfo.skills = skills;
+    if (notes) registrationInfo.notes = notes;
+    if (hoursCommitted) registrationInfo.hoursCommitted = hoursCommitted;
+    
+    // Store as JSON string for structured parsing, fallback to old format for backward compatibility
+    const feedback = Object.keys(registrationInfo).length > 0 
+      ? JSON.stringify(registrationInfo) 
+      : ([notes, motivation, skills].filter(Boolean).join(' | ') || undefined);
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -48,20 +69,24 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    if (event.status !== 'ACTIVE') {
+    // Allow registration for ACTIVE and UPCOMING events
+    if (event.status !== 'ACTIVE' && event.status !== 'UPCOMING') {
       return NextResponse.json(
-        { error: 'Event is not active for participation' },
+        { error: 'Event is not accepting registrations. Only ACTIVE and UPCOMING events can be registered for.' },
         { status: 400 }
       );
     }
 
-    // Check if event has reached max participants
+    // Check if event has reached max participants (only count CONFIRMED participants)
     if (event.maxParticipants) {
-      const currentParticipants = await prisma.participation.count({
-        where: { eventId: id }
+      const confirmedParticipants = await prisma.participation.count({
+        where: { 
+          eventId: id,
+          status: 'CONFIRMED'
+        }
       });
 
-      if (currentParticipants >= event.maxParticipants) {
+      if (confirmedParticipants >= event.maxParticipants) {
         return NextResponse.json(
           { error: 'Event has reached maximum participants' },
           { status: 400 }
@@ -92,31 +117,38 @@ export async function POST(
 
     // derive hours from event totalHours if not provided
     let derivedHours = typeof event?.totalHours === 'number' ? event.totalHours : 0;
+    const finalHours = typeof hoursCommitted === 'number' && hoursCommitted > 0 
+      ? hoursCommitted 
+      : (derivedHours > 0 ? derivedHours : null);
 
     const participation = await prisma.participation.create({
       data: {
         userId: user.id,
         eventId: id,
-        hours: typeof hoursCommitted === 'number' ? hoursCommitted : derivedHours,
-        feedback: notes, // notes field doesn't exist, using feedback instead
-        // skillMultiplier field doesn't exist in Participation model
+        hours: finalHours,
+        feedback: feedback || null,
         status: ParticipationStatus.PENDING,
       },
       include: {
-        event: true,
-        user: true
-      }
-    });
-
-    // Update event current participants count
-    await prisma.event.update({
-      where: { id: id },
-      data: {
-        currentParticipants: {
-          increment: 1,
+        event: {
+          select: {
+            id: true,
+            title: true,
+            status: true
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
         }
       }
     });
+
+    // Don't increment participant count here - only count CONFIRMED participants
+    // Count will be updated when admin confirms the registration
 
     return NextResponse.json({ participation }, { status: 201 });
   } catch (error) {
@@ -128,8 +160,22 @@ export async function POST(
     }
 
     console.error('Error creating participation:', error);
+    
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        details: process.env.NODE_ENV === 'development' 
+          ? (error instanceof Error ? error.stack : String(error))
+          : undefined
+      },
       { status: 500 }
     );
   }
@@ -253,19 +299,25 @@ export async function DELETE(
       );
     }
 
+    // Only decrement participant count if status was CONFIRMED or ATTENDED
+    // PENDING and REGISTERED registrations don't count toward currentParticipants
+    const shouldDecrement = participation.status === 'CONFIRMED' || participation.status === 'ATTENDED';
+
     await prisma.participation.delete({
       where: { id: participation.id },
     });
 
-    // Update event current participants count
-    await prisma.event.update({
-      where: { id: id },
-      data: {
-        currentParticipants: {
-          decrement: 1,
+    // Update event current participants count only if needed
+    if (shouldDecrement) {
+      await prisma.event.update({
+        where: { id: id },
+        data: {
+          currentParticipants: {
+            decrement: 1,
+          }
         }
-      }
-    });
+      });
+    }
 
     return NextResponse.json({ message: 'Participation cancelled successfully' });
   } catch (error) {

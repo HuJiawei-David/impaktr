@@ -66,7 +66,9 @@ export async function GET(
         _count: {
           select: {
             participations: {
-              where: { status: 'VERIFIED' }
+              where: { 
+                status: { in: ['CONFIRMED', 'VERIFIED'] }
+              }
             }
           }
         }
@@ -106,11 +108,47 @@ export async function GET(
       }
     }
 
-    // Transform event to include bookmark status and current participants
+    // Get user's participation status if logged in
+    let userParticipation = null;
+    if (userId) {
+      try {
+        const participation = await prisma.participation.findUnique({
+          where: {
+            userId_eventId: {
+              userId,
+              eventId: id
+            }
+          },
+          select: {
+            id: true,
+            status: true,
+            hours: true,
+            joinedAt: true,
+            verifiedAt: true
+          }
+        });
+        
+        if (participation) {
+          userParticipation = {
+            id: participation.id,
+            status: participation.status,
+            hoursCommitted: participation.hours || 0,
+            hoursActual: participation.hours || undefined,
+            joinedAt: participation.joinedAt.toISOString()
+          };
+        }
+      } catch (error) {
+        // Participation query failed - default to null
+        userParticipation = null;
+      }
+    }
+
+    // Transform event to include bookmark status, current participants, and user participation
     const eventWithBookmark = {
       ...event,
       isBookmarked,
-      currentParticipants: event._count.participations
+      currentParticipants: event._count.participations,
+      userParticipation
     };
 
     return NextResponse.json({ event: eventWithBookmark });

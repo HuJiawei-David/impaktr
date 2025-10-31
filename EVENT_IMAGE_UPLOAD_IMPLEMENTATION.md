@@ -1,43 +1,43 @@
 # Event Image Upload & Display Implementation
 
-## 概述 (Overview)
+## Overview
 
-实现了在活动创建页面上传图片，并在活动列表页面显示这些图片的功能。如果活动没有上传图片，系统会自动显示默认的占位图片。
+Implemented the functionality to upload images on the event creation page and display these images on the event list page. If an event has no uploaded images, the system will automatically display a default placeholder image.
 
-## 实现的功能 (Implemented Features)
+## Implemented Features
 
-### 1. 图片上传功能 (Image Upload)
-- ✅ 在 `/organization/events/create` 页面上传最多5张图片
-- ✅ 图片自动上传到AWS S3存储
-- ✅ 第一张图片作为活动封面图
-- ✅ 所有图片保存到 `event_images` 数据表
+### 1. Image Upload Functionality
+- ✅ Upload up to 5 images on `/organization/events/create` page
+- ✅ Images automatically upload to AWS S3 storage
+- ✅ First image used as event cover image
+- ✅ All images saved to `event_images` database table
 
-### 2. 图片显示功能 (Image Display)
-- ✅ 在 `/organization/events` 列表页显示活动封面图
-- ✅ 如果没有图片，显示系统默认的占位图
-- ✅ 图片加载失败时自动回退到默认图片
-- ✅ 卡片设计改进，包含图片区域和覆盖层标签
+### 2. Image Display Functionality
+- ✅ Display event cover image on `/organization/events` list page
+- ✅ Display system default placeholder if no images
+- ✅ Automatically fallback to default image on load failure
+- ✅ Improved card design with image area and overlay labels
 
-### 3. 默认占位图 (Default Placeholder)
-- ✅ 创建了美观的SVG默认图片：`/public/default-event-cover.svg`
-- ✅ 使用渐变色（蓝色到紫色）的设计
-- ✅ 包含"Event Image"文字标识
+### 3. Default Placeholder
+- ✅ Created beautiful SVG default image: `/public/default-event-cover.svg`
+- ✅ Gradient design (blue to purple)
+- ✅ Includes "Event Image" text identifier
 
-## 修改的文件 (Modified Files)
+## Modified Files
 
 ### 1. `/src/app/api/organization/events/route.ts`
-**修改内容：**
-- 导入 `uploadToS3` 函数
-- POST方法支持FormData和JSON两种格式
-- 处理图片文件上传到S3
-- 保存图片URL到 `event.imageUrl` 字段
-- 创建 `EventImage` 记录关联到活动
-- GET方法包含活动的封面图片
-- 添加 `coverImage` 字段到返回数据
+**Changes:**
+- Import `uploadToS3` function
+- POST method supports both FormData and JSON formats
+- Handle image file uploads to S3
+- Save image URL to `event.imageUrl` field
+- Create `EventImage` records associated with event
+- GET method includes event cover image
+- Add `coverImage` field to return data
 
-**关键代码：**
+**Key Code:**
 ```typescript
-// 上传图片到S3
+// Upload images to S3
 const imageUrls: string[] = [];
 for (let i = 0; i < imageFiles.length; i++) {
   const file = imageFiles[i];
@@ -47,10 +47,10 @@ for (let i = 0; i < imageFiles.length; i++) {
   imageUrls.push(url);
 }
 
-// 设置第一张图片为封面
+// Set first image as cover
 imageUrl: imageUrls.length > 0 ? imageUrls[0] : null
 
-// 创建EventImage记录
+// Create EventImage records
 if (imageUrls.length > 0) {
   await Promise.all(
     imageUrls.map((url, index) =>
@@ -68,13 +68,13 @@ if (imageUrls.length > 0) {
 ```
 
 ### 2. `/src/app/organization/events/create/page.tsx`
-**修改内容：**
-- 修改 `onSubmit` 函数以支持FormData
-- 当有图片时使用FormData，否则使用JSON
-- 添加详细的调试日志
-- 确保正确构建和发送FormData
+**Changes:**
+- Modify `onSubmit` function to support FormData
+- Use FormData when images are present, otherwise use JSON
+- Add detailed debug logs
+- Ensure FormData is properly constructed and sent
 
-**关键代码：**
+**Key Code:**
 ```typescript
 if (eventImages.length > 0) {
   const formData = new FormData();
@@ -92,13 +92,13 @@ if (eventImages.length > 0) {
 ```
 
 ### 3. `/src/app/organization/events/page.tsx`
-**修改内容：**
-- 更新 `Event` 接口，添加 `coverImage` 和 `imageUrl` 字段
-- 重新设计活动卡片，添加图片区域
-- 实现图片显示逻辑和错误处理
-- 将状态标签和操作菜单移到图片覆盖层
+**Changes:**
+- Update `Event` interface, add `coverImage` and `imageUrl` fields
+- Redesign event cards, add image area
+- Implement image display logic and error handling
+- Move status labels and action menu to image overlay
 
-**关键代码：**
+**Key Code:**
 ```typescript
 const eventImageUrl = event.coverImage || event.imageUrl || '/default-event-cover.svg';
 
@@ -112,22 +112,22 @@ const eventImageUrl = event.coverImage || event.imageUrl || '/default-event-cove
       target.src = '/default-event-cover.svg';
     }}
   />
-  {/* 覆盖层标签 */}
+  {/* Overlay labels */}
 </div>
 ```
 
-### 4. `/public/default-event-cover.svg` (新建)
-创建了一个美观的SVG占位图，包含：
-- 渐变背景（蓝色到紫色）
-- 抽象的图标设计
-- "Event Image" 文字
+### 4. `/public/default-event-cover.svg` (New)
+Created a beautiful SVG placeholder image, including:
+- Gradient background (blue to purple)
+- Abstract icon design
+- "Event Image" text
 
-## 数据库结构 (Database Schema)
+## Database Schema
 
-### Event 表
-- `imageUrl`: 活动封面图片URL（存储第一张上传的图片）
+### Event Table
+- `imageUrl`: Event cover image URL (stores first uploaded image)
 
-### EventImage 表
+### EventImage Table
 ```sql
 CREATE TABLE "event_images" (
   "id" TEXT PRIMARY KEY,
@@ -143,89 +143,89 @@ CREATE TABLE "event_images" (
 );
 ```
 
-## 工作流程 (Workflow)
+## Workflow
 
-### 创建活动时上传图片：
-1. 用户在创建活动页面选择图片（最多5张）
-2. 提交时，前端将图片和活动数据打包成FormData
-3. 后端接收FormData，提取eventData和图片文件
-4. 将每张图片上传到S3，获取URL
-5. 创建Event记录，设置第一张图片为封面（imageUrl字段）
-6. 为每张图片创建EventImage记录
+### Upload Images When Creating Event:
+1. User selects images on event creation page (max 5 images)
+2. On submit, frontend packages images and event data into FormData
+3. Backend receives FormData, extracts eventData and image files
+4. Upload each image to S3, get URLs
+5. Create Event record, set first image as cover (imageUrl field)
+6. Create EventImage record for each image
 
-### 显示活动列表：
-1. GET API查询活动时包含第一张图片（通过images关系）
-2. 构建返回数据，添加coverImage字段
-3. 前端接收数据，优先使用coverImage，其次imageUrl
-4. 如果都没有，使用默认占位图
-5. 如果图片加载失败，onError回退到默认图片
+### Display Event List:
+1. GET API includes first image when querying events (via images relation)
+2. Build return data, add coverImage field
+3. Frontend receives data, prioritizes coverImage, then imageUrl
+4. If neither exists, use default placeholder
+5. If image load fails, onError falls back to default image
 
-## 错误处理 (Error Handling)
+## Error Handling
 
-### 后端
-- ✅ 支持FormData和JSON两种请求格式
-- ✅ FormData解析失败时自动回退到JSON
-- ✅ 图片上传失败不影响其他图片
-- ✅ 详细的日志记录便于调试
+### Backend
+- ✅ Supports both FormData and JSON request formats
+- ✅ Automatically falls back to JSON if FormData parsing fails
+- ✅ Image upload failure doesn't affect other images
+- ✅ Detailed logging for debugging
 
-### 前端
-- ✅ 图片加载失败时显示默认图片
-- ✅ FormData构建时的日志记录
-- ✅ API错误时的友好提示
+### Frontend
+- ✅ Displays default image when image load fails
+- ✅ Logging when building FormData
+- ✅ User-friendly error messages for API errors
 
-## 使用说明 (Usage)
+## Usage
 
-### 创建带图片的活动：
-1. 访问 `/organization/events/create`
-2. 填写活动信息
-3. 在"Event Images"部分上传图片（可选）
-4. 提交创建活动
+### Create Event with Images:
+1. Visit `/organization/events/create`
+2. Fill in event information
+3. Upload images in "Event Images" section (optional)
+4. Submit to create event
 
-### 查看活动列表：
-1. 访问 `/organization/events`
-2. 每个活动卡片顶部显示封面图
-3. 点击卡片查看活动详情
+### View Event List:
+1. Visit `/organization/events`
+2. Each event card displays cover image at top
+3. Click card to view event details
 
-## 技术细节 (Technical Details)
+## Technical Details
 
-### S3上传配置
-- 文件路径格式：`events/{organizationId}/{timestamp}-{index}-{filename}`
-- ACL设置：`public-read`
-- 自动设置正确的Content-Type
+### S3 Upload Configuration
+- File path format: `events/{organizationId}/{timestamp}-{index}-{filename}`
+- ACL setting: `public-read`
+- Automatically sets correct Content-Type
 
-### 图片处理
-- 支持的格式：JPG, PNG, WebP等浏览器支持的格式
-- 最大数量：5张
-- 第一张自动设为封面
+### Image Processing
+- Supported formats: JPG, PNG, WebP and other browser-supported formats
+- Maximum quantity: 5 images
+- First image automatically set as cover
 
-### API兼容性
-- 向后兼容：没有图片时可以正常创建活动（纯JSON请求）
-- 有图片时使用FormData请求
+### API Compatibility
+- Backward compatible: Can create events normally without images (pure JSON request)
+- Uses FormData request when images are present
 
-## 调试信息 (Debugging)
+## Debugging
 
-### 查看日志
-前端日志（浏览器控制台）：
-- FormData构建信息
-- 图片数量和大小
-- API请求结果
+### View Logs
+Frontend logs (browser console):
+- FormData construction information
+- Image count and size
+- API request results
 
-后端日志（服务器）：
-- 请求格式检测
-- 图片接收数量
-- 上传结果
+Backend logs (server):
+- Request format detection
+- Number of images received
+- Upload results
 
-### 常见问题
-1. **图片不显示**: 检查S3配置和URL是否正确
-2. **上传失败**: 检查文件大小和格式
-3. **默认图片不显示**: 确保`/public/default-event-cover.svg`文件存在
+### Common Issues
+1. **Images not displaying**: Check if S3 configuration and URLs are correct
+2. **Upload failure**: Check file size and format
+3. **Default image not displaying**: Ensure `/public/default-event-cover.svg` file exists
 
-## 改进建议 (Future Improvements)
+## Future Improvements
 
-- [ ] 添加图片压缩和尺寸优化
-- [ ] 支持图片编辑（裁剪、旋转）
-- [ ] 图片懒加载优化性能
-- [ ] 添加图片预览和管理功能
-- [ ] 支持从URL添加图片
-- [ ] 添加图片标题和描述
+- [ ] Add image compression and size optimization
+- [ ] Support image editing (crop, rotate)
+- [ ] Image lazy loading for performance optimization
+- [ ] Add image preview and management features
+- [ ] Support adding images from URL
+- [ ] Add image titles and descriptions
 

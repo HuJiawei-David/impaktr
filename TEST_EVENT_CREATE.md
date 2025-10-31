@@ -1,168 +1,168 @@
-# 测试事件创建功能指南
+# Event Creation Testing Guide
 
-## 快速测试步骤
+## Quick Testing Steps
 
-### 1. 启动开发服务器
+### 1. Start Development Server
 ```bash
 npm run dev
 ```
 
-### 2. 导航到事件创建页面
-打开浏览器访问：`http://localhost:3000/organization/events/create`
+### 2. Navigate to Event Creation Page
+Open browser and visit: `http://localhost:3000/organization/events/create`
 
-### 3. 填写表单并测试
+### 3. Fill Out Form and Test
 
-#### 测试用例 1: 完整填写（应该成功）
+#### Test Case 1: Complete Fill (Should Succeed)
 1. **Step 1 - Basic Information:**
-   - Event Title: `社区环境清洁活动`
-   - Description: `一起为社区环境做贡献，清理公园和街道`
-   - Organization: 选择你的组织（或选择 "Create as Individual"）
-   - SDG Focus Areas: 选择至少一个 SDG（如 SDG 11, 13, 15）
-   - Event Images: 可选择上传 1-5 张图片
+   - Event Title: `Community Environmental Cleanup Event`
+   - Description: `Let's contribute to the community environment, cleaning parks and streets`
+   - Organization: Select your organization (or select "Create as Individual")
+   - SDG Focus Areas: Select at least one SDG (e.g., SDG 11, 13, 15)
+   - Event Images: Optionally upload 1-5 images
 
 2. **Step 2 - Date and Time:**
-   - Start Date: 选择未来的日期和时间（如 `2025-11-15 09:00`）
-   - End Date: 选择结束时间（如 `2025-11-15 17:00`）
-   - Registration Deadline: 选择注册截止时间（如 `2025-11-14 23:59`）
+   - Start Date: Select a future date and time (e.g., `2025-11-15 09:00`)
+   - End Date: Select end time (e.g., `2025-11-15 17:00`)
+   - Registration Deadline: Select registration deadline (e.g., `2025-11-14 23:59`)
    - Location: 
-     - 不勾选虚拟事件
+     - Do not check virtual event
      - City: `Kuala Lumpur`
      - Address: `Central Park, Jalan Sultan Ismail`
    - Max Participants: `50`
-   - 勾选 "Public event"
+   - Check "Public event"
 
 3. **Step 3 - Skills and Requirements:**
-   - Skills: 选择相关技能（如 "Event Planning", "Gardening"）
-   - Intensity Level: 选择 `Medium (1.0x)`
-   - Verification Method: 选择 `Organizer Verification`
+   - Skills: Select relevant skills (e.g., "Event Planning", "Gardening")
+   - Intensity Level: Select `Medium (1.0x)`
+   - Verification Method: Select `Organizer Verification`
 
 4. **Step 4 - Advanced:**
-   - Certificate Template: 选择 `Default Impaktr Certificate`
-   - 点击 "Create Event"
+   - Certificate Template: Select `Default Impaktr Certificate`
+   - Click "Create Event"
 
-**预期结果:** 
-- 显示 "Event created successfully!" 成功消息
-- 自动跳转到 `/organization/events` 页面
-- 新创建的事件显示在列表中
+**Expected Results:** 
+- Display "Event created successfully!" success message
+- Automatically redirect to `/organization/events` page
+- Newly created event appears in the list
 
 ---
 
-#### 测试用例 2: 虚拟事件（应该成功）
-1. **Step 1:** 填写基本信息和 SDG
+#### Test Case 2: Virtual Event (Should Succeed)
+1. **Step 1:** Fill in basic information and SDG
 2. **Step 2:** 
-   - 填写日期和时间
-   - **勾选 "This is a virtual event"**
-   - City 字段应该可以为空
-   - 不需要填写地址
-3. **Step 3-4:** 正常填写
-4. 点击 "Create Event"
+   - Fill in date and time
+   - **Check "This is a virtual event"**
+   - City field should be optional
+   - No need to fill in address
+3. **Step 3-4:** Fill normally
+4. Click "Create Event"
 
-**预期结果:** 成功创建虚拟事件
-
----
-
-#### 测试用例 3: 缺少必填字段（应该显示错误）
-
-**测试 3a: 缺少 Title**
-- 跳过 Event Title
-- 直接点击 "Continue" 或 "Create Event"
-- **预期:** 显示 "Please fill in all required fields"
-
-**测试 3b: 缺少 Registration Deadline**
-- 填写其他所有字段
-- 但不填写 Registration Deadline
-- 点击 "Create Event"
-- **预期:** 显示 "Registration deadline is required"
-
-**测试 3c: 非虚拟事件但没有 City**
-- 不勾选虚拟事件
-- 但不填写 City
-- 点击 "Create Event"
-- **预期:** 显示 "City is required for non-virtual events"
-
-**测试 3d: 没有选择 SDG**
-- 填写所有其他字段
-- 但不选择任何 SDG
-- 点击 "Create Event"
-- **预期:** 显示 "Please select at least one SDG"
+**Expected Result:** Successfully create virtual event
 
 ---
 
-## 调试指南
+#### Test Case 3: Missing Required Fields (Should Display Error)
 
-如果创建事件仍然失败，请按以下步骤调试：
+**Test 3a: Missing Title**
+- Skip Event Title
+- Directly click "Continue" or "Create Event"
+- **Expected:** Display "Please fill in all required fields"
 
-### 1. 打开浏览器开发者工具
-- Chrome/Edge: 按 `F12` 或 `Cmd+Option+I` (Mac)
-- 切换到 "Console" 标签
+**Test 3b: Missing Registration Deadline**
+- Fill all other fields
+- But do not fill Registration Deadline
+- Click "Create Event"
+- **Expected:** Display "Registration deadline is required"
 
-### 2. 查看控制台错误
-尝试创建事件，查看控制台是否有红色错误消息。常见错误：
-- `Unauthorized` → 用户未登录或 session 过期
-- `No organization admin access` → 用户不是任何组织的管理员
-- `Validation failed` → 数据验证失败
-- `Internal server error` → 服务器端错误
+**Test 3c: Non-virtual Event but No City**
+- Do not check virtual event
+- But do not fill City
+- Click "Create Event"
+- **Expected:** Display "City is required for non-virtual events"
 
-### 3. 查看网络请求
-- 切换到 "Network" 标签
-- 点击 "Create Event"
-- 找到 `/api/organization/events` 的 POST 请求
-- 点击查看请求详情：
-  - **Request Payload:** 查看发送的数据
-  - **Response:** 查看服务器返回的错误消息
+**Test 3d: No SDG Selected**
+- Fill all other fields
+- But do not select any SDG
+- Click "Create Event"
+- **Expected:** Display "Please select at least one SDG"
 
-### 4. 常见错误及解决方法
+---
 
-#### 错误: "Unauthorized" (401)
-**原因:** 用户未登录  
-**解决:** 确保已登录，检查 session 是否有效
+## Debugging Guide
 
-#### 错误: "No organization admin access" (403)
-**原因:** 用户不是任何组织的管理员或所有者  
-**解决:** 
-1. 创建一个组织
-2. 或者将用户添加为现有组织的管理员
-3. 使用以下脚本添加用户到组织：
+If event creation still fails, follow these steps to debug:
+
+### 1. Open Browser Developer Tools
+- Chrome/Edge: Press `F12` or `Cmd+Option+I` (Mac)
+- Switch to "Console" tab
+
+### 2. Check Console Errors
+Try creating an event, check if there are red error messages in the console. Common errors:
+- `Unauthorized` → User not logged in or session expired
+- `No organization admin access` → User is not an administrator of any organization
+- `Validation failed` → Data validation failed
+- `Internal server error` → Server-side error
+
+### 3. Check Network Requests
+- Switch to "Network" tab
+- Click "Create Event"
+- Find the POST request to `/api/organization/events`
+- Click to view request details:
+  - **Request Payload:** View sent data
+  - **Response:** View server-returned error message
+
+### 4. Common Errors and Solutions
+
+#### Error: "Unauthorized" (401)
+**Cause:** User not logged in  
+**Solution:** Ensure logged in, check if session is valid
+
+#### Error: "No organization admin access" (403)
+**Cause:** User is not an administrator or owner of any organization  
+**Solution:** 
+1. Create an organization
+2. Or add user as administrator of existing organization
+3. Use the following script to add user to organization:
 ```bash
 node add-to-organization.js
 ```
 
-#### 错误: "Invalid data" 或 "Validation failed" (400)
-**原因:** 数据格式不正确  
-**解决:** 
-1. 检查 Response 中的 `details` 字段，查看具体哪个字段验证失败
-2. 常见问题：
-   - 日期格式不正确
-   - 必填字段为空
-   - 数字字段为负数或非法值
-   - SDG 数组超出范围（必须 1-17）
+#### Error: "Invalid data" or "Validation failed" (400)
+**Cause:** Data format incorrect  
+**Solution:** 
+1. Check the `details` field in Response to see which field validation failed
+2. Common issues:
+   - Date format incorrect
+   - Required fields empty
+   - Numeric fields negative or invalid values
+   - SDG array out of range (must be 1-17)
 
-#### 错误: "Internal server error" (500)
-**原因:** 服务器端错误  
-**解决:** 
-1. 查看服务器控制台日志
-2. 可能的原因：
-   - 数据库连接失败
-   - Prisma schema 不匹配
-   - 数据库字段类型不匹配
+#### Error: "Internal server error" (500)
+**Cause:** Server-side error  
+**Solution:** 
+1. Check server console logs
+2. Possible causes:
+   - Database connection failed
+   - Prisma schema mismatch
+   - Database field type mismatch
 
-### 5. 查看服务器日志
-在运行 `npm run dev` 的终端窗口中查看输出：
+### 5. Check Server Logs
+In the terminal window running `npm run dev`, check output:
 ```
-Received event data: { ... }  # 接收到的数据
-Validation error: [ ... ]      # Zod 验证错误（如果有）
-Error creating event: ...      # 创建事件时的错误
+Received event data: { ... }  # Received data
+Validation error: [ ... ]      # Zod validation error (if any)
+Error creating event: ...      # Error when creating event
 ```
 
 ---
 
-## 数据格式参考
+## Data Format Reference
 
-### 正确的 API 请求数据格式：
+### Correct API Request Data Format:
 ```json
 {
-  "title": "社区环境清洁活动",
-  "description": "一起为社区环境做贡献",
+  "title": "Community Environmental Cleanup Event",
+  "description": "Let's contribute to the community environment",
   "startDate": "2025-11-15T09:00",
   "endDate": "2025-11-15T17:00",
   "registrationDeadline": "2025-11-14T23:59",
@@ -184,49 +184,48 @@ Error creating event: ...      # 创建事件时的错误
 }
 ```
 
-### 日期格式说明
-- 使用 `datetime-local` 格式：`YYYY-MM-DDTHH:mm`
-- 例如：`2025-11-15T09:00`
-- 不需要时区信息
+### Date Format Notes
+- Use `datetime-local` format: `YYYY-MM-DDTHH:mm`
+- Example: `2025-11-15T09:00`
+- No timezone information needed
 
-### SDG 数组
-- 数字数组，每个数字范围：1-17
-- 例如：`[1, 3, 4, 11, 13]`
-- 最多选择 5 个
+### SDG Array
+- Numeric array, each number range: 1-17
+- Example: `[1, 3, 4, 11, 13]`
+- Maximum 5 selections
 
 ---
 
-## 成功创建后的检查
+## Post-Creation Verification
 
-创建成功后，检查以下内容：
+After successful creation, check the following:
 
-1. **事件列表页面** (`/organization/events`)
-   - 新事件应该显示在列表中
-   - 状态应该是 "DRAFT"
+1. **Event List Page** (`/organization/events`)
+   - New event should appear in the list
+   - Status should be "DRAFT"
 
-2. **数据库检查**
+2. **Database Check**
    ```bash
-   # 使用 Prisma Studio 查看
+   # Use Prisma Studio to view
    npx prisma studio
    ```
-   - 打开 `Event` 表
-   - 找到新创建的事件
-   - 验证所有字段都正确保存
+   - Open `Event` table
+   - Find newly created event
+   - Verify all fields saved correctly
 
-3. **事件详情页面**
-   - 点击事件查看详情
-   - 确认所有信息显示正确
+3. **Event Details Page**
+   - Click event to view details
+   - Confirm all information displays correctly
 
 ---
 
-## 需要帮助？
+## Need Help?
 
-如果按照以上步骤仍然无法创建事件，请提供以下信息：
+If you still cannot create events following the above steps, please provide the following information:
 
-1. **浏览器控制台的错误消息**（Console 标签）
-2. **网络请求的响应内容**（Network 标签 → Response）
-3. **服务器日志输出**（终端窗口）
-4. **你填写的数据示例**
+1. **Browser console error messages** (Console tab)
+2. **Network request response content** (Network tab → Response)
+3. **Server log output** (Terminal window)
+4. **Your filled data example**
 
-这将帮助进一步诊断问题。
-
+This will help further diagnose the issue.

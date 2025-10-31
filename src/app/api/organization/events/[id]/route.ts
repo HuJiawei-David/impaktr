@@ -151,16 +151,40 @@ export async function GET(
         emergencyContact: eventWithExtras.emergencyContact,
         requiresApproval: eventWithExtras.requiresApproval || false,
         autoIssueCertificates: eventWithExtras.autoIssueCertificates !== false,
-        participations: event.participations.map(p => ({
-          id: p.id,
-          userId: p.userId,
-          status: p.status,
-          joinedAt: p.joinedAt.toISOString(),
-          verifiedAt: p.verifiedAt?.toISOString(),
-          hours: p.hours,
-          feedback: p.feedback,
-          user: p.user
-        }))
+        participations: event.participations.map(p => {
+          // Parse registration info from feedback field
+          let registrationInfo: {
+            motivation?: string;
+            skills?: string;
+            notes?: string;
+            hoursCommitted?: number;
+          } | null = null;
+          
+          if (p.feedback) {
+            try {
+              // Try to parse as JSON first (new format)
+              registrationInfo = JSON.parse(p.feedback);
+            } catch {
+              // Fallback to old format: "notes | motivation | skills"
+              const parts = p.feedback.split(' | ');
+              if (parts.length >= 1) registrationInfo = { notes: parts[0] || undefined };
+              if (parts.length >= 2) registrationInfo = { ...registrationInfo, motivation: parts[1] };
+              if (parts.length >= 3) registrationInfo = { ...registrationInfo, skills: parts[2] };
+            }
+          }
+          
+          return {
+            id: p.id,
+            userId: p.userId,
+            status: p.status,
+            joinedAt: p.joinedAt.toISOString(),
+            verifiedAt: p.verifiedAt?.toISOString(),
+            hours: p.hours,
+            feedback: p.feedback,
+            registrationInfo, // Add parsed registration info
+            user: p.user
+          };
+        })
       },
       stats
     });

@@ -7,20 +7,15 @@ import { useSession } from 'next-auth/react';
 import { 
   Users, 
   Search, 
-  Filter, 
   MoreHorizontal,
   CheckCircle,
   Clock,
-  X,
   Award,
-  Calendar,
-  MapPin,
   Star,
   MessageSquare,
   UserCheck,
   UserX,
-  Download,
-  Send
+  Download
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,7 +62,7 @@ interface Participant {
   };
   hoursCommitted: number;
   hoursActual?: number;
-  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
+  status: 'PENDING' | 'REGISTERED' | 'CONFIRMED' | 'ATTENDED' | 'VERIFIED' | 'REJECTED' | 'CANCELLED';
   notes?: string;
   proofImages: string[];
   qualityRating?: number;
@@ -105,12 +100,11 @@ export function ParticipantsList({
   const [filteredParticipants, setFilteredParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
   const [sortBy, setSortBy] = useState<string>('joinedDate');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('registration-approval');
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState(false);
   const [verificationNotes, setVerificationNotes] = useState('');
@@ -134,13 +128,21 @@ export function ParticipantsList({
   const filterAndSortParticipants = useCallback(() => {
     let filtered = [...participants];
 
-    // Filter by tab
+    // Filter by tab - New structure: Registration Approval vs Post-Event Verification vs Participant Management
     switch (activeTab) {
-      case 'verified':
-        filtered = filtered.filter(p => p.status === 'VERIFIED');
+      case 'registration-approval':
+        // Show only PENDING and REGISTERED (waiting for approval)
+        // CONFIRMED users are actual participants and should not appear here
+        filtered = filtered.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED');
         break;
-      case 'pending':
-        filtered = filtered.filter(p => p.status === 'PENDING');
+      case 'post-event-verification':
+        // Show only ATTENDED and VERIFIED (post-event participation verification)
+        // Admin needs to verify participation before granting VERIFIED status
+        filtered = filtered.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED');
+        break;
+      case 'participant-management':
+        // Show all participants except REJECTED and CANCELLED for management
+        filtered = filtered.filter(p => p.status !== 'REJECTED' && p.status !== 'CANCELLED');
         break;
       case 'rejected':
         filtered = filtered.filter(p => p.status === 'REJECTED');
@@ -158,10 +160,7 @@ export function ParticipantsList({
       );
     }
 
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => p.status === statusFilter);
-    }
+    // Status filter removed - using tab-based filtering only
 
     // Sort participants
     filtered.sort((a, b) => {
@@ -185,7 +184,7 @@ export function ParticipantsList({
     });
 
     setFilteredParticipants(filtered);
-  }, [participants, searchTerm, statusFilter, sortBy, activeTab]);
+  }, [participants, searchTerm, sortBy, activeTab]);
 
   useEffect(() => {
     fetchParticipants();
@@ -195,32 +194,39 @@ export function ParticipantsList({
     filterAndSortParticipants();
   }, [filterAndSortParticipants]);
 
-  const handleVerifyParticipant = async (participantId: string, action: 'approve' | 'reject') => {
+  const handleApproveParticipant = async (participantId: string) => {
     try {
-      const response = await fetch(`/api/events/${eventId}/participants/${participantId}/verify`, {
+      const response = await fetch(`/api/events/${eventId}/participants/${participantId}/approve`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          notes: verificationNotes,
-          rating: action === 'approve' ? verificationRating : undefined,
-        }),
       });
 
       if (response.ok) {
-        toast.success(`Participant ${action === 'approve' ? 'approved' : 'rejected'}`);
+        toast.success('Registration approved successfully');
         fetchParticipants();
-        setIsVerificationDialogOpen(false);
-        setVerificationNotes('');
-        setVerificationRating(5);
       } else {
-        throw new Error('Failed to verify participant');
+        throw new Error('Failed to approve participant');
       }
     } catch (error) {
-      console.error('Error verifying participant:', error);
-      toast.error('Failed to verify participant');
+      console.error('Error approving participant:', error);
+      toast.error('Failed to approve participant');
+    }
+  };
+
+  const handleRejectParticipant = async (participantId: string) => {
+    try {
+      const response = await fetch(`/api/events/${eventId}/participants/${participantId}/reject`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        toast.success('Registration rejected');
+        fetchParticipants();
+      } else {
+        throw new Error('Failed to reject participant');
+      }
+    } catch (error) {
+      console.error('Error rejecting participant:', error);
+      toast.error('Failed to reject participant');
     }
   };
 
@@ -228,9 +234,15 @@ export function ParticipantsList({
     const participant = participants.find(p => p.id === participantId);
     if (!participant) return;
     
+    // Prevent deletion of VERIFIED participants
+    if (participant.status === 'VERIFIED') {
+      toast.error('Cannot delete verified participation. It may have affected user impact scores.');
+      return;
+    }
+    
     showConfirm({
       title: 'Remove Participant',
-      message: `Are you sure you want to remove ${participant.user.name} from this event?`,
+      message: `Are you sure you want to remove ${participant.user.name} from this event? This action cannot be undone.`,
       confirmText: 'Remove',
       cancelText: 'Cancel',
       type: 'warning',
@@ -241,14 +253,16 @@ export function ParticipantsList({
           });
 
           if (response.ok) {
-            toast.success('Participant removed');
+            toast.success('Participant removed successfully');
             fetchParticipants();
           } else {
-            throw new Error('Failed to remove participant');
+            const errorData = await response.json().catch(() => ({ error: 'Failed to remove participant' }));
+            throw new Error(errorData.error || 'Failed to remove participant');
           }
         } catch (error) {
           console.error('Error removing participant:', error);
-          toast.error('Failed to remove participant');
+          const errorMessage = error instanceof Error ? error.message : 'Failed to remove participant';
+          toast.error(errorMessage);
         }
       }
     });
@@ -301,18 +315,21 @@ export function ParticipantsList({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'VERIFIED': return 'bg-green-100 text-green-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'REJECTED': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'REGISTERED': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+      case 'CONFIRMED': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
+      case 'VERIFIED': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+      case 'ATTENDED': return 'bg-teal-100 text-teal-800 dark:bg-teal-900/20 dark:text-teal-300';
+      case 'REJECTED': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
     }
   };
 
   const getStatusCounts = () => {
     return {
-      all: participants.length,
-      verified: participants.filter(p => p.status === 'VERIFIED').length,
-      pending: participants.filter(p => p.status === 'PENDING').length,
+      registrationApproval: participants.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED').length,
+      participantManagement: participants.filter(p => p.status !== 'REJECTED' && p.status !== 'CANCELLED').length,
+      postEventVerification: participants.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length,
       rejected: participants.filter(p => p.status === 'REJECTED').length,
     };
   };
@@ -377,18 +394,7 @@ export function ParticipantsList({
               />
             </div>
 
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="VERIFIED">Verified</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="REJECTED">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Status Filter - Removed: Only using Registration Approval and Post-Event Verification tabs */}
 
             {/* Sort By */}
             <Select value={sortBy} onValueChange={setSortBy}>
@@ -407,38 +413,40 @@ export function ParticipantsList({
         </CardContent>
       </Card>
 
-      {/* Pills Navigation */}
+      {/* Pills Navigation - New Structure */}
       <div className="mb-6">
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => setActiveTab('all')}
+            onClick={() => setActiveTab('registration-approval')}
             className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
-              activeTab === 'all' 
+              activeTab === 'registration-approval' 
                 ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
                 : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
             }`}
           >
-            All ({statusCounts.all})
+            Registration Approval ({statusCounts.registrationApproval})
           </button>
+          {canManageParticipants && (
+            <button
+              onClick={() => setActiveTab('participant-management')}
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                activeTab === 'participant-management' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+              }`}
+            >
+              Participant Management ({statusCounts.participantManagement})
+            </button>
+          )}
           <button
-            onClick={() => setActiveTab('verified')}
+            onClick={() => setActiveTab('post-event-verification')}
             className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
-              activeTab === 'verified' 
+              activeTab === 'post-event-verification' 
                 ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
                 : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
             }`}
           >
-            Verified ({statusCounts.verified})
-          </button>
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
-              activeTab === 'pending' 
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
-                : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
-            }`}
-          >
-            Pending ({statusCounts.pending})
+            Post-Event Verification ({statusCounts.postEventVerification})
           </button>
           <button
             onClick={() => setActiveTab('rejected')}
@@ -544,16 +552,33 @@ export function ParticipantsList({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {participant.status === 'PENDING' && (
+                              {(participant.status === 'PENDING' || participant.status === 'REGISTERED') && activeTab === 'registration-approval' && (
                                 <>
                                   <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedParticipant(participant);
-                                      setIsVerificationDialogOpen(true);
-                                    }}
+                                    onClick={() => handleApproveParticipant(participant.id)}
                                   >
                                     <UserCheck className="w-4 h-4 mr-2" />
-                                    Verify Participation
+                                    Approve Registration
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleRejectParticipant(participant.id)}
+                                  >
+                                    <UserX className="w-4 h-4 mr-2" />
+                                    Reject Registration
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
+                              
+                              {activeTab === 'participant-management' && participant.status !== 'VERIFIED' && (
+                                <>
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleRemoveParticipant(participant.id)}
+                                  >
+                                    <UserX className="w-4 h-4 mr-2" />
+                                    Delete Participant
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                 </>
@@ -566,15 +591,18 @@ export function ParticipantsList({
                                 Send Message
                               </DropdownMenuItem>
                               
-                              <DropdownMenuSeparator />
-                              
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleRemoveParticipant(participant.id)}
-                              >
-                                <UserX className="w-4 h-4 mr-2" />
-                                Remove Participant
-                              </DropdownMenuItem>
+                              {activeTab !== 'participant-management' && participant.status !== 'VERIFIED' && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleRemoveParticipant(participant.id)}
+                                  >
+                                    <UserX className="w-4 h-4 mr-2" />
+                                    Remove Participant
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
@@ -677,14 +705,19 @@ export function ParticipantsList({
               <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
-                  onClick={() => handleVerifyParticipant(selectedParticipant.id, 'reject')}
+                  onClick={() => {
+                    setIsVerificationDialogOpen(false);
+                  }}
                 >
-                  Reject
+                  Cancel
                 </Button>
                 <Button
-                  onClick={() => handleVerifyParticipant(selectedParticipant.id, 'approve')}
+                  onClick={() => {
+                    setIsVerificationDialogOpen(false);
+                    toast.success('Verification saved');
+                  }}
                 >
-                  Approve
+                  Save Verification
                 </Button>
               </div>
             </div>

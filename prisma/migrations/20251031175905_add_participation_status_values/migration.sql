@@ -1,0 +1,12 @@
+-- Add missing ParticipationStatus enum values
+ALTER TYPE "ParticipationStatus" ADD VALUE IF NOT EXISTS 'REGISTERED';
+ALTER TYPE "ParticipationStatus" ADD VALUE IF NOT EXISTS 'CONFIRMED';
+ALTER TYPE "ParticipationStatus" ADD VALUE IF NOT EXISTS 'ATTENDED';
+ALTER TYPE "ParticipationStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';
+ALTER TYPE "ParticipationStatus" ADD VALUE IF NOT EXISTS 'REJECTED';
+
+-- Add missing EventStatus enum values
+ALTER TYPE "EventStatus" ADD VALUE IF NOT EXISTS 'PUBLISHED';
+ALTER TYPE "EventStatus" ADD VALUE IF NOT EXISTS 'UPCOMING';
+ALTER TYPE "EventStatus" ADD VALUE IF NOT EXISTS 'ONGOING';
+

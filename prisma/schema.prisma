@@ -800,7 +800,7 @@ model Participation {
   id            String              @id @default(cuid())
   userId        String
   eventId       String
-  status        ParticipationStatus @default(PENDING)
+  status        ParticipationStatus @default(REGISTERED)
   joinedAt      DateTime            @default(now())
   verifiedAt    DateTime?
   hours         Float?
@@ -1454,11 +1454,13 @@ enum UserType {
 }
 
 enum ParticipationStatus {
+  REGISTERED
   PENDING
   CONFIRMED
   ATTENDED
   CANCELLED
   VERIFIED
+  REJECTED
 }
 
 enum EventStatus {
