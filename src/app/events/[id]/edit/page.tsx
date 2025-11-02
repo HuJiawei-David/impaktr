@@ -562,6 +562,96 @@ export default function EventEditPage() {
                           placeholder="Enter full address (optional)"
                         />
                       </div>
+
+                      <div>
+                        <Label>Event Location Coordinates *</Label>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Click to get precise location coordinates for attendance verification (within 200m)
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              const city = watchedValues.location?.city?.trim();
+                              const address = watchedValues.location?.address?.trim();
+
+                              // Check if we have at least city or address
+                              if (!city && !address) {
+                                toast.error('Please enter a city and address first');
+                                return;
+                              }
+
+                              toast.loading('Getting location coordinates...', { id: 'location' });
+                              
+                              // Build the full address query
+                              let query = '';
+                              if (address && city) {
+                                query = `${address}, ${city}`;
+                              } else if (address) {
+                                query = address;
+                              } else if (city) {
+                                query = city;
+                              }
+
+                              // Call Nominatim API for geocoding
+                              const response = await fetch(
+                                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1`,
+                                {
+                                  headers: {
+                                    'User-Agent': 'Impaktr Event Management App'
+                                  }
+                                }
+                              );
+
+                              if (!response.ok) {
+                                throw new Error('Failed to geocode address');
+                              }
+
+                              const data = await response.json();
+
+                              if (!data || data.length === 0) {
+                                toast.error('Address not found. Please check the address or city.', { id: 'location' });
+                                return;
+                              }
+
+                              const coordinates = {
+                                lat: parseFloat(data[0].lat),
+                                lng: parseFloat(data[0].lon),
+                              };
+
+                              setValue('location.coordinates', coordinates, { shouldValidate: true, shouldDirty: true });
+                              toast.success(`Location coordinates saved successfully!`, { id: 'location' });
+                            } catch (error) {
+                              console.error('Geocoding error:', error);
+                              toast.error('Failed to get location coordinates. Please try again.', { id: 'location' });
+                            }
+                          }}
+                          className="w-full"
+                        >
+                          <MapPin className="w-4 h-4 mr-2" />
+                          {watchedValues.location?.coordinates ? 'Update Location Coordinates' : 'Get Location Coordinates'}
+                        </Button>
+                        {watchedValues.location?.coordinates ? (
+                          <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                            <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+                              ✓ Coordinates saved: {watchedValues.location.coordinates.lat.toFixed(6)}, {watchedValues.location.coordinates.lng.toFixed(6)}
+                            </p>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              Participants will need to be within 200 meters of this location to mark attendance.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                            <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium">
+                              ⚠ Coordinates not set
+                            </p>
+                            <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                              Please click "Get Location Coordinates" to enable location-based attendance verification.
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </>
                   )}
                 </CardContent>

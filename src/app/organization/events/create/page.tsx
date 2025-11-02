@@ -413,8 +413,13 @@ export default function CreateEventPage() {
       }
     }
     
-    if (!formData.location.isVirtual && (!formData.location.city || formData.location.city.trim().length === 0)) {
-      errors.push('City is required for non-virtual events');
+    if (!formData.location.isVirtual) {
+      if (!formData.location.city || formData.location.city.trim().length === 0) {
+        errors.push('City is required for non-virtual events');
+      }
+      if (!formData.location.address || formData.location.address.trim().length === 0) {
+        errors.push('Meeting location is required for non-virtual events');
+      }
     }
     
     return errors;
@@ -641,11 +646,25 @@ export default function CreateEventPage() {
       }
 
       // Validate location for non-virtual events
-      if (!data.location.isVirtual && !data.location.city) {
-        toast.error('City is required for non-virtual events');
-        setIsSubmitting(false);
-        setIsDraft(false);
-        return;
+      if (!data.location.isVirtual) {
+        if (!data.location.city) {
+          toast.error('City is required for non-virtual events');
+          setIsSubmitting(false);
+          setIsDraft(false);
+          return;
+        }
+        if (!data.location.address) {
+          toast.error('Meeting location is required for non-virtual events');
+          setIsSubmitting(false);
+          setIsDraft(false);
+          return;
+        }
+      }
+
+      // Validate coordinates for non-virtual events (optional but recommended)
+      if (!data.location.isVirtual && !data.location.coordinates) {
+        // Show warning but allow submission (not blocking)
+        console.warn('Event location coordinates not set. Location verification will not work.');
       }
 
       // Validate SDG selection
@@ -1184,13 +1203,110 @@ export default function CreateEventPage() {
                     </div>
 
                     <div>
-                      <Label htmlFor="address">Full Address (Optional)</Label>
+                      <Label htmlFor="address">Meeting Location *</Label>
                       <Textarea
                         id="address"
-                        {...register('location.address')}
+                        {...register('location.address', { 
+                          required: !isVirtual ? 'Meeting location is required' : false 
+                        })}
                         placeholder="Street address, building name, specific meeting point..."
                         rows={2}
+                        error={errors.location?.address?.message}
+                        onChange={(e) => {
+                          register('location.address').onChange(e);
+                          clearStepValidationErrors(2);
+                        }}
                       />
+                    </div>
+
+                    <div>
+                      <Label>Event Location Coordinates *</Label>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Click to get precise location coordinates for attendance verification (within 200m)
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            const city = watch('location.city')?.trim();
+                            const address = watch('location.address')?.trim();
+
+                            // Check if we have at least city or address
+                            if (!city && !address) {
+                              toast.error('Please enter a city and address first', { id: 'location' });
+                              return;
+                            }
+
+                            toast.loading('Getting location coordinates...', { id: 'location' });
+                            
+                            // Build the full address query
+                            let query = '';
+                            if (address && city) {
+                              query = `${address}, ${city}`;
+                            } else if (address) {
+                              query = address;
+                            } else if (city) {
+                              query = city;
+                            }
+
+                            // Call Nominatim API for geocoding
+                            const response = await fetch(
+                              `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1`,
+                              {
+                                headers: {
+                                  'User-Agent': 'Impaktr Event Management App'
+                                }
+                              }
+                            );
+
+                            if (!response.ok) {
+                              throw new Error('Failed to geocode address');
+                            }
+
+                            const data = await response.json();
+
+                            if (!data || data.length === 0) {
+                              toast.error('Address not found. Please check the address or city.', { id: 'location' });
+                              return;
+                            }
+
+                            const coordinates = {
+                              lat: parseFloat(data[0].lat),
+                              lng: parseFloat(data[0].lon),
+                            };
+
+                            setValue('location.coordinates', coordinates, { shouldValidate: true, shouldDirty: true });
+                            toast.success(`Location coordinates saved successfully!`, { id: 'location' });
+                          } catch (error) {
+                            console.error('Geocoding error:', error);
+                            toast.error('Failed to get location coordinates. Please try again.', { id: 'location' });
+                          }
+                        }}
+                        className="w-full"
+                      >
+                        <MapPin className="w-4 h-4 mr-2" />
+                        {watch('location.coordinates') ? 'Update Location Coordinates' : 'Get Location Coordinates'}
+                      </Button>
+                      {watch('location.coordinates') ? (
+                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                          <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+                            ✓ Coordinates saved: {watch('location.coordinates')?.lat.toFixed(6)}, {watch('location.coordinates')?.lng.toFixed(6)}
+                          </p>
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            Participants will need to be within 200 meters of this location to mark attendance.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                          <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium">
+                            ⚠ Coordinates not set
+                          </p>
+                          <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                            Please click "Get Location Coordinates" to enable location-based attendance verification.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

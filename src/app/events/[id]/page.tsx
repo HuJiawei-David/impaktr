@@ -431,9 +431,16 @@ export default function EventDetailPage() {
     }
   };
 
-  const handleMarkAttendance = async (code: string) => {
+  const handleMarkAttendance = async (code: string, coordinates?: { lat: number; lng: number }) => {
     if (!event) {
       throw new Error('Event not found');
+    }
+
+    const requestBody: { code: string; userLat?: number; userLng?: number } = { code };
+    
+    if (coordinates) {
+      requestBody.userLat = coordinates.lat;
+      requestBody.userLng = coordinates.lng;
     }
 
     const response = await fetch(`/api/events/${event.id}/attendance/mark`, {
@@ -441,7 +448,7 @@ export default function EventDetailPage() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -1524,6 +1531,9 @@ export default function EventDetailPage() {
           onClose={() => setShowAttendanceDialog(false)}
           onConfirm={handleMarkAttendance}
           eventTitle={event?.title}
+          isVirtual={event?.location.isVirtual}
+          hasCoordinates={!!event?.location.coordinates}
+          eventCoordinates={event?.location.coordinates}
         />
       </div>
       
