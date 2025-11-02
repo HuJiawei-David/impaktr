@@ -258,19 +258,44 @@ export default function EventDetailPage() {
           avatar: '',
           profile: {}
         },
-        participants: rawEvent.participations?.map((p: { id: string; user?: { id?: string; name?: string; firstName?: string; lastName?: string; image?: string }; status?: string; hours?: number; createdAt?: string; joinedAt?: string }) => ({
-          id: p.id,
-          user: {
-            id: p.user?.id || '',
-            profile: {
-              firstName: p.user?.firstName || p.user?.name?.split(' ')[0] || 'Anonymous',
-              lastName: p.user?.lastName || p.user?.name?.split(' ').slice(1).join(' ') || '',
-              avatar: p.user?.image
+        participants: rawEvent.participations?.map((p: { id: string; user?: { id?: string; name?: string; firstName?: string; lastName?: string; image?: string }; status?: string; hours?: number; createdAt?: string; joinedAt?: string }) => {
+          // Parse firstName from name if firstName is not available
+          // First name is all parts except the last one (e.g., "Li Yuan" from "Li Yuan Peng")
+          let firstName = p.user?.firstName;
+          if (!firstName && p.user?.name) {
+            const parts = p.user.name.trim().split(/\s+/);
+            if (parts.length > 1) {
+              firstName = parts.slice(0, -1).join(' ') || 'Anonymous';
+            } else {
+              firstName = parts[0] || 'Anonymous';
             }
-          },
-          status: p.status,
-          joinedAt: p.joinedAt
-        })) || [],
+          }
+          firstName = firstName || 'Anonymous';
+
+          // Parse lastName from name if lastName is not available
+          // Last name is the last part (e.g., "Peng" from "Li Yuan Peng")
+          let lastName = p.user?.lastName;
+          if (!lastName && p.user?.name) {
+            const parts = p.user.name.trim().split(/\s+/);
+            if (parts.length > 1) {
+              lastName = parts[parts.length - 1] || '';
+            }
+          }
+
+          return {
+            id: p.id,
+            user: {
+              id: p.user?.id || '',
+              profile: {
+                firstName,
+                lastName: lastName || '',
+                avatar: p.user?.image
+              }
+            },
+            status: p.status,
+            joinedAt: p.joinedAt
+          };
+        }) || [],
         userParticipation: rawEvent.userParticipation ? {
           id: rawEvent.userParticipation.id,
           status: rawEvent.userParticipation.status,

@@ -30,7 +30,9 @@ import {
   Settings,
   QrCode,
   Key,
-  X
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -104,6 +106,9 @@ interface Participation {
     image?: string;
     impactScore: number;
     tier: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    dateOfBirth?: string | null;
   };
 }
 
@@ -129,9 +134,84 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('registration-approval');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [showAllParticipants, setShowAllParticipants] = useState(false);
+  const [showAllRegistrations, setShowAllRegistrations] = useState(false);
+  const [showAllVerifications, setShowAllVerifications] = useState(false);
   
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
+  
+  // Helper function to toggle card expansion
+  const toggleCard = (cardId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
+      } else {
+        newSet.add(cardId);
+      }
+      return newSet;
+    });
+  };
+  
+  // Helper function to calculate age from date of birth
+  const calculateAge = (dateOfBirth: string | null | undefined): string => {
+    if (!dateOfBirth) return '';
+    try {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age.toString();
+    } catch (e) {
+      return '';
+    }
+  };
+  
+  // Helper function to format participant name
+  const getParticipantName = (participant: Participation): string => {
+    if (participant.user.firstName || participant.user.lastName) {
+      return `${participant.user.firstName || ''} ${participant.user.lastName || ''}`.trim();
+    }
+    return participant.user.name || 'Unknown';
+  };
+
+  // Helper function to get first name from participant
+  const getParticipantFirstName = (participant: Participation): string => {
+    if (participant.user.firstName) {
+      return participant.user.firstName;
+    }
+    // Parse from name field if firstName is not available
+    // First name is all parts except the last one (e.g., "Li Yuan" from "Li Yuan Peng")
+    if (participant.user.name) {
+      const parts = participant.user.name.trim().split(/\s+/);
+      if (parts.length > 1) {
+        return parts.slice(0, -1).join(' ') || '-';
+      }
+      return parts[0] || '-';
+    }
+    return '-';
+  };
+
+  // Helper function to get last name from participant
+  const getParticipantLastName = (participant: Participation): string => {
+    if (participant.user.lastName) {
+      return participant.user.lastName;
+    }
+    // Parse from name field if lastName is not available
+    // Last name is the last part (e.g., "Peng" from "Li Yuan Peng")
+    if (participant.user.name) {
+      const parts = participant.user.name.trim().split(/\s+/);
+      if (parts.length > 1) {
+        return parts[parts.length - 1] || '-';
+      }
+    }
+    return '-';
+  };
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -1135,44 +1215,99 @@ export default function EventDetailPage() {
                   {activeTab === 'registration-approval' && (
                     <>
                       {event.participations && event.participations.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED').length > 0 ? (
-                        <div className="space-y-4">
-                          {event.participations.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED').map((participation, index) => (
+                        <>
+                          <div className="flex items-center justify-end mb-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowAllRegistrations(!showAllRegistrations)}
+                              className="text-gray-600 dark:text-gray-400"
+                            >
+                              {showAllRegistrations ? (
+                                <>
+                                  <ChevronUp className="w-4 h-4 mr-1" />
+                                  Show Less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-4 h-4 mr-1" />
+                                  Show All
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <div className="space-y-4">
+                            {event.participations
+                              .filter(p => p.status === 'PENDING' || p.status === 'REGISTERED')
+                              .slice(0, showAllRegistrations ? undefined : 2)
+                              .map((participation, index) => {
+                            const isExpanded = expandedCards.has(participation.id);
+                            return (
                             <Card key={participation.id}>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-medium">Participant {index + 1}</h4>
+                                  <h4 className="font-medium">{getParticipantName(participation)}</h4>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleCard(participation.id)}
+                                    className="text-gray-600 dark:text-gray-400"
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="w-4 h-4 mr-1" />
+                                        Collapse
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="w-4 h-4 mr-1" />
+                                        Expand
+                                      </>
+                                    )}
+                                  </Button>
                                 </div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  {/* Name */}
-                                  <div className="space-y-2">
-                                    <Label>Name</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.user.name}
+                                {isExpanded && (
+                                <div className="space-y-3">
+                                  {/* First Name */}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">First Name:</span> {getParticipantFirstName(participation)}
+                                    </p>
+                                  </div>
+
+                                  {/* Last Name */}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Last Name:</span> {getParticipantLastName(participation)}
+                                    </p>
+                                  </div>
+
+                                  {/* Age */}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Age:</span> {calculateAge(participation.user.dateOfBirth) || '-'}
                                     </p>
                                   </div>
 
                                   {/* Email */}
-                                  <div className="space-y-2">
-                                    <Label>Email</Label>
+                                  <div>
                                     <p className="text-sm text-gray-900 dark:text-white">
-                                      {participation.user.email}
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Email:</span> {participation.user.email}
                                     </p>
                                   </div>
 
                                   {/* Impact Score */}
-                                  <div className="space-y-2">
-                                    <Label>Impact Score</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.user.impactScore.toFixed(1)}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Impact Score:</span> {participation.user.impactScore.toFixed(1)}
                                     </p>
                                   </div>
 
                                   {/* Joined Date */}
-                                  <div className="space-y-2">
-                                    <Label>Joined Date</Label>
+                                  <div>
                                     <p className="text-sm text-gray-900 dark:text-white">
-                                      {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Joined Date:</span> {new Date(participation.joinedAt).toLocaleDateString('en-US', {
                                         year: 'numeric',
                                         month: 'short',
                                         day: 'numeric'
@@ -1184,25 +1319,28 @@ export default function EventDetailPage() {
                                   {participation.registrationInfo && (
                                     <>
                                       {participation.registrationInfo.hoursCommitted && (
-                                        <div className="space-y-2">
-                                          <Label>Hours Committed</Label>
+                                        <div>
                                           <p className="text-sm text-gray-900 dark:text-white">
-                                            {participation.registrationInfo.hoursCommitted} hours
+                                            <span className="font-medium text-gray-600 dark:text-gray-400">Hours Committed:</span> {participation.registrationInfo.hoursCommitted} hours
                                           </p>
                                         </div>
                                       )}
                                       {participation.registrationInfo.motivation && (
-                                        <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                          <Label>Motivation</Label>
-                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                        <div>
+                                          <p className="text-sm text-gray-900 dark:text-white">
+                                            <span className="font-medium text-gray-600 dark:text-gray-400">Motivation:</span>
+                                          </p>
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-4">
                                             {participation.registrationInfo.motivation}
                                           </p>
                                         </div>
                                       )}
                                       {participation.registrationInfo.skills && (
-                                        <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                          <Label>Relevant Skills</Label>
-                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                        <div>
+                                          <p className="text-sm text-gray-900 dark:text-white">
+                                            <span className="font-medium text-gray-600 dark:text-gray-400">Relevant Skills:</span>
+                                          </p>
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-4">
                                             {participation.registrationInfo.skills}
                                           </p>
                                         </div>
@@ -1212,8 +1350,8 @@ export default function EventDetailPage() {
 
                                   {/* Actions */}
                                   {(participation.status === 'PENDING' || participation.status === 'REGISTERED') && (
-                                    <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                                      <Label>Actions</Label>
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Actions</p>
                                       <div className="flex items-center space-x-2">
                                         <Button
                                           size="sm"
@@ -1237,10 +1375,13 @@ export default function EventDetailPage() {
                                     </div>
                                   )}
                                 </div>
+                              )}
                               </CardContent>
                             </Card>
-                          ))}
+                            );
+                          })}
                         </div>
+                        </>
                       ) : (
                         <div className="text-center py-8 text-muted-foreground">
                           <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -1253,44 +1394,112 @@ export default function EventDetailPage() {
                   {activeTab === 'post-event-verification' && (
                     <>
                       {event.participations && event.participations.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length > 0 ? (
-                        <div className="space-y-4">
-                          {event.participations.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').map((participation, index) => (
+                        <>
+                          <div className="flex items-center justify-end mb-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowAllVerifications(!showAllVerifications)}
+                              className="text-gray-600 dark:text-gray-400"
+                            >
+                              {showAllVerifications ? (
+                                <>
+                                  <ChevronUp className="w-4 h-4 mr-1" />
+                                  Show Less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-4 h-4 mr-1" />
+                                  Show All
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <div className="space-y-4">
+                            {event.participations
+                              .filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED')
+                              .slice(0, showAllVerifications ? undefined : 2)
+                              .map((participation, index) => {
+                            const isExpanded = expandedCards.has(participation.id);
+                            return (
                             <Card key={participation.id}>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-medium">Participant {index + 1}</h4>
+                                  <h4 className="font-medium">{getParticipantName(participation)}</h4>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleCard(participation.id)}
+                                    className="text-gray-600 dark:text-gray-400"
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="w-4 h-4 mr-1" />
+                                        Collapse
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown className="w-4 h-4 mr-1" />
+                                        Expand
+                                      </>
+                                    )}
+                                  </Button>
                                 </div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  {/* Name */}
-                                  <div className="space-y-2">
-                                    <Label>Name</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.user.name}
+                                {isExpanded && (
+                                <div className="space-y-3">
+                                  {/* First Name */}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">First Name:</span> {getParticipantFirstName(participation)}
+                                    </p>
+                                  </div>
+
+                                  {/* Last Name */}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Last Name:</span> {getParticipantLastName(participation)}
+                                    </p>
+                                  </div>
+
+                                  {/* Age */}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Age:</span> {calculateAge(participation.user.dateOfBirth) || '-'}
                                     </p>
                                   </div>
 
                                   {/* Hours */}
-                                  <div className="space-y-2">
-                                    <Label>Hours</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.hours || 0}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Hours:</span> {participation.hours || 0}
                                     </p>
                                   </div>
 
                                   {/* Impact Score */}
-                                  <div className="space-y-2">
-                                    <Label>Impact Score</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.user.impactScore.toFixed(1)}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Impact Score:</span> {participation.user.impactScore.toFixed(1)}
+                                    </p>
+                                  </div>
+
+                                  {/* Check-In Time */}
+                                  <div>
+                                    <p className="text-sm text-gray-900 dark:text-white">
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Check-In Time:</span> {participation.verifiedAt ? new Date(participation.verifiedAt).toLocaleString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      }) : '-'}
                                     </p>
                                   </div>
 
                                   {/* Joined Date */}
-                                  <div className="space-y-2">
-                                    <Label>Joined Date</Label>
+                                  <div>
                                     <p className="text-sm text-gray-900 dark:text-white">
-                                      {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                      <span className="font-medium text-gray-600 dark:text-gray-400">Joined Date:</span> {new Date(participation.joinedAt).toLocaleDateString('en-US', {
                                         year: 'numeric',
                                         month: 'short',
                                         day: 'numeric'
@@ -1298,10 +1507,13 @@ export default function EventDetailPage() {
                                     </p>
                                   </div>
                                 </div>
+                                )}
                               </CardContent>
                             </Card>
-                          ))}
-                        </div>
+                            );
+                              })}
+                          </div>
+                        </>
                       ) : (
                         <div className="text-center py-8 text-muted-foreground">
                           <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -1314,93 +1526,153 @@ export default function EventDetailPage() {
                   {activeTab === 'participant-management' && (
                     <>
                       {event.participations && event.participations.filter(p => p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED').length > 0 ? (
-                        <div className="space-y-4">
-                          {event.participations.filter(p => p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED').map((participation, index) => (
-                            <Card key={participation.id}>
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-medium">Participant {index + 1}</h4>
-                                  {participation.status !== 'VERIFIED' && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        showConfirm({
-                                          title: 'Delete Participant',
-                                          message: `Are you sure you want to remove ${participation.user.name} from this event? This action cannot be undone.`,
-                                          confirmText: 'Delete',
-                                          cancelText: 'Cancel',
-                                          type: 'warning',
-                                          onConfirm: async () => {
-                                            try {
-                                              const response = await fetch(`/api/events/${eventId}/participants/${participation.id}`, {
-                                                method: 'DELETE',
+                        <>
+                          <div className="flex items-center justify-end mb-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowAllParticipants(!showAllParticipants)}
+                              className="text-gray-600 dark:text-gray-400"
+                            >
+                              {showAllParticipants ? (
+                                <>
+                                  <ChevronUp className="w-4 h-4 mr-1" />
+                                  Show Less
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-4 h-4 mr-1" />
+                                  Show All
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <div className="space-y-4">
+                            {event.participations
+                              .filter(p => p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED')
+                              .slice(0, showAllParticipants ? undefined : 2)
+                              .map((participation, index) => {
+                                const isExpanded = expandedCards.has(participation.id);
+                                return (
+                                <Card key={participation.id}>
+                                  <CardContent className="p-4">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <h4 className="font-medium">{getParticipantName(participation)}</h4>
+                                      <div className="flex items-center space-x-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => toggleCard(participation.id)}
+                                          className="text-gray-600 dark:text-gray-400"
+                                        >
+                                          {isExpanded ? (
+                                            <>
+                                              <ChevronUp className="w-4 h-4 mr-1" />
+                                              Collapse
+                                            </>
+                                          ) : (
+                                            <>
+                                              <ChevronDown className="w-4 h-4 mr-1" />
+                                              Expand
+                                            </>
+                                          )}
+                                        </Button>
+                                        {participation.status !== 'VERIFIED' && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              showConfirm({
+                                                title: 'Delete Participant',
+                                                message: `Are you sure you want to remove ${participation.user.name} from this event? This action cannot be undone.`,
+                                                confirmText: 'Delete',
+                                                cancelText: 'Cancel',
+                                                type: 'warning',
+                                                onConfirm: async () => {
+                                                  try {
+                                                    const response = await fetch(`/api/events/${eventId}/participants/${participation.id}`, {
+                                                      method: 'DELETE',
+                                                    });
+
+                                                    if (!response.ok) {
+                                                      const errorData = await response.json().catch(() => ({ error: 'Failed to delete participant' }));
+                                                      throw new Error(errorData.error || 'Failed to delete participant');
+                                                    }
+
+                                                    toast.success('Participant removed successfully');
+                                                    fetchEventDetails();
+                                                  } catch (error) {
+                                                    const errorMessage = error instanceof Error ? error.message : 'Failed to delete participant';
+                                                    toast.error(errorMessage);
+                                                    console.error('Error deleting participant:', error);
+                                                  }
+                                                }
                                               });
+                                            }}
+                                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                            title="Delete Participant"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    
+                                    {isExpanded && (
+                                    <div className="space-y-3">
+                                      {/* First Name */}
+                                      <div>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          <span className="font-medium text-gray-600 dark:text-gray-400">First Name:</span> {getParticipantFirstName(participation)}
+                                        </p>
+                                      </div>
 
-                                              if (!response.ok) {
-                                                const errorData = await response.json().catch(() => ({ error: 'Failed to delete participant' }));
-                                                throw new Error(errorData.error || 'Failed to delete participant');
-                                              }
+                                      {/* Last Name */}
+                                      <div>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          <span className="font-medium text-gray-600 dark:text-gray-400">Last Name:</span> {getParticipantLastName(participation)}
+                                        </p>
+                                      </div>
 
-                                              toast.success('Participant removed successfully');
-                                              fetchEventDetails();
-                                            } catch (error) {
-                                              const errorMessage = error instanceof Error ? error.message : 'Failed to delete participant';
-                                              toast.error(errorMessage);
-                                              console.error('Error deleting participant:', error);
-                                            }
-                                          }
-                                        });
-                                      }}
-                                      className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                                      title="Delete Participant"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                  {/* Name */}
-                                  <div className="space-y-2">
-                                    <Label>Name</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.user.name}
-                                    </p>
-                                  </div>
+                                      {/* Age */}
+                                      <div>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          <span className="font-medium text-gray-600 dark:text-gray-400">Age:</span> {calculateAge(participation.user.dateOfBirth) || '-'}
+                                        </p>
+                                      </div>
 
-                                  {/* Hours */}
-                                  <div className="space-y-2">
-                                    <Label>Hours</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.hours || 0}
-                                    </p>
-                                  </div>
+                                      {/* Hours */}
+                                      <div>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          <span className="font-medium text-gray-600 dark:text-gray-400">Hours:</span> {participation.hours || 0}
+                                        </p>
+                                      </div>
 
-                                  {/* Impact Score */}
-                                  <div className="space-y-2">
-                                    <Label>Impact Score</Label>
-                                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {participation.user.impactScore.toFixed(1)}
-                                    </p>
-                                  </div>
+                                      {/* Impact Score */}
+                                      <div>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          <span className="font-medium text-gray-600 dark:text-gray-400">Impact Score:</span> {participation.user.impactScore.toFixed(1)}
+                                        </p>
+                                      </div>
 
-                                  {/* Joined Date */}
-                                  <div className="space-y-2">
-                                    <Label>Joined Date</Label>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      {new Date(participation.joinedAt).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })}
-                                    </p>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
+                                      {/* Joined Date */}
+                                      <div>
+                                        <p className="text-sm text-gray-900 dark:text-white">
+                                          <span className="font-medium text-gray-600 dark:text-gray-400">Joined Date:</span> {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'short',
+                                            day: 'numeric'
+                                          })}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                                );
+                              })}
+                          </div>
+                        </>
                       ) : (
                         <div className="text-center py-8 text-muted-foreground">
                           <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />

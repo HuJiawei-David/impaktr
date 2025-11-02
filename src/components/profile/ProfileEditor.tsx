@@ -40,6 +40,8 @@ interface UserProfile {
   avatar: string;
   banner: string;
   bio: string;
+  firstName?: string;
+  lastName?: string;
   location: {
     city: string;
     state: string;
@@ -106,8 +108,26 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
     formState: { errors }
   } = useForm<ProfileFormData>({
     defaultValues: {
-      firstName: profile.name?.split(' ')[0] || '',
-      lastName: profile.name?.split(' ').slice(1).join(' ') || '',
+      // Parse firstName from name if firstName is not available
+      // First name is all parts except the last one (e.g., "Li Yuan" from "Li Yuan Peng")
+      firstName: profile.firstName || (() => {
+        if (!profile.name) return '';
+        const parts = profile.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+          return parts.slice(0, -1).join(' ');
+        }
+        return parts[0] || '';
+      })(),
+      // Parse lastName from name if lastName is not available
+      // Last name is the last part (e.g., "Peng" from "Li Yuan Peng")
+      lastName: profile.lastName || (() => {
+        if (!profile.name) return '';
+        const parts = profile.name.trim().split(/\s+/);
+        if (parts.length > 1) {
+          return parts[parts.length - 1] || '';
+        }
+        return '';
+      })(),
       bio: profile.bio || '',
       occupation: profile.occupation || '',
       organization: profile.organization || '',

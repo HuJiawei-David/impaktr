@@ -7,6 +7,7 @@ import { calculateOrganizationKPIs } from '@/lib/organizationHelpers';
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
+    console.log('[Dashboard API] Session:', session?.user?.email || 'No session');
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -198,8 +199,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Dashboard API error:', error);
+    console.error('Dashboard API error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch dashboard data' },
+      { error: 'Failed to fetch dashboard data', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

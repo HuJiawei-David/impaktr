@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
  */
 export async function calculateOrganizationKPIs(orgId: string) {
   try {
+    console.log('[calculateOrganizationKPIs] Starting for orgId:', orgId);
     const organization = await prisma.organization.findUnique({
       where: { id: orgId },
       include: {
@@ -24,6 +25,7 @@ export async function calculateOrganizationKPIs(orgId: string) {
         },
       },
     });
+    console.log('[calculateOrganizationKPIs] Found organization:', organization?.name);
 
     if (!organization) {
       throw new Error('Organization not found');
@@ -72,7 +74,11 @@ export async function calculateOrganizationKPIs(orgId: string) {
       volunteerHours: totalVolunteerHours, // Now includes external volunteers
     };
   } catch (error) {
-    console.error('Calculate KPIs error:', error);
+    console.error('[calculateOrganizationKPIs] Error:', error);
+    console.error('[calculateOrganizationKPIs] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw error;
   }
 }

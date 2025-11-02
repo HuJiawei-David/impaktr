@@ -57,7 +57,10 @@ export async function GET(
                 email: true,
                 image: true,
                 impactScore: true,
-                tier: true
+                tier: true,
+                firstName: true,
+                lastName: true,
+                dateOfBirth: true
               }
             }
           },

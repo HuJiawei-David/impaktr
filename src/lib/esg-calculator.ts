@@ -72,6 +72,7 @@ export interface ESGMetrics {
 }
 
 export async function calculateESGScore(organizationId: string, period: string = 'annual'): Promise<ESGMetrics> {
+  console.log('[calculateESGScore] Starting for orgId:', organizationId, 'period:', period);
   const startDate = getPeriodStartDate(period);
   
   // Get all events and participations for the organization

@@ -52,6 +52,30 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
   const [isLoading, setIsLoading] = useState(false);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [dbFirstName, setDbFirstName] = useState<string>('');
+  const [dbLastName, setDbLastName] = useState<string>('');
+
+  // Helper function to parse firstName from name
+  // First name is all parts except the last one (e.g., "Li Yuan" from "Li Yuan Peng")
+  const parseFirstName = (name?: string | null): string => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length > 1) {
+      return parts.slice(0, -1).join(' ');
+    }
+    return parts[0] || '';
+  };
+
+  // Helper function to parse lastName from name
+  // Last name is the last part (e.g., "Peng" from "Li Yuan Peng")
+  const parseLastName = (name?: string | null): string => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length > 1) {
+      return parts[parts.length - 1] || '';
+    }
+    return '';
+  };
 
   const {
     register,
@@ -61,13 +85,52 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
     watch
   } = useForm<IndividualRegistrationData>({
     defaultValues: {
-      firstName: (user?.name?.split(' ')[0] || '') as string,
-      lastName: (user?.name?.split(' ').slice(1).join(' ') || '') as string,
+      firstName: '',
+      lastName: '',
       showEmail: false,
       isPublic: true,
       languages: []
     }
   });
+
+  // Fetch user data from database to get saved firstName and lastName
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const response = await fetch('/api/users/profile');
+        if (response.ok) {
+          const data = await response.json();
+          const firstName = data.user?.profile?.firstName || '';
+          const lastName = data.user?.profile?.lastName || '';
+          
+          // If we have firstName and lastName from database, use them
+          if (firstName || lastName) {
+            setDbFirstName(firstName);
+            setDbLastName(lastName);
+            setValue('firstName', firstName);
+            setValue('lastName', lastName);
+          } else {
+            // Otherwise, parse from user.name using new logic
+            const parsedFirstName = parseFirstName(user?.name);
+            const parsedLastName = parseLastName(user?.name);
+            setValue('firstName', parsedFirstName);
+            setValue('lastName', parsedLastName);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        // Fallback to parsing from user.name
+        const parsedFirstName = parseFirstName(user?.name);
+        const parsedLastName = parseLastName(user?.name);
+        setValue('firstName', parsedFirstName);
+        setValue('lastName', parsedLastName);
+      }
+    };
+
+    fetchUserData();
+  }, [user?.id, user?.name, setValue]);
 
 
   // Helper function to check if a field has validation errors
