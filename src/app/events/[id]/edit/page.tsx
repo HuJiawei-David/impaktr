@@ -33,10 +33,12 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { toast } from 'react-hot-toast';
-import { EventStatus, VerificationType, Participation } from '@prisma/client';
+import { EventStatus } from '@/types/enums';
+import { VerificationType } from '@/types/enums';
 
 // Type for participation with user data
-type ParticipationWithUser = Participation & {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ParticipationWithUser = any & {
   user: {
     id: string;
     name: string;

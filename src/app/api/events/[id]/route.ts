@@ -223,8 +223,11 @@ export async function GET(
       userParticipation,
       estimatedScoreRange,
       // Include attendance fields but NOT the code (for security)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       attendanceEnabled: (event as any).attendanceEnabled || false,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       attendanceEnabledAt: (event as any).attendanceEnabledAt?.toISOString() || null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       attendanceDisabledAt: (event as any).attendanceDisabledAt?.toISOString() || null,
       // DO NOT include attendanceCode - participants should not see it online
     };

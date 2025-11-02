@@ -144,8 +144,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate stats
     const volunteerHours = allParticipations
-      .filter((p) => p.status === 'VERIFIED' || p.status === 'ATTENDED')
-      .reduce((sum: number, p) => sum + (p.hours || 0), 0);
+      .filter((p: { status: string; hours: number | null }) => p.status === 'VERIFIED' || p.status === 'ATTENDED')
+      .reduce((sum: number, p: { hours: number | null }) => sum + (p.hours || 0), 0);
     
     // Events joined = all unique events user participated in
     const eventsJoined = new Set(allParticipations.map((p: { eventId: string }) => p.eventId)).size;

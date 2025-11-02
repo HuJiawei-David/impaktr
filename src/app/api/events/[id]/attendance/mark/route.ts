@@ -88,7 +88,7 @@ export async function POST(
     // For virtual events or events without coordinates, location is not required
 
     // Check if attendance is enabled
-    if (!event.attendanceEnabled) {
+    if (!(event as any).attendanceEnabled) {
       return NextResponse.json(
         { error: 'Attendance tracking is not enabled for this event' },
         { status: 400 }
@@ -96,7 +96,7 @@ export async function POST(
     }
 
     // Check if code matches
-    if (event.attendanceCode !== code) {
+    if ((event as any).attendanceCode !== code) {
       return NextResponse.json(
         { error: 'Invalid attendance code' },
         { status: 400 }
@@ -116,8 +116,8 @@ export async function POST(
     }
 
     // 2. Check if attendance is within enabled time range
-    if (event.attendanceEnabledAt) {
-      const enabledAt = new Date(event.attendanceEnabledAt);
+    if ((event as any).attendanceEnabledAt) {
+      const enabledAt = new Date((event as any).attendanceEnabledAt);
       if (now < enabledAt) {
         return NextResponse.json(
           { error: 'Attendance tracking is not active yet' },

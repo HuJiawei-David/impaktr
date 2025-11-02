@@ -5,7 +5,6 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus } from '@/types/events';
-import { Prisma } from '@prisma/client';
 
 const sessionSchema = z.object({
   startAt: z.string().datetime(),
@@ -60,7 +59,8 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: Prisma.EventWhereInput = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {
       isPublic: true, // Only show public events
     };
 

@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
-import { UserType } from '@prisma/client';
+import { UserType } from '@/types/enums';
 import { ProfileTypeSelector } from '@/components/auth/ProfileTypeSelector';
 import { IndividualRegistrationForm } from '@/components/auth/IndividualRegistrationForm';
 import { OrganizationRegistrationForm } from '@/components/auth/OrganizationRegistrationForm';
