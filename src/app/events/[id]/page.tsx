@@ -86,6 +86,12 @@ interface Event {
   intensity: number;
   verificationType: string;
   images: string[];
+  estimatedScoreRange?: {
+    minScore: number;
+    maxScore: number;
+    typicalScore: number;
+    hoursRange: { min: number; max: number; typical: number };
+  };
   creator: {
     id: string;
     name: string;
@@ -239,6 +245,7 @@ export default function EventDetailPage() {
         },
         sdgTags: Array.isArray(sdgData) ? sdgData : [],
         images: rawEvent.imageUrl ? [rawEvent.imageUrl] : [],
+        estimatedScoreRange: rawEvent.estimatedScoreRange, // Explicit assignment for type safety
         organization: rawEvent.organization ? {
           ...rawEvent.organization,
           // Compute verified status based on tier (PROFESSIONAL and above are considered verified)
@@ -1303,26 +1310,35 @@ export default function EventDetailPage() {
                   </div>
                 </div>
 
-                {/* Potential Impact Score Calculation */}
+                {/* Estimated Impact Score */}
                 <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg border-2 border-indigo-200 dark:border-indigo-800">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 mb-1">
-                        Potential Impact Score (per participant)
+                        Estimated Impact Score
                       </p>
-                      <p className="text-xs text-indigo-600 dark:text-indigo-400">
-                        Formula: Base Hours × Intensity × Skills × Verification × Location
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mb-2">
+                        Based on {event.estimatedScoreRange?.hoursRange.typical || 4} typical hours of participation
                       </p>
+                      {event.estimatedScoreRange && (
+                        <div className="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-300">
+                          <span className="font-medium">Range:</span>
+                          <span>{event.estimatedScoreRange.minScore} - {event.estimatedScoreRange.maxScore} points</span>
+                          <span className="text-indigo-500 dark:text-indigo-400">
+                            ({event.estimatedScoreRange.hoursRange.min}-{event.estimatedScoreRange.hoursRange.max} hrs)
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-                        {(
-                          (event.type === 'WORKSHOP' ? 3 : event.type === 'FUNDRAISER' ? 4 : 2.5) *
-                          (event.intensity || 1.0) *
-                          (1 + (event.skills?.length || 0) * 0.1) *
-                          (event.verificationType === 'ORGANIZER' ? 1.1 : 1.0) *
-                          10
-                        ).toFixed(1)}
+                        {event.estimatedScoreRange ? (
+                          <>
+                            {event.estimatedScoreRange.typicalScore}
+                          </>
+                        ) : (
+                          '5-15'
+                        )}
                       </p>
                       <p className="text-xs text-indigo-600 dark:text-indigo-400">points</p>
                     </div>

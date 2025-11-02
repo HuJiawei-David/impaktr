@@ -41,6 +41,9 @@ model User {
   role                     String?                  @default("USER")
   sdgFocus                 Json?
   showEmail                Boolean                  @default(false)
+  phone                    String?
+  showProgress             Boolean                  @default(true)
+  allowMessages            Boolean                  @default(true)
   state                    String?
   userType                 UserType?                @default(INDIVIDUAL)
   website                  String?

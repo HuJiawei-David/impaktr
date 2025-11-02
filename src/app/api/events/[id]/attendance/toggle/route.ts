@@ -88,7 +88,7 @@ export async function POST(
         attendanceEnabledAt: true,
         attendanceDisabledAt: true,
         attendanceCode: true, // Only return to admin
-      }
+      } as any
     });
 
     return NextResponse.json({ 

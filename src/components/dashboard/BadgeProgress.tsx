@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
-import { Award, TrendingUp, Target, ChevronRight, Star, Trophy, CheckCircle, Clock } from 'lucide-react';
+import { Award, TrendingUp, Target, ChevronRight, Star, Trophy, CheckCircle, Clock, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -21,7 +21,9 @@ import {
   getSDGBadgeImage,
   getRankBadgeImage
 } from '@/lib/badge-config';
-import { IndividualRank, BadgeTier } from '@prisma/client';
+// BadgeTier type from badge-config
+type BadgeTier = 'SUPPORTER' | 'BUILDER' | 'CHAMPION' | 'GUARDIAN';
+type IndividualRank = 'HELPER' | 'SUPPORTER' | 'CONTRIBUTOR' | 'BUILDER' | 'ADVOCATE' | 'CHANGEMAKER' | 'MENTOR' | 'LEADER' | 'AMBASSADOR' | 'GLOBAL_CITIZEN';
 
 // Real badge system interfaces matching the API
 interface RankProgress {
@@ -100,6 +102,7 @@ export function BadgeProgress() {
     if (session?.user?.id) {
       fetchBadgeProgress();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
 
   const fetchBadgeProgress = async () => {
@@ -131,12 +134,25 @@ export function BadgeProgress() {
           } : null,
           currentProgress: data.currentProgress
         },
-        sdgBadges: data.sdgBadges.map((sdg: any) => ({
+        sdgBadges: data.sdgBadges.map((sdg: {
+          sdgNumber: number;
+          sdgName: string;
+          icon: string;
+          color: string;
+          tiers: Array<{
+            tier: BadgeTier;
+            name: string;
+            description: string;
+            requirements: { minHours: number; minActivities: number };
+            progress: { hours: number; activities: number; percentage: number };
+            earned: boolean;
+          }>;
+        }) => ({
           sdgNumber: sdg.sdgNumber,
           sdgName: sdg.sdgName,
           icon: sdg.icon,
           color: sdg.color,
-          tiers: sdg.tiers.map((tier: any) => ({
+          tiers: sdg.tiers.map((tier) => ({
             tier: tier.tier,
             name: tier.name,
             description: tier.description,
@@ -158,13 +174,13 @@ export function BadgeProgress() {
 
   const getTierBadgeColor = (tier: BadgeTier) => {
     switch (tier) {
-      case BadgeTier.SUPPORTER:
+      case 'SUPPORTER':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case BadgeTier.BUILDER:
+      case 'BUILDER':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case BadgeTier.CHAMPION:
+      case 'CHAMPION':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      case BadgeTier.GUARDIAN:
+      case 'GUARDIAN':
         return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
@@ -173,28 +189,55 @@ export function BadgeProgress() {
 
   const getTierIcon = (tier: BadgeTier) => {
     switch (tier) {
-      case BadgeTier.SUPPORTER: return '🌱';
-      case BadgeTier.BUILDER: return '🔨';
-      case BadgeTier.CHAMPION: return '🏆';
-      case BadgeTier.GUARDIAN: return '🛡️';
+      case 'SUPPORTER': return '🌱';
+      case 'BUILDER': return '🔨';
+      case 'CHAMPION': return '🏆';
+      case 'GUARDIAN': return '🛡️';
       default: return '⭐';
     }
   };
 
   const getRankIcon = (rank: IndividualRank) => {
     switch (rank) {
-      case IndividualRank.HELPER: return 'hand-helping';
-      case IndividualRank.SUPPORTER: return 'heart';
-      case IndividualRank.CONTRIBUTOR: return 'users';
-      case IndividualRank.BUILDER: return 'hammer';
-      case IndividualRank.ADVOCATE: return 'megaphone';
-      case IndividualRank.CHANGEMAKER: return 'sparkles';
-      case IndividualRank.MENTOR: return 'user-graduate';
-      case IndividualRank.LEADER: return 'crown';
-      case IndividualRank.AMBASSADOR: return 'globe';
-      case IndividualRank.GLOBAL_CITIZEN: return 'earth';
+      case 'HELPER': return 'hand-helping';
+      case 'SUPPORTER': return 'heart';
+      case 'CONTRIBUTOR': return 'users';
+      case 'BUILDER': return 'hammer';
+      case 'ADVOCATE': return 'megaphone';
+      case 'CHANGEMAKER': return 'sparkles';
+      case 'MENTOR': return 'user-graduate';
+      case 'LEADER': return 'crown';
+      case 'AMBASSADOR': return 'globe';
+      case 'GLOBAL_CITIZEN': return 'earth';
       default: return 'award';
     }
+  };
+
+  const tierInfo = {
+    SUPPORTER: { 
+      name: 'Supporter', 
+      color: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200',
+      icon: '🌱'
+    },
+    BUILDER: { 
+      name: 'Builder', 
+      color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200',
+      icon: '🏗️'
+    },
+    CHAMPION: { 
+      name: 'Champion', 
+      color: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900 dark:text-purple-200',
+      icon: '🏆'
+    },
+    GUARDIAN: { 
+      name: 'Guardian', 
+      color: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-200',
+      icon: '🛡️'
+    }
+  };
+  
+  const getTierInfo = (tier: string) => {
+    return tierInfo[tier as keyof typeof tierInfo] || tierInfo.SUPPORTER;
   };
 
   const renderSDGBadgeCard = (sdgBadge: SDGBadgeProgress) => {
@@ -202,91 +245,164 @@ export function BadgeProgress() {
     const earnedTiers = sdgBadge.tiers.filter(tier => tier.earned);
     const currentTier = earnedTiers.length > 0 ? earnedTiers[earnedTiers.length - 1] : null;
     const nextTier = sdgBadge.tiers.find(tier => !tier.earned);
-    const totalHours = sdgBadge.tiers.reduce((sum, tier) => sum + tier.progress.hours, 0);
+    const totalHours = sdgBadge.tiers.length > 0 ? sdgBadge.tiers[0].progress.hours : 0;
+    const totalActivities = sdgBadge.tiers.length > 0 ? sdgBadge.tiers[0].progress.activities : 0;
     
     return (
-      <div key={sdgBadge.sdgNumber} className="group relative bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl p-4 hover:shadow-lg transition-all duration-200 hover:border-purple-300 dark:hover:border-purple-700">
-        {/* Header: Badge Icon + Title */}
-        <div className="flex items-start gap-3 mb-3">
-          <div className="relative w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden shadow-sm">
-            {currentTier ? (
-              <Image
-                src={getSDGBadgeImage(sdgBadge.sdgNumber, currentTier.tier)}
-                alt={`${currentTier.name} - SDG ${sdgBadge.sdgNumber}`}
-                width={56}
-                height={56}
-                className="w-full h-full object-cover"
-              />
-            ) : sdgInfo ? (
-              <Image 
-                src={sdgInfo.image} 
-                alt={`SDG ${sdgBadge.sdgNumber}`}
-                width={56}
-                height={56}
-                className="w-full h-full object-cover opacity-40"
-              />
-            ) : (
-              <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                <Award className="w-6 h-6 text-gray-400" />
-              </div>
-            )}
-            {earnedTiers.length > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center shadow-md">
-                <Star className="w-3 h-3 text-white fill-white" />
-              </div>
-            )}
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-gray-900 dark:text-white leading-tight mb-1">
-              SDG {sdgBadge.sdgNumber}
-            </h4>
-            <p className="text-xs text-gray-600 dark:text-gray-400 leading-tight line-clamp-1">
-              {sdgBadge.sdgName}
-            </p>
-            <div className="mt-1.5">
-              {currentTier ? (
-                <Badge className={`text-xs px-2 py-0.5 ${getTierBadgeColor(currentTier.tier)}`}>
-                  {currentTier.name}
-                </Badge>
-              ) : (
-                <Badge className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-0">
-                  Not Started
-                </Badge>
-              )}
+      <Card key={sdgBadge.sdgNumber} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg ${
+        currentTier ? 'ring-2 ring-primary/20 bg-primary/5' : 
+        (totalHours > 0 || totalActivities > 0) ? 'ring-1 ring-gray-200 dark:ring-gray-700 bg-white dark:bg-gray-800' : 
+        'opacity-75 hover:opacity-100'
+      }`}>
+        {/* Status Indicator */}
+        <div className="absolute top-2 right-2">
+          {earnedTiers.length > 0 && (
+            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+              <Star className="w-3 h-3 text-white fill-white" />
             </div>
-          </div>
+          )}
+          {!currentTier && totalHours === 0 && totalActivities === 0 && (
+            <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
+              <Lock className="w-3 h-3 text-gray-600" />
+            </div>
+          )}
         </div>
 
-        {/* Progress Bar with Percentage */}
-        {nextTier && (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-gray-600 dark:text-gray-400">Next: {nextTier.name}</span>
-              <span className="font-semibold text-purple-600 dark:text-purple-400">
-                {Math.round(nextTier.progress.percentage)}%
-              </span>
+        <CardContent className="p-6">
+          {/* Header: SDG Badge Centered */}
+          <div className="text-center mb-4">
+            <div className="flex flex-col justify-center items-center gap-2 mb-4">
+              <Badge 
+                variant="outline" 
+                className="px-3 py-1 text-sm inline-flex items-center gap-1.5 whitespace-nowrap"
+                style={{ borderColor: sdgInfo?.color || '#000' }}
+              >
+                {sdgInfo && (
+                  <Image 
+                    src={sdgInfo.image || ''} 
+                    alt={`SDG ${sdgBadge.sdgNumber}`}
+                    width={16}
+                    height={16}
+                    className="w-4 h-4 flex-shrink-0"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                )}
+                <span className="font-semibold">SDG {sdgBadge.sdgNumber}</span>
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className="px-3 py-1 text-sm"
+                style={{ 
+                  borderColor: sdgInfo?.color || '#000',
+                  backgroundColor: sdgInfo?.color ? `${sdgInfo.color}20` : 'transparent'
+                }}
+              >
+                <span className="text-gray-600 dark:text-gray-400">{sdgBadge.sdgName}</span>
+              </Badge>
             </div>
-            <Progress value={nextTier.progress.percentage} className="h-1.5" />
+            <div className="flex justify-center my-4">
+              <div className="relative w-20 h-20">
+                {currentTier ? (
+                  <Image
+                    src={getSDGBadgeImage(sdgBadge.sdgNumber, currentTier.tier as 'SUPPORTER' | 'BUILDER' | 'CHAMPION' | 'GUARDIAN')}
+                    alt={`${currentTier.name} - SDG ${sdgBadge.sdgNumber}`}
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-contain"
+                  />
+                ) : nextTier ? (
+                  <Image 
+                    src={getSDGBadgeImage(sdgBadge.sdgNumber, nextTier.tier as 'SUPPORTER' | 'BUILDER' | 'CHAMPION' | 'GUARDIAN')}
+                    alt={`${nextTier.name} - SDG ${sdgBadge.sdgNumber}`}
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-contain opacity-50"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center">
+                    <Award className="w-8 h-8 text-gray-400" />
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Badge Name and Tier */}
+            <div className="mb-4 space-y-2">
+              {(currentTier || nextTier) && (() => {
+                const tier = (currentTier || nextTier)!;
+                const tierData = getTierInfo(tier.tier);
+                return (
+                  <>
+                    <div className="font-bold text-xl text-gray-900 dark:text-white">
+                      {tier.name}
+                    </div>
+                    <div>
+                      <Badge className={`text-xs ${tierData.color}`}>
+                        {tier.tier}
+                      </Badge>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           </div>
-        )}
 
-        {/* Stats Row: Compact Two-Column */}
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100 dark:border-gray-600">
-          <div className="flex items-center gap-1.5 text-xs">
-            <div className="w-6 h-6 rounded-md bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-              <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+          {/* Progress Section */}
+          {!currentTier && nextTier && (
+            <div className="space-y-3 mb-4">
+              {/* Overall Progress */}
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Progress to {nextTier.name}</span>
+                  <span className="font-medium">{Math.round(nextTier.progress.percentage)}%</span>
+                </div>
+                <Progress value={nextTier.progress.percentage} className="h-2" />
+              </div>
+              
+              {/* Hours Progress */}
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Hours</span>
+                  <span className={totalHours >= nextTier.requirements.minHours ? 'text-green-600 dark:text-green-400 font-medium' : 'font-medium'}>
+                    {totalHours}/{nextTier.requirements.minHours}
+                  </span>
+                </div>
+                <Progress 
+                  value={(totalHours / nextTier.requirements.minHours) * 100} 
+                  className="h-2" 
+                />
+              </div>
+
+              {/* Activities Progress */}
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Activities</span>
+                  <span className={totalActivities >= nextTier.requirements.minActivities ? 'text-green-600 dark:text-green-400 font-medium' : 'font-medium'}>
+                    {totalActivities}/{nextTier.requirements.minActivities}
+                  </span>
+                </div>
+                <Progress 
+                  value={(totalActivities / nextTier.requirements.minActivities) * 100} 
+                  className="h-2" 
+                />
+              </div>
             </div>
-            <span className="font-semibold text-gray-900 dark:text-white">{totalHours}h</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs">
-            <div className="w-6 h-6 rounded-md bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
-              <Trophy className="w-3 h-3 text-green-600 dark:text-green-400" />
+          )}
+
+          {/* Earned Badge Info */}
+          {earnedTiers.length > 0 && !nextTier && (
+            <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="flex items-center justify-center gap-2 text-green-800 dark:text-green-200">
+                <CheckCircle className="w-4 h-4" />
+                <span className="text-sm font-semibold">All Tiers Completed!</span>
+              </div>
             </div>
-            <span className="font-semibold text-gray-900 dark:text-white">{earnedTiers.length}/4</span>
-          </div>
-        </div>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     );
   };
 
@@ -363,7 +479,7 @@ export function BadgeProgress() {
                   {badgeData.rankProgress.currentProgress.score} / {badgeData.rankProgress.nextRank.requirements.minScore}
                 </span>
               </div>
-              <Progress value={badgeData.rankProgress.nextRank.progress.score} className="h-2" />
+              <Progress value={badgeData.rankProgress.nextRank.progress.score} className="h-2 mb-3" />
               
               <div className="flex justify-between text-xs">
                 <span className="text-gray-600 dark:text-gray-400">Volunteer Hours</span>
@@ -371,7 +487,7 @@ export function BadgeProgress() {
                   {badgeData.rankProgress.currentProgress.hours} / {badgeData.rankProgress.nextRank.requirements.minHours}
                 </span>
               </div>
-              <Progress value={badgeData.rankProgress.nextRank.progress.hours} className="h-2" />
+              <Progress value={badgeData.rankProgress.nextRank.progress.hours} className="h-2 mb-3" />
               
               <div className="flex justify-between text-xs">
                 <span className="text-gray-600 dark:text-gray-400">SDG Badges</span>
@@ -395,32 +511,6 @@ export function BadgeProgress() {
           )}
         </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
-            <div className="flex items-center justify-center mb-2">
-              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <Trophy className="w-4 h-4 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">
-              {badgeData.sdgBadges.reduce((total, badge) => total + badge.tiers.filter(tier => tier.earned).length, 0)}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">SDG Badges Earned</div>
-          </div>
-          <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
-            <div className="flex items-center justify-center mb-2">
-              <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white text-center">
-              {badgeData.sdgBadges.filter(badge => badge.tiers.some(tier => !tier.earned && tier.progress.percentage > 0)).length}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">In Progress</div>
-          </div>
-        </div>
-
         {/* View All Link */}
         <div className="mb-3">
           <Link href="/profile/badges">
@@ -433,31 +523,6 @@ export function BadgeProgress() {
               View All Badges
             </Button>
           </Link>
-        </div>
-
-
-        {/* Badge Content */}
-        <div className="space-y-3">
-          {badgeData.sdgBadges.length > 0 ? (
-            <>
-              {badgeData.sdgBadges.slice(0, 3).map((sdgBadge) => renderSDGBadgeCard(sdgBadge))}
-              {badgeData.sdgBadges.length > 3 && (
-                <div className="text-center">
-                  <Link href="/profile/badges">
-                    <Button variant="outline" size="sm">
-                      View {badgeData.sdgBadges.length - 3} More SDGs
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Target className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">No SDG badges yet</p>
-              <p className="text-xs">Join events to start earning SDG badges</p>
-            </div>
-          )}
         </div>
 
         {/* Call to Action */}

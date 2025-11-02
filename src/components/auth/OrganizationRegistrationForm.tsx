@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Textarea } from '@/components/ui/textarea';
-import { UserType } from '@prisma/client';
+import { UserType } from '@/types/enums';
 import { countries } from '@/constants/countries';
 import { industries } from '@/constants/industries';
 import { SDGSelector } from '@/components/ui/sdg-selector';

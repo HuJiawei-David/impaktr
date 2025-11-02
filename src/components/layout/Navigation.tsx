@@ -78,7 +78,6 @@ export function Navigation() {
   const [scrolled, setScrolled] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(3); // Mock unread count
   const [organizationData, setOrganizationData] = useState<{
     id: string;
     name: string;
@@ -248,71 +247,8 @@ export function Navigation() {
                 {/* Notification - Only for individual users */}
                 {!isOrganization && (
                   <div className="flex items-center ml-2 pl-2 border-l border-gray-200 dark:border-gray-600">
-                    {/* Notification Dropdown */}
-                  <div className="relative">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className={cn(
-                          "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
-                          "text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        )}>
-                          <div className="relative">
-                            <Bell className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
-                            {unreadCount > 0 && (
-                              <Badge
-                                variant="destructive"
-                                className="absolute -top-2 -right-2 h-4 w-4 p-0 text-[10px] flex items-center justify-center"
-                              >
-                                {unreadCount > 9 ? '9+' : unreadCount}
-                              </Badge>
-                            )}
-                          </div>
-                          <span className="truncate">Notifications</span>
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-80" align="end">
-                        {/* Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-border">
-                          <h3 className="font-semibold">Notifications</h3>
-                          {unreadCount > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // Mark all as read logic would go here
-                              }}
-                              className="text-xs"
-                            >
-                              Mark all as read
-                            </Button>
-                          )}
-                        </div>
-
-                        {/* Notifications List */}
-                        <div className="max-h-96 overflow-y-auto">
-                          <div className="p-4 text-center text-muted-foreground">
-                            <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">No notifications yet</p>
-                          </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="p-2 border-t border-border">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-center"
-                            onClick={() => {
-                              // Navigate to notifications page
-                            }}
-                          >
-                            View All Notifications
-                          </Button>
-                        </div>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <NotificationDropdown />
                   </div>
-                </div>
                 )}
               </div>
             </div>
@@ -489,7 +425,7 @@ export function Navigation() {
                             </DropdownMenuItem>
                           </Link>
 
-                          <Link href="/analytics">
+                          <Link href="/profile?tab=analytics">
                             <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
                               <BarChart3 className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
                               <div className="flex flex-col">
@@ -725,7 +661,7 @@ export function Navigation() {
 
                   {!isOrganization && (
                     <Link
-                      href="/analytics"
+                      href="/profile?tab=analytics"
                       className="flex items-center space-x-3 px-4 py-3 rounded-lg text-base font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                       onClick={() => setIsOpen(false)}
                     >

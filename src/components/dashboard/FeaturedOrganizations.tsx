@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Building2,
-  Users,
-  Star
+  Users
 } from 'lucide-react';
 
 interface Organization {
@@ -229,33 +228,29 @@ export function FeaturedOrganizations({ organizations }: FeaturedOrganizationsPr
                     {org.focus}
                   </p>
                   
-                  {/* Stats */}
-                  <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    <span className="flex items-center">
-                      <Users className="w-3 h-3 mr-1" />
-                      {org.followerCount || 0}
-                    </span>
-                    {org.impactScore && (
-                      <span className="flex items-center font-medium text-blue-600 dark:text-blue-400">
-                        <Star className="w-3 h-3 mr-1" />
-                        {org.impactScore.toLocaleString()}
+                  {/* Stats and Follow Button */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
+                      <span className="flex items-center">
+                        <Users className="w-3 h-3 mr-1" />
+                        {org.followerCount || 0}
                       </span>
-                    )}
+                    </div>
+                    
+                    {/* Follow Button */}
+                    <Button
+                      variant={org.isFollowing ? "outline" : "default"}
+                      size="sm"
+                      className={`text-xs px-2 py-0.5 h-6 ${
+                        org.isFollowing 
+                          ? "border-green-500 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20" 
+                          : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                      }`}
+                      onClick={() => handleFollowToggle(org.id)}
+                    >
+                      {org.isFollowing ? 'Following' : 'Follow'}
+                    </Button>
                   </div>
-                  
-                  {/* Follow Button */}
-                  <Button
-                    variant={org.isFollowing ? "outline" : "default"}
-                    size="sm"
-                    className={`text-xs px-3 py-1 ${
-                      org.isFollowing 
-                        ? "border-green-500 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20" 
-                        : "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
-                    }`}
-                    onClick={() => handleFollowToggle(org.id)}
-                  >
-                    {org.isFollowing ? 'Following' : 'Follow'}
-                  </Button>
                 </div>
               </div>
             </div>

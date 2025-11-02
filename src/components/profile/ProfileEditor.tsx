@@ -23,15 +23,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { countries } from '@/constants/countries';
 import { languages } from '@/constants/languages';
 import { getInitials } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface UserProfile {
   id: string;
@@ -56,6 +58,10 @@ interface UserProfile {
   currentRank: string;
   joinedAt: string;
   sdgFocus: number[];
+  isPublic?: boolean;
+  showEmail?: boolean;
+  showProgress?: boolean;
+  allowMessages?: boolean;
   stats: {
     totalHours: number;
     verifiedHours: number;
@@ -100,12 +106,13 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(profile.languages || []);
   const [selectedSDGs, setSelectedSDGs] = useState<number[]>(profile.sdgFocus || []);
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
+  const { 
+    register, 
+    handleSubmit, 
+    setValue, 
     watch,
-    formState: { errors }
+    reset,
+    formState: { errors, isDirty }
   } = useForm<ProfileFormData>({
     defaultValues: {
       // Parse firstName from name if firstName is not available
@@ -138,30 +145,33 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
       country: profile.location?.country || '',
       languages: profile.languages || [],
       sdgFocus: profile.sdgFocus || [],
-      isPublic: true, // Default values - these would come from actual profile
-      showEmail: false,
-      showProgress: true,
-      allowMessages: true
+      isPublic: profile.isPublic !== undefined ? profile.isPublic : true,
+      showEmail: profile.showEmail !== undefined ? profile.showEmail : false,
+      showProgress: profile.showProgress !== undefined ? profile.showProgress : true,
+      allowMessages: profile.allowMessages !== undefined ? profile.allowMessages : true
     }
   });
+
+  // Track if form has changes (including file uploads)
+  const hasChanges = isDirty || avatar !== null || banner !== null;
 
   const handleLanguageAdd = (language: string) => {
     if (!selectedLanguages.includes(language) && selectedLanguages.length < 10) {
       const newLanguages = [...selectedLanguages, language];
       setSelectedLanguages(newLanguages);
-      setValue('languages', newLanguages);
+      setValue('languages', newLanguages, { shouldDirty: true });
     }
   };
 
   const handleLanguageRemove = (language: string) => {
     const newLanguages = selectedLanguages.filter(lang => lang !== language);
     setSelectedLanguages(newLanguages);
-    setValue('languages', newLanguages);
+    setValue('languages', newLanguages, { shouldDirty: true });
   };
 
   const handleSDGChange = (sdgs: number[]) => {
     setSelectedSDGs(sdgs);
-    setValue('sdgFocus', sdgs);
+    setValue('sdgFocus', sdgs, { shouldDirty: true });
   };
 
   const onSubmit = async (data: ProfileFormData) => {
@@ -170,11 +180,21 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
     try {
       const formData = new FormData();
       
-      // Basic profile data
+      console.log('📝 Form data before sending:', data);
+      
+      // Basic profile data - only append non-empty values
       Object.entries(data).forEach(([key, value]) => {
+        // All fields now exist in schema - no need to skip any
+        
         if (value !== undefined && value !== null) {
           if (Array.isArray(value)) {
             formData.append(key, JSON.stringify(value));
+          } else if (typeof value === 'boolean') {
+            formData.append(key, value.toString());
+          } else if (typeof value === 'string' && value.trim() !== '') {
+            formData.append(key, value);
+          } else if (typeof value === 'string' && value.trim() === '') {
+            // Skip empty strings - they'll be handled as null on the backend
           } else {
             formData.append(key, value.toString());
           }
@@ -191,15 +211,42 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update profile');
+        // Try to get error details from response
+        const text = await response.text();
+        console.error('Profile update API error:', response.status);
+        console.error('Response text:', text);
+        
+        try {
+          const errorData = JSON.parse(text);
+          console.error('Error data:', errorData);
+          throw new Error(errorData.error || errorData.details || `Failed to update profile: ${response.status}`);
+        } catch (e) {
+          console.error('Could not parse error response as JSON');
+          throw new Error(`Failed to update profile: ${response.status} - ${text.substring(0, 100)}`);
+        }
       }
 
       const result = await response.json();
+      
+      // Reset file states after successful save
+      setAvatar(null);
+      setBanner(null);
+      
+      // Reset form dirty state with the saved data
+      reset(data);
+      
+      // Show success message
+      toast.success('Profile updated successfully!', {
+        description: 'Your changes have been saved.',
+      });
+      
       onSave(result.user);
       
     } catch (error) {
       console.error('Error updating profile:', error);
-      // Handle error - show toast notification
+      toast.error('Failed to update profile', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -233,7 +280,11 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
               <X className="w-4 h-4 mr-2" />
               Cancel
             </Button>
-            <Button onClick={handleSubmit(onSubmit)} disabled={isLoading}>
+            <Button 
+              onClick={handleSubmit(onSubmit)} 
+              disabled={isLoading || !hasChanges}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Save className="w-4 h-4 mr-2" />
               {isLoading ? 'Saving...' : 'Save Changes'}
             </Button>
@@ -242,12 +293,56 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Basic Info</TabsTrigger>
-              <TabsTrigger value="professional">Professional</TabsTrigger>
-              <TabsTrigger value="interests">Interests</TabsTrigger>
-              <TabsTrigger value="privacy">Privacy</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-2 mb-6">
+              <Button
+                type="button"
+                variant={activeTab === 'basic' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('basic')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'basic' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Basic Info
+              </Button>
+              <Button
+                type="button"
+                variant={activeTab === 'professional' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('professional')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'professional' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Professional
+              </Button>
+              <Button
+                type="button"
+                variant={activeTab === 'interests' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('interests')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'interests' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Interests
+              </Button>
+              <Button
+                type="button"
+                variant={activeTab === 'privacy' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('privacy')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'privacy' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Privacy
+              </Button>
+            </div>
 
             {/* Basic Information Tab */}
             <TabsContent value="basic" className="space-y-6">
@@ -265,7 +360,7 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                     <Label>Profile Banner</Label>
                     <div className="mt-2">
                       <div 
-                        className="relative h-32 rounded-lg bg-gradient-to-r from-primary-100 to-primary-200 border-2 border-dashed border-border hover:border-primary transition-colors cursor-pointer overflow-hidden"
+                        className="relative h-32 rounded-lg bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer overflow-hidden"
                         style={{
                           backgroundImage: banner ? `url(${URL.createObjectURL(banner)})` : 
                                          profile.banner ? `url(${profile.banner})` : undefined,
@@ -279,13 +374,24 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                           onChange={(e) => handleImageChange(e, 'banner')}
                           className="absolute inset-0 opacity-0 cursor-pointer"
                         />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
-                          <div className="text-white text-center">
-                            <Upload className="w-6 h-6 mx-auto mb-2" />
-                            <div className="text-sm">Click to upload banner</div>
-                            <div className="text-xs opacity-75">Max 5MB • 1200x400px recommended</div>
+                        {(!banner && !profile.banner) && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-gray-700 dark:text-gray-200 text-center">
+                              <Upload className="w-6 h-6 mx-auto mb-2" />
+                              <div className="text-sm font-medium">Click to upload banner</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">Max 5MB • 1200x400px recommended</div>
+                            </div>
                           </div>
-                        </div>
+                        )}
+                        {(banner || profile.banner) && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 dark:bg-black/60 opacity-0 hover:opacity-100 transition-opacity">
+                            <div className="text-white text-center">
+                              <Upload className="w-6 h-6 mx-auto mb-2" />
+                              <div className="text-sm font-medium">Click to change banner</div>
+                              <div className="text-xs opacity-90">Max 5MB • 1200x400px recommended</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -392,7 +498,7 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                       id="phone"
                       label="Phone Number"
                       value={watch('phone') || ''}
-                      onChange={(value) => setValue('phone', value)}
+                      onChange={(value) => setValue('phone', value, { shouldDirty: true, shouldTouch: true })}
                       placeholder="Enter phone number"
                     />
                   </div>
@@ -410,18 +516,17 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                 <CardContent className="space-y-4">
                   <div>
                     <Label htmlFor="country">Country *</Label>
-                    <Select value={watch('country')} onValueChange={(value) => setValue('country', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {countries.map((country) => (
-                          <SelectItem key={country.code} value={country.name}>
-                            {country.flag} {country.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={countries.map(country => ({
+                        value: country.name,
+                        label: country.name,
+                        flag: country.flag
+                      }))}
+                      value={watch('country')}
+                      placeholder="Search country..."
+                      onValueChange={(value) => setValue('country', value)}
+                      error={!!errors.country}
+                    />
                     {errors.country && (
                       <p className="text-destructive text-sm mt-1">{errors.country.message}</p>
                     )}
@@ -458,20 +563,17 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                 <CardContent className="space-y-4">
                   <div>
                     <Label>Add Languages (up to 10)</Label>
-                    <Select onValueChange={handleLanguageAdd}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Add a language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {languages
-                          .filter(lang => !selectedLanguages.includes(lang.name))
-                          .map((language) => (
-                            <SelectItem key={language.code} value={language.name}>
-                              {language.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      options={languages
+                        .filter(lang => !selectedLanguages.includes(lang.name))
+                        .map(language => ({
+                          value: language.name,
+                          label: language.name
+                        }))}
+                      value=""
+                      placeholder="Search and add a language..."
+                      onValueChange={handleLanguageAdd}
+                    />
                   </div>
 
                   {selectedLanguages.length > 0 && (
@@ -480,7 +582,7 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                         <Badge
                           key={language}
                           variant="secondary"
-                          className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                          className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white border border-gray-300 dark:border-gray-600"
                           onClick={() => handleLanguageRemove(language)}
                         >
                           {language} ×
@@ -529,14 +631,15 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                 <CardHeader>
                   <CardTitle>SDG Focus Areas</CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Select up to 8 UN Sustainable Development Goals that align with your interests and activities
+                    Select the UN Sustainable Development Goals that align with your interests and activities (optional)
                   </p>
                 </CardHeader>
                 <CardContent>
                   <SDGSelector
                     selectedSDGs={selectedSDGs}
                     onSelectionChange={handleSDGChange}
-                    maxSelection={8}
+                    maxSelection={17}
+                    showSelectAll={true}
                   />
                 </CardContent>
               </Card>
@@ -563,8 +666,11 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                       </p>
                     </div>
                     <Switch
-                      checked={watch('isPublic')}
-                      onCheckedChange={(checked) => setValue('isPublic', checked)}
+                      checked={watch('isPublic') ?? true}
+                      onCheckedChange={(checked) => {
+                        console.log('Public Profile switch changed to:', checked);
+                        setValue('isPublic', checked, { shouldDirty: true, shouldTouch: true });
+                      }}
                     />
                   </div>
 
@@ -576,8 +682,11 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                       </p>
                     </div>
                     <Switch
-                      checked={watch('showEmail')}
-                      onCheckedChange={(checked) => setValue('showEmail', checked)}
+                      checked={watch('showEmail') ?? false}
+                      onCheckedChange={(checked) => {
+                        console.log('Show Email switch changed to:', checked);
+                        setValue('showEmail', checked, { shouldDirty: true, shouldTouch: true });
+                      }}
                     />
                   </div>
 
@@ -589,8 +698,11 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                       </p>
                     </div>
                     <Switch
-                      checked={watch('showProgress')}
-                      onCheckedChange={(checked) => setValue('showProgress', checked)}
+                      checked={watch('showProgress') ?? true}
+                      onCheckedChange={(checked) => {
+                        console.log('Show Progress switch changed to:', checked);
+                        setValue('showProgress', checked, { shouldDirty: true, shouldTouch: true });
+                      }}
                     />
                   </div>
 
@@ -602,8 +714,11 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                       </p>
                     </div>
                     <Switch
-                      checked={watch('allowMessages')}
-                      onCheckedChange={(checked) => setValue('allowMessages', checked)}
+                      checked={watch('allowMessages') ?? true}
+                      onCheckedChange={(checked) => {
+                        console.log('Allow Messages switch changed to:', checked);
+                        setValue('allowMessages', checked, { shouldDirty: true, shouldTouch: true });
+                      }}
                     />
                   </div>
                 </CardContent>

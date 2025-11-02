@@ -25,7 +25,8 @@ export async function GET(request: NextRequest) {
             tier: true,
             city: true,
             country: true,
-            occupation: true
+            occupation: true,
+            userType: true
           }
         }
       },

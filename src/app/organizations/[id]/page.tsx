@@ -509,7 +509,7 @@ export default function OrganizationProfilePage() {
   if (error || !organization) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="max-w-md w-full">
+        <Card className="max-w-md w-full bg-white dark:bg-gray-800">
           <CardContent className="p-12 text-center">
             <Building2 className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
@@ -547,7 +547,7 @@ export default function OrganizationProfilePage() {
         {/* Organization Info */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative -mt-48 pb-6">
-            <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl">
+            <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl bg-white dark:bg-gray-800">
               <CardContent className="p-6">
                 {/* Tier Badge - Top Right */}
                 <div className="absolute top-4 right-4">
@@ -666,7 +666,7 @@ export default function OrganizationProfilePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -682,7 +682,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -698,7 +698,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -714,7 +714,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -821,13 +821,13 @@ export default function OrganizationProfilePage() {
               {activeTab === 'about' && (
                 <>
                   {/* Organization Information */}
-                  <Card className="border-0 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                         <Building className="w-5 h-5 text-blue-600" />
                         Organization Information
-                      </CardTitle>
-                    </CardHeader>
+                </CardTitle>
+              </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
                         <h4 className="font-semibold text-gray-900 dark:text-white mb-2">About Us</h4>
@@ -879,7 +879,7 @@ export default function OrganizationProfilePage() {
 
                   {/* SDG Focus Areas */}
                   {organization.sdgs && organization.sdgs.length > 0 && (
-                    <Card className="border-0 shadow-sm">
+                    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Target className="w-5 h-5 text-green-600" />
@@ -916,7 +916,7 @@ export default function OrganizationProfilePage() {
                   )}
 
             {/* Team & Leadership */}
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-indigo-600" />
@@ -954,12 +954,12 @@ export default function OrganizationProfilePage() {
                     ))}
                     {organization.members.length > 6 && (
                       <div className="flex items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                           +{organization.members.length - 6} more team members
-                        </p>
+                    </p>
                       </div>
-                    )}
-                  </div>
+                  )}
+                </div>
                 ) : (
                   <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-8">
                     No team members found
@@ -969,26 +969,26 @@ export default function OrganizationProfilePage() {
             </Card>
                 </>
               )}
-              
+
               {activeTab === 'events' && (
                 <div className="space-y-6">
                   {/* Upcoming Events */}
-                  <Card className="border-0 shadow-sm">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
                           <Calendar className="w-5 h-5 text-blue-600" />
                           Upcoming Events
-                        </CardTitle>
-                        <Link href={`/events?org=${orgId}`}>
+                  </CardTitle>
+                  <Link href={`/events?org=${orgId}`}>
                           <Button variant="ghost" size="sm" className="hover:bg-transparent hover:text-blue-600 dark:hover:text-blue-400">
-                            View All
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
+                      View All
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
                       {organization.upcomingEvents && organization.upcomingEvents.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {organization.upcomingEvents
@@ -1023,7 +1023,7 @@ export default function OrganizationProfilePage() {
                                 <Calendar className="w-4 h-4 mr-2" />
                                 Create Event
                               </Button>
-                            </Link>
+                      </Link>
                           )}
                         </div>
                       )}
@@ -1031,7 +1031,7 @@ export default function OrganizationProfilePage() {
                   </Card>
 
                   {/* Past Events */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Clock className="w-5 h-5 text-gray-600" />
@@ -1056,21 +1056,21 @@ export default function OrganizationProfilePage() {
                                 onToggleBookmark={toggleBookmark}
                                 showOrganization={false} 
                               />
-                            ))}
-                          </div>
-                        ) : (
+                    ))}
+                  </div>
+                ) : (
                           <div className="text-center py-6">
                             <Clock className="w-8 h-8 mx-auto mb-3 text-gray-400" />
                             <p className="text-sm text-gray-600 dark:text-gray-400">
                               No past events to display
                             </p>
                           </div>
-                        )}
-                    </CardContent>
-                  </Card>
+                )}
+              </CardContent>
+            </Card>
 
                   {/* Event Statistics */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-purple-600" />
@@ -1146,7 +1146,7 @@ export default function OrganizationProfilePage() {
                         />
                       ))
                     ) : (
-                      <Card className="border-0 shadow-sm">
+                      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                         <CardContent className="p-12 text-center">
                           <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-400" />
                           <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
@@ -1169,7 +1169,7 @@ export default function OrganizationProfilePage() {
               {activeTab === 'impact' && (
                 <div className="space-y-6">
                   {/* Impact Overview */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-green-600" />
@@ -1227,7 +1227,7 @@ export default function OrganizationProfilePage() {
                   </Card>
 
                   {/* ESG Impact Dashboard */}
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <BarChart3 className="w-5 h-5 text-purple-600" />
@@ -1346,7 +1346,7 @@ export default function OrganizationProfilePage() {
           <div className="space-y-6">
             
             {/* Badges */}
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Award className="w-5 h-5 text-yellow-600" />
@@ -1378,7 +1378,7 @@ export default function OrganizationProfilePage() {
             </Card>
 
             {/* Top Volunteers */}
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-blue-600" />
@@ -1424,7 +1424,7 @@ export default function OrganizationProfilePage() {
             </Card>
 
             {/* Upcoming Events Card */}
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Calendar className="w-5 h-5 text-blue-600" />
@@ -1536,7 +1536,7 @@ export default function OrganizationProfilePage() {
             </Card>
 
             {/* Leaderboard Ranking */}
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-blue-600" />
