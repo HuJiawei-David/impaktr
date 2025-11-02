@@ -56,12 +56,19 @@ export async function calculateImpaktrScore(userId: string): Promise<number> {
     // Calculate participation score
     const participationScore = (H * I * S * Q * V) * L;
     totalScore += participationScore;
+    
+    console.log(`[SCORING DEBUG] Participation for ${participation.event?.title}:`);
+    console.log(`  H=${H.toFixed(2)}, I=${I}, S=${S}, Q=${Q}, V=${V}, L=${L}`);
+    console.log(`  Raw participation score: ${participationScore.toFixed(2)}`);
   }
 
   // Apply diminishing returns for very high scores
   const finalScore = Math.min(totalScore * 0.1, 1000);
+  const roundedScore = Math.round(finalScore * 10) / 10;
 
-  return Math.round(finalScore * 10) / 10; // Round to 1 decimal place
+  console.log(`[SCORING DEBUG] Total raw: ${totalScore.toFixed(2)}, Final: ${finalScore.toFixed(2)}, Rounded: ${roundedScore}`);
+
+  return roundedScore; // Round to 1 decimal place
 }
 
 export async function calculateOrganizationScore(organizationId: string): Promise<number> {

@@ -274,7 +274,6 @@ export default function OnboardingPage() {
                 <div className="flex items-center space-x-6">
                   <div className="flex items-center space-x-2">
                     <Switch
-                      id="weekdays"
                       checked={watch('availability.weekdayAvailable')}
                       onCheckedChange={(checked) => setValue('availability.weekdayAvailable', checked)}
                     />
@@ -282,7 +281,6 @@ export default function OnboardingPage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <Switch
-                      id="weekends"
                       checked={watch('availability.weekendAvailable')}
                       onCheckedChange={(checked) => setValue('availability.weekendAvailable', checked)}
                     />
@@ -373,7 +371,6 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">Receive updates via email</p>
                     </div>
                     <Switch
-                      id="email-notifications"
                       checked={watch('notifications.email')}
                       onCheckedChange={(checked) => setValue('notifications.email', checked)}
                     />
@@ -385,7 +382,6 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">Get notified when you earn new badges</p>
                     </div>
                     <Switch
-                      id="badge-notifications"
                       checked={watch('notifications.badges')}
                       onCheckedChange={(checked) => setValue('notifications.badges', checked)}
                     />
@@ -397,7 +393,6 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">Reminders for upcoming events</p>
                     </div>
                     <Switch
-                      id="event-notifications"
                       checked={watch('notifications.events')}
                       onCheckedChange={(checked) => setValue('notifications.events', checked)}
                     />
@@ -409,7 +404,6 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">When others need your verification</p>
                     </div>
                     <Switch
-                      id="verification-notifications"
                       checked={watch('notifications.verifications')}
                       onCheckedChange={(checked) => setValue('notifications.verifications', checked)}
                     />
@@ -426,7 +420,6 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">Allow others to find and view your profile</p>
                     </div>
                     <Switch
-                      id="public-profile"
                       checked={watch('privacy.publicProfile')}
                       onCheckedChange={(checked) => setValue('privacy.publicProfile', checked)}
                     />
@@ -438,7 +431,6 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">Display your impact score and badges publicly</p>
                     </div>
                     <Switch
-                      id="show-progress"
                       checked={watch('privacy.showProgress')}
                       onCheckedChange={(checked) => setValue('privacy.showProgress', checked)}
                     />
@@ -450,7 +442,6 @@ export default function OnboardingPage() {
                       <p className="text-sm text-muted-foreground">Get personalized event and opportunity suggestions</p>
                     </div>
                     <Switch
-                      id="allow-recommendations"
                       checked={watch('privacy.allowRecommendations')}
                       onCheckedChange={(checked) => setValue('privacy.allowRecommendations', checked)}
                     />

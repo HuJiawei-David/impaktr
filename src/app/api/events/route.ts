@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus } from '@/types/events';
-// Avoid importing Prisma types to prevent enum export mismatches
+import { Prisma } from '@prisma/client';
 
 const sessionSchema = z.object({
   startAt: z.string().datetime(),
@@ -60,21 +60,31 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Prisma.EventWhereInput = {
       isPublic: true, // Only show public events
     };
 
     // Apply status filter if provided, otherwise show UPCOMING and ACTIVE events
     if (status) {
       where.status = status;
+      // For UPCOMING status, also filter by date to exclude past events
+      if (status === 'UPCOMING') {
+        where.startDate = {
+          gte: new Date() // Only events starting from now
+        };
+      }
     } else {
       where.status = { in: ['UPCOMING', 'ACTIVE'] };
+      // Also filter by date to exclude past events
+      where.startDate = {
+        gte: new Date()
+      };
     }
 
     if (search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' as const } },
+        { description: { contains: search, mode: 'insensitive' as const } },
       ];
     }
 
@@ -85,7 +95,7 @@ export async function GET(request: NextRequest) {
     if (location) {
       where.location = {
         contains: location,
-        mode: 'insensitive'
+        mode: 'insensitive' as const
       };
     }
 
@@ -93,6 +103,7 @@ export async function GET(request: NextRequest) {
       where.organizationId = organizationId;
     }
 
+    // Apply custom date filters if provided (override default date filters)
     if (startDate || endDate) {
       where.startDate = {};
       if (startDate) where.startDate.gte = startDate;

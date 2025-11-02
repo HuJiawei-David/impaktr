@@ -250,7 +250,6 @@ export default function PricingPage() {
               Monthly
             </Label>
             <Switch
-              id="billing-toggle"
               checked={billingCycle === 'yearly'}
               onCheckedChange={(checked) => setBillingCycle(checked ? 'yearly' : 'monthly')}
             />

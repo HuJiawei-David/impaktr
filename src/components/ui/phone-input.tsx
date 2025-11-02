@@ -34,8 +34,35 @@ export function PhoneInput({
   required = false,
   className = ''
 }: PhoneInputProps) {
-  const [selectedCountry, setSelectedCountry] = useState<CountryCode>(countryCodes[0]); // Default to USA
-  const [phoneNumber, setPhoneNumber] = useState(value);
+  // Parse initial value to extract country code and number
+  const parsePhoneNumber = (phoneValue: string) => {
+    if (!phoneValue || phoneValue.trim() === '') {
+      return { country: countryCodes[0], number: '' };
+    }
+    
+    // Find matching country code
+    const matchedCountry = countryCodes.find(country => 
+      phoneValue.startsWith(country.dialCode)
+    );
+    
+    if (matchedCountry) {
+      const number = phoneValue.substring(matchedCountry.dialCode.length);
+      return { country: matchedCountry, number };
+    }
+    
+    return { country: countryCodes[0], number: phoneValue };
+  };
+  
+  const initialParsed = parsePhoneNumber(value);
+  const [selectedCountry, setSelectedCountry] = useState<CountryCode>(initialParsed.country);
+  const [phoneNumber, setPhoneNumber] = useState(initialParsed.number);
+  
+  // Update when value prop changes (e.g., after form reset or data load)
+  React.useEffect(() => {
+    const parsed = parsePhoneNumber(value);
+    setSelectedCountry(parsed.country);
+    setPhoneNumber(parsed.number);
+  }, [value]);
 
   const handleCountryChange = (country: CountryCode) => {
     setSelectedCountry(country);
@@ -58,13 +85,13 @@ export function PhoneInput({
         </Label>
       )}
       
-      <div className="flex">
+      <div className="flex gap-2">
         {/* Country Code Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className="h-10 px-3 border-r-0 rounded-r-none border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="h-10 px-3 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <div className="flex items-center space-x-2">
                 <span className="text-lg">{selectedCountry.flag}</span>
@@ -101,7 +128,7 @@ export function PhoneInput({
           value={phoneNumber}
           onChange={handlePhoneChange}
           placeholder={placeholder}
-          className={`h-10 rounded-l-none border-l-0 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+          className={`h-10 flex-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
             error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''
           }`}
         />

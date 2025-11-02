@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -23,10 +23,10 @@ import {
   Heart,
   ArrowUpRight,
   Eye,
-  Share2,
   MessageCircle,
   ThumbsUp,
   User,
+  UserPlus,
   Image as ImageIcon,
   Video,
   FileText,
@@ -38,7 +38,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
-import { ImpaktrScore } from '@/components/dashboard/ImpaktrScore';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { BadgeProgress } from '@/components/dashboard/BadgeProgress';
 import { UpcomingEvents } from '@/components/dashboard/UpcomingEvents';
@@ -53,6 +52,41 @@ import { FeaturedOrganizations } from '@/components/dashboard/FeaturedOrganizati
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { getSDGById } from '@/constants/sdgs';
 import Link from 'next/link';
+
+// Helper function to get rank badge color
+function getRankBadgeColor(rank: string): string {
+  const rankColors: Record<string, string> = {
+    'Helper': '#9CA3AF',
+    'Supporter': '#22C55E',
+    'Contributor': '#3B82F6',
+    'Builder': '#A855F7',
+    'Advocate': '#F97316',
+    'Changemaker': '#EC4899',
+    'Mentor': '#6366F1',
+    'Leader': '#F59E0B',
+    'Ambassador': '#8B5CF6',
+    'Global Citizen': '#10B981',
+  };
+  return rankColors[rank] || '#9CA3AF';
+}
+
+// Helper function to format tier enum to display name
+function formatUserTier(tier: string | null | undefined): string {
+  if (!tier) return '';
+  switch (tier) {
+    case 'HELPER': return 'Helper';
+    case 'SUPPORTER': return 'Supporter';
+    case 'CONTRIBUTOR': return 'Contributor';
+    case 'BUILDER': return 'Builder';
+    case 'ADVOCATE': return 'Advocate';
+    case 'CHANGEMAKER': return 'Changemaker';
+    case 'MENTOR': return 'Mentor';
+    case 'LEADER': return 'Leader';
+    case 'AMBASSADOR': return 'Ambassador';
+    case 'GLOBAL_CITIZEN': return 'Global Citizen';
+    default: return tier;
+  }
+}
 
 interface UserProfile {
   id: string;
@@ -101,8 +135,18 @@ interface ProfileData {
     email?: string;
     image?: string;
     userType?: string;
+    tier?: string;
+    impactScore?: number;
     profileComplete?: boolean;
     profile?: UserProfile;
+    stats?: {
+      volunteerHours: number;
+      eventsJoined: number;
+      badgesEarned: number;
+      followers: number;
+      following: number;
+      rank: string;
+    };
     badges?: Array<{
       id: string;
       name: string;
@@ -153,6 +197,62 @@ export default function DashboardPage() {
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [showAllSDGs, setShowAllSDGs] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<Array<{
+    id: string;
+    user: {
+      id: string;
+      name: string | null;
+      image: string | null;
+      tier: string | null;
+      city: string | null;
+      country: string | null;
+      occupation: string | null;
+    };
+    sentAt: Date;
+  }>>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [badgeProgressData, setBadgeProgressData] = useState<{
+    sdgBadges?: Array<{
+      sdgNumber: number;
+      tiers: Array<{
+        progress: { hours: number; activities: number };
+        earned: boolean;
+      }>;
+    }>;
+  } | null>(null);
+
+  const fetchPendingConnections = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setPendingLoading(true);
+    try {
+      const response = await fetch('/api/users/connections/pending');
+      if (response.ok) {
+        const data = await response.json();
+        setPendingRequests(data.received || []);
+      }
+    } catch (error) {
+      console.error('Error fetching pending connections:', error);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, [user?.id]);
+
+  const fetchBadgeProgress = useCallback(async () => {
+    if (!profileData?.user?.id) return;
+    
+    try {
+      const response = await fetch(`/api/badges?type=individual&userId=${profileData.user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setBadgeProgressData({
+          sdgBadges: data.sdgBadges || []
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching badge progress:', error);
+    }
+  }, [profileData?.user?.id]);
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) return;
@@ -221,8 +321,16 @@ export default function DashboardPage() {
 
     if (user?.id) {
       fetchProfileData();
+      fetchPendingConnections();
     }
-  }, [user?.id, isLoading, router, isRedirecting]);
+  }, [user?.id, isLoading, router, isRedirecting, fetchPendingConnections]);
+
+  // Fetch badge progress when profile data is available
+  useEffect(() => {
+    if (profileData?.user?.id) {
+      fetchBadgeProgress();
+    }
+  }, [profileData?.user?.id, fetchBadgeProgress]);
 
   if (isLoading || isRedirecting || profileLoading) {
     return (
@@ -247,11 +355,31 @@ export default function DashboardPage() {
         <div className="relative pb-6">
           <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl">
             <CardContent className="p-6">
-                {/* User Type Badge - Top Right */}
+                {/* User Type/Rank Badge - Top Right */}
                 <div className="absolute top-4 right-4">
-                  <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-1 font-medium">
-                    ⚡ {user?.userType === 'NGO' ? 'NGO' : user?.userType === 'COMPANY' ? 'Company' : 'Individual'}
-                  </Badge>
+                  {user?.userType === 'INDIVIDUAL' && profileData?.user?.tier ? (
+                    (() => {
+                      const tierDisplayName = formatUserTier(profileData.user.tier);
+                      const tierColor = getRankBadgeColor(tierDisplayName);
+                      return (
+                        <Badge 
+                          className="text-xs px-3 py-1 font-medium"
+                          style={{
+                            backgroundColor: `${tierColor}20`,
+                            color: tierColor,
+                            borderColor: tierColor,
+                            borderWidth: '1px'
+                          }}
+                        >
+                          {tierDisplayName}
+                        </Badge>
+                      );
+                    })()
+                  ) : (
+                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-2 py-1 font-medium">
+                      ⚡ {user?.userType === 'NGO' ? 'NGO' : user?.userType === 'COMPANY' ? 'Company' : 'Individual'}
+                    </Badge>
+                  )}
                 </div>
 
                 <div className="flex flex-col md:flex-row items-start gap-6">
@@ -277,9 +405,11 @@ export default function DashboardPage() {
                       </div>
                       
                       {/* Description */}
-                      <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl leading-relaxed">
-                        Impact Contributor passionate about creating positive change in the community through sustainable actions and meaningful connections.
-                      </p>
+                      {profileData?.user?.profile?.bio && (
+                        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl leading-relaxed">
+                          {profileData.user.profile.bio}
+                        </p>
+                      )}
 
                       {/* Stats */}
                       <div className="flex flex-wrap items-center gap-6 text-base">
@@ -287,21 +417,21 @@ export default function DashboardPage() {
                           <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
                             <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                           </div>
-                          <span className="font-semibold">2,347</span>
+                          <span className="font-semibold">{profileData?.user?.impactScore?.toLocaleString() || 0}</span>
                           <span className="text-gray-500 dark:text-gray-400">impact score</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
                             <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                           </div>
-                          <span className="font-semibold">87.5</span>
+                          <span className="font-semibold">{profileData?.user?.stats?.volunteerHours || 0}</span>
                           <span className="text-gray-500 dark:text-gray-400">hours</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
                             <Award className="w-5 h-5 text-green-600 dark:text-green-400" />
                           </div>
-                          <span className="font-semibold">12</span>
+                          <span className="font-semibold">{profileData?.user?.stats?.badgesEarned || 0}</span>
                           <span className="text-gray-500 dark:text-gray-400">badges</span>
                         </div>
                         <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
@@ -309,32 +439,25 @@ export default function DashboardPage() {
                             <Globe className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                           </div>
                           <span className="text-gray-500 dark:text-gray-400">
-                            {profileData?.user?.profile?.state && profileData?.user?.profile?.country 
-                              ? `${profileData.user.profile.state}, ${profileData.user.profile.country}`
-                              : profileData?.user?.profile?.country || 'Location not set'
+                            {profileData?.user?.profile?.city && profileData?.user?.profile?.country 
+                              ? `${profileData.user.profile.city}, ${profileData.user.profile.country}`
+                              : profileData?.user?.profile?.city || profileData?.user?.profile?.country || 'Location not set'
                             }
                           </span>
                         </div>
                       </div>
 
-                      {/* Action Buttons */}
+                      {/* Action Button */}
                       <div className="flex flex-wrap items-center gap-3 pt-2">
-                        <Button variant="outline" size="sm" className="text-sm px-4 py-2">
-                          <User className="w-4 h-4 mr-2" />
-                          Edit Profile
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 text-sm px-4 py-2"
-                          onClick={() => {
-                            const profileUrl = `${window.location.origin}/profile/${user?.id}`;
-                            navigator.clipboard.writeText(profileUrl);
-                            alert('Profile link copied to clipboard!');
-                          }}
-                        >
-                          <Share2 className="w-4 h-4 mr-2" />
-                          Share Profile
-                        </Button>
+                        <Link href="/profile">
+                          <Button 
+                            size="sm" 
+                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 text-sm px-4 py-2"
+                          >
+                            <User className="w-4 h-4 mr-2" />
+                            Profile Page
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -525,7 +648,9 @@ export default function DashboardPage() {
                         <TrendingUp className="w-4 h-4 text-white" />
                       </div>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900 dark:text-white text-center">2,347</div>
+                    <div className="text-3xl font-bold text-gray-900 dark:text-white text-center">
+                      {profileData?.user?.impactScore?.toLocaleString() || 0}
+                    </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400 text-center">Impact Score</div>
                   </div>
                 </div>
@@ -537,7 +662,9 @@ export default function DashboardPage() {
                         <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       </div>
                     </div>
-                    <div className="text-xl font-bold text-gray-900 dark:text-white text-center">87.5</div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white text-center">
+                      {profileData?.user?.stats?.volunteerHours || 0}
+                    </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 text-center">Hours</div>
                   </div>
                   <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-transparent">
@@ -546,7 +673,9 @@ export default function DashboardPage() {
                         <Award className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                       </div>
                     </div>
-                    <div className="text-xl font-bold text-gray-900 dark:text-white text-center">12</div>
+                    <div className="text-xl font-bold text-gray-900 dark:text-white text-center">
+                      {profileData?.user?.stats?.badgesEarned || 0}
+                    </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 text-center">Badges</div>
                   </div>
                 </div>
@@ -614,9 +743,19 @@ export default function DashboardPage() {
                         </Avatar>
                         <div>
                           <p className="font-semibold text-gray-900 dark:text-white">{user?.name}</p>
-                          <Badge className="text-xs px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            Supporter
-                          </Badge>
+                          {profileData?.user?.tier && (
+                            <Badge 
+                              className="text-xs px-3 py-1 font-medium" 
+                              style={{
+                                backgroundColor: `${getRankBadgeColor(formatUserTier(profileData.user.tier))}20`,
+                                color: getRankBadgeColor(formatUserTier(profileData.user.tier)),
+                                borderColor: getRankBadgeColor(formatUserTier(profileData.user.tier)),
+                                borderWidth: '1px'
+                              }}
+                            >
+                              {formatUserTier(profileData.user.tier)}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => { setShowCreatePost(false); setNewPostContent(''); }}>
@@ -677,34 +816,81 @@ export default function DashboardPage() {
                 {/* Global Rank - Prominent Display */}
                 <div className="text-center">
                   <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                    #2,847
+                    {profileData?.user?.stats?.rank ? `#${profileData.user.stats.rank}` : '#-'}
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">Global Rank</div>
                 </div>
 
                 {/* Additional Stats */}
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
-                    <span className="text-gray-500 dark:text-gray-400">Country Rank</span>
-                    <span className="font-medium text-gray-900 dark:text-white">#284</span>
-                  </div>
-                  <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
-                    <span className="text-gray-500 dark:text-gray-400">SDG Areas</span>
-                    <span className="font-medium text-gray-900 dark:text-white">6 SDGs</span>
-                  </div>
-                </div>
-                
-                {/* Progress Section */}
-                <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <div className="flex justify-between items-center text-xs mb-1">
-                    <span className="text-gray-500 dark:text-gray-400">Progress to Builder</span>
-                    <span className="font-medium text-gray-900 dark:text-white">74%</span>
-                  </div>
-                  <Progress value={74} className="h-2" />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">53 points needed</p>
+                  {(() => {
+                    const sdgCount = badgeProgressData?.sdgBadges?.filter(sdg => 
+                      sdg.tiers.some(t => t.progress.hours > 0 || t.earned || t.progress.activities > 0)
+                    ).length || 0;
+                    return sdgCount > 0 ? (
+                      <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
+                        <span className="text-gray-500 dark:text-gray-400">SDG Areas</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{sdgCount} SDGs</span>
+                      </div>
+                    ) : null;
+                  })()}
+                  {profileData?.user?.stats?.followers !== undefined && (
+                    <div className="flex justify-between text-xs bg-white dark:bg-gray-700 rounded-lg p-2 shadow-sm border border-gray-200 dark:border-transparent">
+                      <span className="text-gray-500 dark:text-gray-400">Connections</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{profileData.user.stats.followers}</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
+
+            {/* Pending Connection Requests */}
+            {pendingRequests.length > 0 && (
+              <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 border-l-4 border-l-yellow-500">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-900 dark:text-white flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-yellow-500 to-orange-500 flex items-center justify-center mr-2">
+                        <UserPlus className="w-4 h-4 text-white" />
+                      </div>
+                      Connection Requests ({pendingRequests.length})
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  {pendingRequests.slice(0, 3).map((request) => (
+                    <Link
+                      key={request.id}
+                      href={`/profile/${request.user.id}`}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={request.user.image || ''} alt={request.user.name || ''} />
+                        <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs">
+                          {request.user.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {request.user.name || 'Unknown User'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Wants to connect
+                        </p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    </Link>
+                  ))}
+                  {pendingRequests.length > 3 && (
+                    <Link href="/profile?tab=connections">
+                      <Button variant="ghost" size="sm" className="w-full text-xs">
+                        View All {pendingRequests.length} Requests
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Recent Connections/Followers */}
             <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">

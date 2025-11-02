@@ -265,7 +265,7 @@ export default function OrganizationProfilePage() {
 
       <div className="container mx-auto px-4 max-w-7xl">
         {/* Profile Header Card - Overlaps Banner */}
-        <Card className="relative -mt-20 mb-6 border-0 shadow-xl dark:bg-gray-800 dark:border dark:border-gray-700">
+        <Card className="relative -mt-20 mb-6 border-0 shadow-xl bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
           <CardContent className="p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start gap-6">
               {/* Logo */}
@@ -427,7 +427,7 @@ export default function OrganizationProfilePage() {
 
         {/* Key Metrics Dashboard */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-          <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
@@ -439,7 +439,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
@@ -451,7 +451,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
@@ -463,7 +463,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
@@ -475,7 +475,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center">
@@ -487,7 +487,7 @@ export default function OrganizationProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
@@ -536,7 +536,7 @@ export default function OrganizationProfilePage() {
               <TabsContent value="about" className="mt-6 space-y-6">
                 {/* Mission & Vision */}
                 {(profile.mission || profile.vision) && (
-                  <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                     <CardHeader>
                       <CardTitle className="flex items-center text-gray-900 dark:text-white">
                         <Target className="w-5 h-5 mr-2 text-blue-600" />
@@ -562,7 +562,7 @@ export default function OrganizationProfilePage() {
 
                 {/* SDG Focus Areas */}
                 {profile.sdgFocus && profile.sdgFocus.length > 0 && (
-                  <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                     <CardHeader>
                       <CardTitle className="flex items-center text-gray-900 dark:text-white">
                         <Zap className="w-5 h-5 mr-2 text-blue-600" />
@@ -596,7 +596,7 @@ export default function OrganizationProfilePage() {
                 )}
 
                 {/* Organization Details */}
-                <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                   <CardHeader>
                     <CardTitle className="flex items-center text-gray-900 dark:text-white">
                       <Building2 className="w-5 h-5 mr-2 text-blue-600" />
@@ -651,7 +651,7 @@ export default function OrganizationProfilePage() {
 
                 {/* Values */}
                 {profile.values && profile.values.length > 0 && (
-                  <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                     <CardHeader>
                       <CardTitle className="flex items-center text-gray-900 dark:text-white">
                         <Heart className="w-5 h-5 mr-2 text-blue-600" />
@@ -675,7 +675,7 @@ export default function OrganizationProfilePage() {
               {/* Impact Tab */}
               <TabsContent value="impact" className="mt-6 space-y-6">
                 {/* Impact Highlights */}
-                <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                   <CardHeader>
                     <CardTitle className="flex items-center text-gray-900 dark:text-white">
                       <Activity className="w-5 h-5 mr-2 text-blue-600" />
@@ -718,7 +718,7 @@ export default function OrganizationProfilePage() {
 
                 {/* Badges & Achievements */}
                 {profile.badges && profile.badges.length > 0 && (
-                  <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                     <CardHeader>
                       <CardTitle className="flex items-center text-gray-900 dark:text-white">
                         <Award className="w-5 h-5 mr-2 text-blue-600" />
@@ -748,7 +748,7 @@ export default function OrganizationProfilePage() {
 
               {/* Events Tab */}
               <TabsContent value="events" className="mt-6 space-y-6">
-                <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center text-gray-900 dark:text-white">
@@ -828,7 +828,7 @@ export default function OrganizationProfilePage() {
 
               {/* Team Tab */}
               <TabsContent value="team" className="mt-6 space-y-6">
-                <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+                <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center text-gray-900 dark:text-white">
@@ -891,7 +891,7 @@ export default function OrganizationProfilePage() {
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
             {/* Quick Stats */}
-            <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
               <CardHeader>
                 <CardTitle className="text-gray-900 dark:text-white">Profile Strength</CardTitle>
               </CardHeader>
@@ -933,7 +933,7 @@ export default function OrganizationProfilePage() {
             </Card>
 
             {/* Profile Views */}
-            <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -947,7 +947,7 @@ export default function OrganizationProfilePage() {
             </Card>
 
             {/* Contact Info */}
-            <Card className="border-0 shadow-sm dark:bg-gray-800 dark:border dark:border-gray-700">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800 dark:border dark:border-gray-700">
               <CardHeader>
                 <CardTitle className="text-gray-900 dark:text-white">Contact Information</CardTitle>
               </CardHeader>

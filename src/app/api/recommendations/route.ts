@@ -32,18 +32,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot recommend yourself' }, { status: 400 });
     }
 
-    // For now, we'll just return success since we don't have a Recommendation model yet
-    // In a real implementation, you would save this to the database
+    // Check if user already recommended this person
+    const existingRecommendation = await prisma.recommendation.findFirst({
+      where: {
+        userId: userId,
+        authorId: session.user.id
+      }
+    });
+
+    if (existingRecommendation) {
+      // Update existing recommendation
+      const updated = await prisma.recommendation.update({
+        where: { id: existingRecommendation.id },
+        data: {
+          text: text.trim(),
+          authorType: type,
+          updatedAt: new Date()
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              userType: true,
+              tier: true
+            }
+          }
+        }
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Recommendation updated successfully',
+        recommendation: updated
+      });
+    }
+
+    // Create new recommendation
+    const recommendation = await prisma.recommendation.create({
+      data: {
+        userId: userId,
+        authorId: session.user.id,
+        authorType: type,
+        text: text.trim()
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            userType: true,
+            tier: true
+          }
+        }
+      }
+    });
     
     return NextResponse.json({ 
       success: true, 
-      message: 'Recommendation submitted successfully' 
+      message: 'Recommendation submitted successfully',
+      recommendation: recommendation
     });
 
   } catch (error) {
     console.error('Error submitting recommendation:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

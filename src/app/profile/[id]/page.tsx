@@ -31,7 +31,8 @@ import {
   Plus,
   MessageSquare,
   ThumbsUp,
-  ArrowLeft
+  ArrowLeft,
+  CheckCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { getSDGById } from '@/constants/sdgs';
 import { ShareProfileModal } from '@/components/profile/ShareProfileModal';
+import { 
+  getSDGBadgeImage,
+  getRankBadgeImage
+} from '@/lib/badge-config';
 
 // Helper: generate deterministic color classes for skill badges
 function getSkillBadgeClasses(skillName: string): string {
@@ -65,6 +70,37 @@ function getSkillBadgeClasses(skillName: string): string {
   let hash = 0;
   for (let i = 0; i < skillName.length; i++) {
     hash = (hash * 31 + skillName.charCodeAt(i)) | 0;
+  }
+  const idx = Math.abs(hash) % palette.length;
+  return palette[idx];
+}
+
+// Helper: generate deterministic color classes for language badges
+function getLanguageBadgeClasses(language: string): string {
+  const predefined: Record<string, string> = {
+    'English': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    'Spanish': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    'French': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+    'Mandarin': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    'German': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    'Japanese': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+    'Portuguese': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    'Italian': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+    'Arabic': 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+    'Russian': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+  };
+  if (predefined[language]) return predefined[language];
+  const palette = [
+    'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
+    'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+    'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200',
+    'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200',
+    'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200',
+    'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200',
+  ];
+  let hash = 0;
+  for (let i = 0; i < language.length; i++) {
+    hash = (hash * 31 + language.charCodeAt(i)) | 0;
   }
   const idx = Math.abs(hash) % palette.length;
   return palette[idx];
@@ -132,6 +168,7 @@ interface UserProfile {
     eventCount: number;
   }[];
   certificateCount: number;
+  languages?: string[];
   certificates: {
     id: string;
     title: string;
@@ -155,14 +192,18 @@ interface UserProfile {
 
 const getTierColor = (tier: string) => {
   const tierMap: Record<string, string> = {
-    'BEGINNER': 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800',
-    'SUPPORTER': 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
-    'ADVOCATE': 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
-    'CHAMPION': 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30',
-    'HERO': 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30',
-    'LEGEND': 'text-pink-600 bg-pink-100 dark:text-pink-400 dark:bg-pink-900/30',
+    'HELPER': 'text-gray-700 bg-gray-100 dark:text-gray-300 dark:bg-gray-800 border border-gray-300 dark:border-gray-700',
+    'SUPPORTER': 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/40 border border-green-300 dark:border-green-700',
+    'CONTRIBUTOR': 'text-blue-700 bg-blue-100 dark:text-blue-300 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700',
+    'BUILDER': 'text-purple-700 bg-purple-100 dark:text-purple-300 dark:bg-purple-900/40 border border-purple-300 dark:border-purple-700',
+    'ADVOCATE': 'text-orange-700 bg-orange-100 dark:text-orange-300 dark:bg-orange-900/40 border border-orange-300 dark:border-orange-700',
+    'CHANGEMAKER': 'text-pink-700 bg-pink-100 dark:text-pink-300 dark:bg-pink-900/40 border border-pink-300 dark:border-pink-700',
+    'MENTOR': 'text-indigo-700 bg-indigo-100 dark:text-indigo-300 dark:bg-indigo-900/40 border border-indigo-300 dark:border-indigo-700',
+    'LEADER': 'text-amber-700 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700',
+    'AMBASSADOR': 'text-violet-700 bg-violet-100 dark:text-violet-300 dark:bg-violet-900/40 border border-violet-300 dark:border-violet-700',
+    'GLOBAL_CITIZEN': 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-900/40 border border-emerald-300 dark:border-emerald-700',
   };
-  return tierMap[tier] || tierMap['BEGINNER'];
+  return tierMap[tier] || tierMap['HELPER'];
 };
 
 const formatTierName = (tier: string) => {
@@ -216,6 +257,43 @@ export default function PublicProfilePage() {
     authorTier?: string;
   }>>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [badgeProgressData, setBadgeProgressData] = useState<{
+    rankProgress: {
+      currentRank: { rank: string; name: string; icon: string };
+      nextRank: { rank: string; name: string; requirements: { minScore: number; minHours: number; minBadges: number }; progress: { score: number; hours: number; badges: number } } | null;
+      currentProgress: { score: number; hours: number; badges: number };
+    };
+    sdgBadges: Array<{
+      sdgNumber: number;
+      sdgName: string;
+      icon: string;
+      color: string;
+      tiers: Array<{
+        tier: string;
+        name: string;
+        description: string;
+        requirements: { minHours: number; minActivities: number };
+        progress: { hours: number; activities: number; percentage: number };
+        earned: boolean;
+      }>;
+    }>;
+  } | null>(null);
+  const [badgeProgressLoading, setBadgeProgressLoading] = useState(false);
+  const [connections, setConnections] = useState<Array<{
+    id: string;
+    connectedAt: string;
+    user: {
+      id: string;
+      name: string | null;
+      image: string | null;
+      tier: string | null;
+      city: string | null;
+      country: string | null;
+      occupation: string | null;
+      userType?: string;
+    };
+  }>>([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -258,6 +336,53 @@ export default function PublicProfilePage() {
     }
   }, [userId]);
 
+  const fetchBadgeProgress = useCallback(async () => {
+    setBadgeProgressLoading(true);
+    try {
+      const response = await fetch(`/api/badges?type=individual&userId=${userId}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Badge progress data:', data);
+        setBadgeProgressData({
+          rankProgress: {
+            currentRank: data.currentRank,
+            nextRank: data.nextRank,
+            currentProgress: data.currentProgress
+          },
+          sdgBadges: data.sdgBadges || []
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch badge progress:', response.status, errorData);
+      }
+    } catch (error) {
+      console.error('Error fetching badge progress:', error);
+    } finally {
+      setBadgeProgressLoading(false);
+    }
+  }, [userId]);
+
+  const fetchConnections = useCallback(async () => {
+    // Only fetch if viewing own profile
+    if (!session?.user?.id || session.user.id !== userId) return;
+    
+    setConnectionsLoading(true);
+    try {
+      // Fetch connections for the current logged-in user (their own connections)
+      const response = await fetch('/api/users/connections');
+      
+      if (response.ok) {
+        const data = await response.json();
+        setConnections(data.connections || []);
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error);
+    } finally {
+      setConnectionsLoading(false);
+    }
+  }, [userId, session?.user?.id]);
+
   useEffect(() => {
     if (status === 'loading') return;
     
@@ -279,8 +404,9 @@ export default function PublicProfilePage() {
   useEffect(() => {
     if (profile) {
       fetchRecommendations();
+      fetchBadgeProgress();
     }
-  }, [profile, fetchRecommendations]);
+  }, [profile, fetchRecommendations, fetchBadgeProgress]);
 
   // Fetch recommendations when recommendations tab becomes active (for full data)
   useEffect(() => {
@@ -288,6 +414,20 @@ export default function PublicProfilePage() {
       fetchRecommendations();
     }
   }, [activeTab, profile, fetchRecommendations]);
+
+  // Fetch badge progress when badges tab becomes active
+  useEffect(() => {
+    if (activeTab === 'badges' && profile && !badgeProgressData) {
+      fetchBadgeProgress();
+    }
+  }, [activeTab, profile, badgeProgressData, fetchBadgeProgress]);
+
+  // Fetch connections when connections tab becomes active
+  useEffect(() => {
+    if (activeTab === 'connections' && profile && session?.user?.id) {
+      fetchConnections();
+    }
+  }, [activeTab, profile, session?.user?.id, fetchConnections]);
 
   const handleConnect = async () => {
     if (!session?.user?.id) return;
@@ -400,14 +540,21 @@ export default function PublicProfilePage() {
         }),
       });
       
+      const data = await response.json();
+      
       if (response.ok) {
         setRecommendationText('');
         setShowRecommendationForm(false);
         // Refresh recommendations after successful submission
         await fetchRecommendations();
+      } else {
+        // Show error message to user
+        alert(data.error || 'Failed to submit recommendation. Please try again.');
+        console.error('Recommendation submission error:', data);
       }
     } catch (error) {
       console.error('Error submitting recommendation:', error);
+      alert('An error occurred while submitting your recommendation. Please try again.');
     } finally {
       setRecommendationLoading(false);
     }
@@ -424,7 +571,7 @@ export default function PublicProfilePage() {
   if (error || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Card className="max-w-md w-full">
+        <Card className="max-w-md w-full bg-white dark:bg-gray-800">
           <CardContent className="p-12 text-center">
             <User className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
@@ -475,7 +622,7 @@ export default function PublicProfilePage() {
         {/* Profile Info */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="relative -mt-48 pb-6">
-            <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl">
+            <Card className="border-2 border-gray-100 dark:border-gray-800 shadow-xl bg-white dark:bg-gray-800">
               <CardContent className="p-6">
                 {/* Tier Badge - Top Right */}
                 <div className="absolute top-4 right-4">
@@ -575,7 +722,18 @@ export default function PublicProfilePage() {
                           </Button>
                         ) : connectionStatus === 'PENDING' ? (
                           <>
-                            {!profile?.isConnectionRequester ? (
+                            {profile?.isConnectionRequester ? (
+                              // We sent the request - show "Requested" (can cancel)
+                              <Button
+                                onClick={handleConnect}
+                                disabled={connectionLoading}
+                                variant="outline"
+                                className="flex-1 sm:flex-none"
+                              >
+                                <Clock className="w-4 h-4 mr-2" />
+                                Requested
+                              </Button>
+                            ) : (
                               // We received the request - show Accept/Reject
                               <>
                                 <Button
@@ -595,17 +753,6 @@ export default function PublicProfilePage() {
                                   Reject
                                 </Button>
                               </>
-                            ) : (
-                              // We sent the request - show Pending (can cancel)
-                              <Button
-                                onClick={handleConnect}
-                                disabled={connectionLoading}
-                                variant="outline"
-                                className="flex-1 sm:flex-none"
-                              >
-                                <Clock className="w-4 h-4 mr-2" />
-                                Pending
-                              </Button>
                             )}
                           </>
                         ) : (
@@ -645,7 +792,7 @@ export default function PublicProfilePage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -661,7 +808,7 @@ export default function PublicProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -677,7 +824,7 @@ export default function PublicProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -693,7 +840,7 @@ export default function PublicProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-sm">
+          <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -789,7 +936,7 @@ export default function PublicProfilePage() {
             {activeTab === 'about' && (
               <div className="space-y-6">
                 {/* Bio Section */}
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <User className="w-5 h-5 text-blue-600" />
@@ -811,7 +958,7 @@ export default function PublicProfilePage() {
 
                 {/* Organizations Worked With */}
                 {profile.organizationsWorkedWith && profile.organizationsWorkedWith.length > 0 && (
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Building2 className="w-5 h-5 text-blue-600" />
@@ -863,7 +1010,7 @@ export default function PublicProfilePage() {
 
                   {/* Demonstrated Skills */}
                   {profile.autoTaggedSkills && profile.autoTaggedSkills.length > 0 && (
-                    <Card className="border-0 shadow-sm">
+                    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Zap className="w-5 h-5 text-yellow-600" />
@@ -895,7 +1042,7 @@ export default function PublicProfilePage() {
 
                   {/* SDG Participation */}
                   {profile.sdgParticipations && profile.sdgParticipations.length > 0 && (
-                    <Card className="border-0 shadow-sm">
+                    <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                           <Target className="w-5 h-5 text-purple-600" />
@@ -912,8 +1059,8 @@ export default function PublicProfilePage() {
                             if (!sdgInfo) return null;
                             
                             return (
-                              <div key={index} className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                              <div key={index} className="flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
                                   <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0">
                                     <Image 
                                       src={sdgInfo.image} 
@@ -935,16 +1082,16 @@ export default function PublicProfilePage() {
                                       }}
                                     />
                                   </div>
-                                  <div>
+                                  <div className="min-w-0">
                                     <p className="font-medium text-gray-900 dark:text-white text-sm">
                                       SDG {sdgInfo.id}
                                     </p>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                                       {sdgInfo.title}
                                     </p>
                                   </div>
                                 </div>
-                                <Badge className="px-3 py-1 text-white" style={{ backgroundColor: sdgInfo.color }}>
+                                <Badge className="px-3 py-1 text-white whitespace-nowrap flex-shrink-0" style={{ backgroundColor: sdgInfo.color }}>
                                   {sdgData.eventCount} {sdgData.eventCount === 1 ? 'event' : 'events'}
                                 </Badge>
                               </div>
@@ -979,11 +1126,57 @@ export default function PublicProfilePage() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* SDG Focus Areas */}
+                {profile.sdgFocus && profile.sdgFocus.length > 0 && (
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Target className="w-5 h-5 text-purple-600" />
+                        SDG Focus Areas ({profile.sdgFocus.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Sustainable Development Goals of interest
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {profile.sdgFocus.map((sdgId: number) => {
+                          const sdgInfo = getSDGById(sdgId);
+                          if (!sdgInfo) return null;
+                          
+                          return (
+                            <Badge 
+                              key={sdgId} 
+                              variant="outline" 
+                              className="px-3 py-1 text-sm flex items-center gap-1.5"
+                              style={{ borderColor: sdgInfo.color }}
+                            >
+                              <Image 
+                                src={sdgInfo.image || ''} 
+                                alt={`SDG ${sdgInfo.id}`}
+                                width={16}
+                                height={16}
+                                className="w-4 h-4 flex-shrink-0"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                              <span className="font-semibold">SDG {sdgInfo.id}</span>
+                              <span className="text-gray-600 dark:text-gray-400">{sdgInfo.title}</span>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
 
             {activeTab === 'activities' && (
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-blue-600" />
@@ -1023,14 +1216,14 @@ export default function PublicProfilePage() {
                                     <span
                                       key={sdg.id}
                                       className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                                      style={{ backgroundColor: sdg.color }}
+                                style={{ backgroundColor: sdg.color }}
                                       title={`SDG ${sdg.id}: ${sdg.title}`}
-                                    >
+                              >
                                       SDG {sdg.id}
                                     </span>
                                   ))}
-                                </div>
-                              )}
+                              </div>
+                            )}
                             </div>
                           </div>
                         </div>
@@ -1049,61 +1242,123 @@ export default function PublicProfilePage() {
             {activeTab === 'badges' && (
               <div className="space-y-6">
                 {/* Overall Rank Progress */}
-                <Card className="border-0 shadow-sm">
-                  <CardHeader>
+                <Card className="relative overflow-hidden border-0 shadow-lg bg-white dark:bg-gray-800">
+                  {/* Gradient Background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10" />
+                  
+                  <CardHeader className="relative">
                     <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-blue-600" />
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        <TrendingUp className="w-5 h-5 text-white" />
+                      </div>
                       Overall Rank Progress
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="text-center">
-                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                          {profile.tier}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Current Rank
-                        </p>
+                  <CardContent className="relative space-y-6">
+                    {/* Current Rank - Large Display */}
+                    <div className="text-center py-6 px-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
+                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4 shadow-lg">
+                        <Award className="w-10 h-10 text-white" />
+                      </div>
+                      <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                        {profile.tier}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        Current Rank
+                      </p>
           </div>
 
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Impact Score</span>
-                          <span className="font-medium text-gray-900 dark:text-white">
-                            {profile.impactScore.toLocaleString()}
-                          </span>
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 text-center">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-2">
+                          <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Volunteer Hours</span>
-                          <span className="font-medium text-gray-900 dark:text-white">
-                            {profile.volunteerHours}h
-                          </span>
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                          {profile.impactScore.toLocaleString()}
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Events Joined</span>
-                          <span className="font-medium text-gray-900 dark:text-white">
-                            {profile.eventsJoined}
-                          </span>
-                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">Impact Score</div>
                       </div>
-
-                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <div className="text-center">
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            Next Rank
-                          </p>
-                          <Badge className="px-3 py-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                            {getNextRankName(profile.tier) || 'Maxed Out'}
-                          </Badge>
+                      
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 text-center">
+                        <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-2">
+                          <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         </div>
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                          {profile.volunteerHours}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">Hours</div>
+                      </div>
+                      
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 text-center">
+                        <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-2">
+                          <Calendar className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                          {profile.eventsJoined}
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400">Events</div>
                       </div>
                     </div>
+
+                    {/* Next Rank Progress */}
+                    {badgeProgressData?.rankProgress?.nextRank ? (
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Next Rank</p>
+                            <Badge className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold">
+                              {badgeProgressData.rankProgress.nextRank.name}
+                            </Badge>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                              {Math.round((badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100)}%
+                            </p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">Complete</p>
+                          </div>
+                        </div>
+                        <Progress 
+                          value={(badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100} 
+                          className="h-3 mb-4" 
+                        />
+                        <div className="grid grid-cols-3 gap-3 text-xs">
+                          <div className="text-center">
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                              {badgeProgressData.rankProgress.currentProgress.score}/{badgeProgressData.rankProgress.nextRank.requirements.minScore}
+                            </p>
+                            <p className="text-gray-600 dark:text-gray-400">Score</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                              {badgeProgressData.rankProgress.currentProgress.hours}/{badgeProgressData.rankProgress.nextRank.requirements.minHours}
+                            </p>
+                            <p className="text-gray-600 dark:text-gray-400">Hours</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="font-semibold text-gray-900 dark:text-white">
+                              {badgeProgressData.rankProgress.currentProgress.badges}/{badgeProgressData.rankProgress.nextRank.requirements.minBadges}
+                            </p>
+                            <p className="text-gray-600 dark:text-gray-400">Badges</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl p-5 border border-yellow-200 dark:border-yellow-800">
+                        <div className="flex items-center justify-center gap-2 text-yellow-900 dark:text-yellow-200">
+                          <Star className="w-6 h-6 fill-current" />
+                          <p className="font-semibold text-lg">Maximum Rank Achieved!</p>
+                        </div>
+                        <p className="text-center text-sm text-yellow-800 dark:text-yellow-300 mt-2">
+                          You&apos;ve reached the highest rank. Keep making an impact!
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
                 {/* All Badges */}
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
@@ -1152,7 +1407,187 @@ export default function PublicProfilePage() {
                 </Card>
 
                 {/* SDG Badge Progress */}
-                {profile.sdgBreakdown && profile.sdgBreakdown.length > 0 && (
+                {badgeProgressLoading ? (
+                  <Card className="relative overflow-hidden border-0 shadow-lg bg-white dark:bg-gray-800">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-green-500/10" />
+                    <CardHeader className="relative">
+                      <CardTitle className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 flex items-center justify-center">
+                          <Target className="w-5 h-5 text-white" />
+                        </div>
+                        SDG Badge Progress
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="relative">
+                      <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl p-5">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+                              <div className="flex-1 space-y-2">
+                                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/3"></div>
+                                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                              </div>
+                            </div>
+                            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded mb-3"></div>
+                            <div className="flex gap-3">
+                              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded flex-1"></div>
+                              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded flex-1"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : badgeProgressData && badgeProgressData.sdgBadges && badgeProgressData.sdgBadges.length > 0 && badgeProgressData.sdgBadges.filter(sdg => sdg.tiers.some(t => t.progress.hours > 0 || t.earned || t.progress.activities > 0)).length > 0 ? (
+                  <Card className="relative overflow-hidden border-0 shadow-lg bg-white dark:bg-gray-800">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-green-500/10" />
+                    <CardHeader className="relative">
+                      <CardTitle className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 flex items-center justify-center">
+                          <Target className="w-5 h-5 text-white" />
+                        </div>
+                        SDG Badge Progress
+                      </CardTitle>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        Track your progress across UN Sustainable Development Goals
+                      </p>
+                    </CardHeader>
+                    <CardContent className="relative">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        {badgeProgressData.sdgBadges
+                          .filter(sdg => sdg.tiers.some(t => t.progress.hours > 0 || t.earned || t.progress.activities > 0))
+                          .map((sdgBadge) => {
+                            const sdgInfo = getSDGById(sdgBadge.sdgNumber);
+                            const earnedTiers = sdgBadge.tiers.filter(tier => tier.earned);
+                            const currentTier = earnedTiers.length > 0 ? earnedTiers[earnedTiers.length - 1] : null;
+                            const nextTier = sdgBadge.tiers.find(tier => !tier.earned);
+                            // All tiers have the same progress.hours value, so just take it from the first tier
+                            const totalHours = sdgBadge.tiers.length > 0 ? sdgBadge.tiers[0].progress.hours : 0;
+                            const totalActivities = sdgBadge.tiers.length > 0 ? sdgBadge.tiers[0].progress.activities : 0;
+                            
+                            const getTierBadgeColorClass = (tier: string) => {
+                              if (tier === 'SUPPORTER') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+                              if (tier === 'BUILDER') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+                              if (tier === 'CHAMPION') return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+                              if (tier === 'GUARDIAN') return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+                              return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+                            };
+
+                            return (
+                              <div key={sdgBadge.sdgNumber} className="group relative bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 rounded-2xl p-5 hover:shadow-2xl transition-all duration-300 hover:border-purple-300 dark:hover:border-purple-600 hover:-translate-y-1">
+                                {/* Subtle gradient overlay on hover */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-blue-500/0 group-hover:from-purple-500/5 group-hover:to-blue-500/5 rounded-2xl transition-all duration-300" />
+                                
+                                <div className="relative">
+                                  {/* Header with Badge and Info */}
+                                  <div className="flex items-center gap-4 mb-4">
+                                    <div className="relative w-16 h-16 rounded-2xl flex-shrink-0 overflow-hidden shadow-lg ring-2 ring-white dark:ring-gray-800 group-hover:ring-purple-200 dark:group-hover:ring-purple-800 transition-all">
+                                      {currentTier ? (
+                                        <Image
+                                          src={getSDGBadgeImage(sdgBadge.sdgNumber, currentTier.tier as 'SUPPORTER' | 'BUILDER' | 'CHAMPION' | 'GUARDIAN')}
+                                          alt={`${currentTier.name} - SDG ${sdgBadge.sdgNumber}`}
+                                          width={64}
+                                          height={64}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : sdgInfo ? (
+                                        <Image 
+                                          src={sdgInfo.image} 
+                                          alt={`SDG ${sdgBadge.sdgNumber}`}
+                                          width={64}
+                                          height={64}
+                                          className="w-full h-full object-cover opacity-50 grayscale group-hover:grayscale-0 transition-all"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
+                                          <Award className="w-8 h-8 text-gray-400" />
+                                        </div>
+                                      )}
+                                      {earnedTiers.length > 0 && (
+                                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                                          <Star className="w-4 h-4 text-white fill-white" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-bold text-base text-gray-900 dark:text-white mb-1">
+                                        SDG {sdgBadge.sdgNumber}
+                                      </h4>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed mb-2">
+                                        {sdgBadge.sdgName}
+                                      </p>
+                                      {currentTier ? (
+                                        <Badge className={`text-xs px-2.5 py-1 font-semibold ${getTierBadgeColorClass(currentTier.tier)}`}>
+                                          {currentTier.name}
+                                        </Badge>
+                                      ) : totalHours > 0 || totalActivities > 0 ? (
+                                        <Badge className="text-xs px-2.5 py-1 font-semibold bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-900 dark:from-yellow-900/50 dark:to-orange-900/50 dark:text-yellow-200 border-0">
+                                          In Progress
+                                        </Badge>
+                                      ) : (
+                                        <Badge className="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 border-0">
+                                          Not Started
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Progress Section */}
+                                  {nextTier ? (
+                                    <div className="space-y-3 mb-4">
+                                      <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-600 dark:text-gray-400 font-medium">Next: {nextTier.name}</span>
+                                        <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                                          {Math.round(nextTier.progress.percentage)}%
+                                        </span>
+                                      </div>
+                                      <Progress value={nextTier.progress.percentage} className="h-2.5" />
+                                    </div>
+                                  ) : earnedTiers.length > 0 && (
+                                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-3 mb-4 border border-green-200 dark:border-green-800">
+                                      <div className="flex items-center justify-center gap-2 text-green-800 dark:text-green-200">
+                                        <CheckCircle className="w-4 h-4" />
+                                        <span className="text-sm font-semibold">All Tiers Completed!</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Stats Row */}
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-3 border border-blue-200 dark:border-blue-800">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
+                                          <Clock className="w-4 h-4 text-white" />
+                                        </div>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Hours</span>
+                                      </div>
+                                      <p className="text-lg font-bold text-gray-900 dark:text-white">
+                                        {nextTier ? `${totalHours}/${nextTier.requirements.minHours}` : totalHours}
+                                      </p>
+                                    </div>
+                                    
+                                    <div className="bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-800/20 rounded-xl p-3 border border-green-200 dark:border-green-800">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center">
+                                          <Trophy className="w-4 h-4 text-white" />
+                                        </div>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">Events</span>
+                                      </div>
+                                      <p className="text-lg font-bold text-gray-900 dark:text-white">
+                                        {nextTier ? `${totalActivities}/${nextTier.requirements.minActivities}` : earnedTiers.length > 0 ? '✓' : totalActivities}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : profile.sdgBreakdown && profile.sdgBreakdown.length > 0 && (
                   <Card className="border-0 shadow-sm">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -1450,13 +1885,13 @@ export default function PublicProfilePage() {
             )}
 
             {activeTab === 'certificates' && (
-              <Card className="border-0 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Award className="w-5 h-5 text-green-600" />
-                    Certificates ({profile.certificateCount})
-                  </CardTitle>
-                </CardHeader>
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Award className="w-5 h-5 text-green-600" />
+                        Certificates ({profile.certificateCount})
+                      </CardTitle>
+                    </CardHeader>
                 <CardContent>
                   {profile.certificates && profile.certificates.length > 0 ? (
                     <div className="space-y-4">
@@ -1574,20 +2009,117 @@ export default function PublicProfilePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <Users className="w-8 h-8 text-white" />
+                  {connectionsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <LoadingSpinner text="Loading connections..." size="sm" />
                     </div>
-                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-2">
-                      {profile.stats.connections} Connections
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      Professional connections in the impact community
-                    </p>
-                    <Button variant="outline" size="sm">
-                      View All Connections
-                    </Button>
-                  </div>
+                  ) : !session?.user?.id ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Sign in to view connections
+                      </p>
+                    </div>
+                  ) : session.user.id !== userId ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Connections are only visible to the profile owner
+                      </p>
+                    </div>
+                  ) : connections.length > 0 ? (
+                    <div className="space-y-4">
+                      {/* Filter tabs */}
+                      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          All ({connections.length})
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          Individuals ({connections.filter(c => c.user.userType === 'INDIVIDUAL' || !c.user.userType).length})
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          Organizations ({connections.filter(c => c.user.userType && c.user.userType !== 'INDIVIDUAL').length})
+                        </Button>
+                      </div>
+
+                      {/* Connections List */}
+                      <div className="space-y-3">
+                        {connections.map((connection) => {
+                          const isOrganization = connection.user.userType && connection.user.userType !== 'INDIVIDUAL';
+                          const displayName = connection.user.name || 'Unknown User';
+                          const location = [connection.user.city, connection.user.country].filter(Boolean).join(', ') || 'Location not set';
+                          
+                          return (
+                            <Link 
+                              key={connection.id} 
+                              href={`/profile/${connection.user.id}`}
+                              className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                            >
+                              <Avatar className="w-12 h-12">
+                                <AvatarImage src={connection.user.image || ''} alt={displayName} />
+                                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                                  {displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white truncate">
+                                    {displayName}
+                                  </h4>
+                                  {isOrganization ? (
+                                    <Badge className="px-2 py-0.5 text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                      Organization
+                                    </Badge>
+                                  ) : connection.user.tier ? (
+                                    <Badge className={`px-2 py-0.5 text-xs ${getTierColor(connection.user.tier)}`}>
+                                      {formatTierName(connection.user.tier)}
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                                {connection.user.occupation && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                    {connection.user.occupation}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-500 dark:text-gray-500">
+                                  {location}
+                                </p>
+                              </div>
+                              <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        <Users className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-2">
+                        No Connections Yet
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Start connecting with others in the impact community
+                      </p>
+                      <Button
+                        onClick={() => router.push('/dashboard')}
+                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                      >
+                        Find People to Connect
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1596,60 +2128,34 @@ export default function PublicProfilePage() {
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
-
-            {/* SDG Focus Areas */}
-            {profile.sdgFocus && profile.sdgFocus.length > 0 && (
-              <Card className="border-0 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-purple-600" />
-                    SDG Focus Areas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                      {profile.sdgFocus.map((sdgId: number) => {
-                      const sdgInfo = getSDGById(sdgId);
-                      if (!sdgInfo) return null;
-                      
-                      return (
-                        <div key={sdgId} className="flex items-center space-x-3 p-3 border-2 rounded-lg bg-white dark:bg-gray-800" style={{ borderColor: sdgInfo.color }}>
-                          <div className="w-12 h-12 rounded-lg overflow-hidden shadow-md flex-shrink-0">
-                            <Image 
-                              src={sdgInfo.image} 
-                              alt={`SDG ${sdgInfo.id}: ${sdgInfo.title}`}
-                              width={48}
-                              height={48}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                if (target.parentElement) {
-                                  target.parentElement.style.backgroundColor = sdgInfo.color;
-                                  target.parentElement.innerHTML = `
-                                    <div class="w-full h-full flex items-center justify-center text-white font-bold text-lg">
-                                      ${sdgInfo.id}
-                                    </div>
-                                  `;
-                                }
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-gray-900 dark:text-white">
-                              SDG {sdgInfo.id}
-                            </p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
-                              {sdgInfo.title}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+            {/* Current Rank */}
+            <Card className="relative overflow-hidden border-0 shadow-lg bg-white dark:bg-gray-800">
+              {/* Gradient Background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10" />
+              
+              <CardHeader className="relative">
+                <CardTitle className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-white" />
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  Current Rank
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative">
+                {/* Current Rank - Large Display */}
+                <div className="text-center py-6 px-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4 shadow-lg">
+                    <Award className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                    {formatTierName(profile.tier)}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                    Current Rank
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Leaderboard Position */}
             <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
@@ -1665,7 +2171,9 @@ export default function PublicProfilePage() {
                   Global ranking
                 </p>
                 <Link href="/leaderboards">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button 
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"
+                  >
                     View Leaderboard
                   </Button>
                 </Link>
@@ -1673,7 +2181,7 @@ export default function PublicProfilePage() {
             </Card>
 
             {/* Quick Stats */}
-            <Card className="border-0 shadow-sm">
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
               <CardHeader>
                 <CardTitle className="text-lg">Quick Stats</CardTitle>
               </CardHeader>
@@ -1698,6 +2206,43 @@ export default function PublicProfilePage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Languages & Skills */}
+            {(profile.languages && profile.languages.length > 0) || (profile.autoTaggedSkills && profile.autoTaggedSkills.length > 0) ? (
+              <Card className="bg-white dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle>Languages & Skills</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {profile.languages && profile.languages.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-2">Languages</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.languages.map((language) => (
+                            <Badge key={language} variant="secondary" className={getLanguageBadgeClasses(language)}>
+                              {language}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {profile.autoTaggedSkills && profile.autoTaggedSkills.length > 0 && (
+                      <div>
+                        <h4 className="font-medium mb-2">Skills</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {profile.autoTaggedSkills.map((skill, index) => (
+                            <Badge key={index} variant="secondary" className={getSkillBadgeClasses(skill.skill)}>
+                              {skill.skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
 
       </div>
         </div>

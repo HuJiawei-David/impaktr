@@ -106,7 +106,7 @@ function RegisterContent() {
       case UserType.CORPORATE:
       case UserType.SCHOOL:
       case UserType.HEALTHCARE:
-        return <OrganizationRegistrationForm profileType={selectedProfileType as UserType} />;
+        return <OrganizationRegistrationForm profileType={selectedProfileType as any} />;
       
       default:
         return <ProfileTypeSelector />;

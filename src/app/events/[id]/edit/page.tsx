@@ -531,7 +531,6 @@ export default function EventEditPage() {
                 <CardContent className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Switch
-                      id="isVirtual"
                       checked={watchedValues.location?.isVirtual}
                       onCheckedChange={(checked) => 
                         setValue('location.isVirtual', checked, { shouldDirty: true })

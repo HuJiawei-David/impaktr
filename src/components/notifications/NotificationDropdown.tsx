@@ -2,10 +2,11 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, Award, Calendar, Users, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Bell, Check, X, Award, Calendar, Users, AlertCircle, UserCheck, UserX, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,87 +15,62 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatTimeAgo } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface Notification {
   id: string;
-  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined';
+  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined' | 'connection_request';
   title: string;
   message: string;
   read: boolean;
   createdAt: string;
   actionUrl?: string;
+  data?: {
+    connectionId?: string;
+    requesterId?: string;
+    requesterName?: string;
+    requesterImage?: string | null;
+  };
 }
 
 export function NotificationDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [processingConnection, setProcessingConnection] = useState<string | null>(null);
+  const router = useRouter();
+  
+  // Limit to 5 notifications in dropdown
+  const displayedNotifications = notifications.slice(0, 5);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
-      // This would be replaced with actual API call
-      // const response = await fetch('/api/notifications');
-      // const data = await response.json();
-      
-      // Mock data for demonstration
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'badge_earned',
-          title: 'New Badge Earned!',
-          message: 'You earned the Climate Action Supporter badge',
-          read: false,
-          createdAt: '2024-01-15T10:30:00Z',
-          actionUrl: '/profile/badges'
-        },
-        {
-          id: '2',
-          type: 'event_reminder',
-          title: 'Event Tomorrow',
-          message: 'Beach Cleanup Drive starts at 9:00 AM',
-          read: false,
-          createdAt: '2024-01-15T08:00:00Z',
-          actionUrl: '/events/beach-cleanup-123'
-        },
-        {
-          id: '3',
-          type: 'verification_needed',
-          title: 'Verification Pending',
-          message: 'Your food distribution hours need verification',
-          read: true,
-          createdAt: '2024-01-14T16:45:00Z',
-          actionUrl: '/participations/pending'
-        },
-        {
-          id: '4',
-          type: 'rank_up',
-          title: 'Rank Promotion!',
-          message: 'Congratulations! You are now a Contributor',
-          read: true,
-          createdAt: '2024-01-12T14:20:00Z',
-          actionUrl: '/profile'
-        },
-        {
-          id: '5',
-          type: 'event_joined',
-          title: 'New Participant',
-          message: 'Sarah joined your tutoring program',
-          read: true,
-          createdAt: '2024-01-11T11:15:00Z',
-          actionUrl: '/events/tutoring-456'
-        }
-      ];
-      
-      setNotifications(mockNotifications);
-      setUnreadCount(mockNotifications.filter(n => !n.read).length);
+      const response = await fetch('/api/notifications');
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      } else {
+        console.error('Failed to fetch notifications');
+      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    // Refresh notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    // Refresh notifications when dropdown is opened
+    if (isOpen) {
+      fetchNotifications();
+    }
+  }, [isOpen, fetchNotifications]);
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -121,6 +97,56 @@ export function NotificationDropdown() {
     }
   };
 
+  const handleAcceptConnection = async (connectionId: string, notificationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProcessingConnection(connectionId);
+    
+    try {
+      const response = await fetch(`/api/users/connections/accept/${connectionId}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Remove the notification and refresh
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        // Refresh notifications to get updated count
+        fetchNotifications();
+      } else {
+        console.error('Failed to accept connection');
+      }
+    } catch (error) {
+      console.error('Error accepting connection:', error);
+    } finally {
+      setProcessingConnection(null);
+    }
+  };
+
+  const handleRejectConnection = async (connectionId: string, notificationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProcessingConnection(connectionId);
+    
+    try {
+      const response = await fetch(`/api/users/connections/reject/${connectionId}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // Remove the notification and refresh
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        // Refresh notifications to get updated count
+        fetchNotifications();
+      } else {
+        console.error('Failed to reject connection');
+      }
+    } catch (error) {
+      console.error('Error rejecting connection:', error);
+    } finally {
+      setProcessingConnection(null);
+    }
+  };
+
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'badge_earned':
@@ -130,6 +156,7 @@ export function NotificationDropdown() {
       case 'event_reminder':
         return <Calendar className="w-4 h-4 text-blue-500" />;
       case 'event_joined':
+      case 'connection_request':
         return <Users className="w-4 h-4 text-indigo-500" />;
       case 'verification_needed':
         return <AlertCircle className="w-4 h-4 text-orange-500" />;
@@ -141,22 +168,30 @@ export function NotificationDropdown() {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="w-4 h-4" />
-          {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
-            >
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
-          )}
-        </Button>
+        <button className="relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-gray-50 dark:hover:bg-gray-700">
+          <div className="relative">
+            <Bell className="w-5 h-5 mb-1 transition-all duration-200 group-hover:scale-110" />
+            {unreadCount > 0 && (
+              <Badge 
+                variant="destructive" 
+                className="absolute -top-2 -right-2 h-4 w-4 p-0 text-[10px] flex items-center justify-center"
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Badge>
+            )}
+          </div>
+          <span className="truncate">Notifications</span>
+        </button>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent className="w-80" align="end">
+      <DropdownMenuContent 
+        className="w-80 max-h-[85vh] flex flex-col" 
+        align="end"
+        sideOffset={8}
+        collisionPadding={16}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           <h3 className="font-semibold">Notifications</h3>
           {unreadCount > 0 && (
             <Button
@@ -171,83 +206,180 @@ export function NotificationDropdown() {
         </div>
 
         {/* Notifications List */}
-        <div className="max-h-96 overflow-y-auto">
-          {notifications.length === 0 ? (
+        <div className="flex-1 overflow-y-auto min-h-0" style={{ maxHeight: 'calc(85vh - 120px)' }}>
+          {displayedNotifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground">
               <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm">No notifications yet</p>
             </div>
           ) : (
-            notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`flex items-start space-x-3 p-4 hover:bg-accent/50 cursor-pointer border-b border-border/50 last:border-0 ${
-                  !notification.read ? 'bg-primary/5' : ''
-                }`}
-                onClick={() => {
-                  if (!notification.read) {
-                    markAsRead(notification.id);
-                  }
-                  if (notification.actionUrl) {
-                    window.location.href = notification.actionUrl;
-                  }
-                  setIsOpen(false);
-                }}
-              >
-                <div className="flex-shrink-0 mt-0.5">
-                  {getNotificationIcon(notification.type)}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between">
-                    <h4 className="text-sm font-medium text-foreground">
-                      {notification.title}
-                    </h4>
-                    {!notification.read && (
-                      <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1" />
+            displayedNotifications.map((notification) => {
+              // Check if this is a connection request by looking at the data field
+              const isConnectionRequest = notification.data?.connectionId !== undefined || 
+                                         notification.title?.toLowerCase().includes('connection request');
+              const connectionId = notification.data?.connectionId;
+              const requesterId = notification.data?.requesterId;
+              const requesterImage = notification.data?.requesterImage;
+              const requesterName = notification.data?.requesterName;
+              
+              return (
+                <div
+                  key={notification.id}
+                  className={`p-3 border-b border-border/50 last:border-0 ${
+                    !notification.read ? 'bg-blue-50/50 dark:bg-blue-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Avatar for connection requests, icon for others */}
+                    {isConnectionRequest && requesterImage !== undefined ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (requesterId) {
+                            router.push(`/profile/${requesterId}`);
+                            setIsOpen(false);
+                          }
+                        }}
+                        className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      >
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={requesterImage || undefined} alt={requesterName || 'User'} />
+                          <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs">
+                            {requesterName?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
+                    ) : (
+                      <div className="flex-shrink-0 mt-0.5">
+                        {getNotificationIcon(notification.type)}
+                      </div>
                     )}
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                            {isConnectionRequest && requesterName ? (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (requesterId) {
+                                      router.push(`/profile/${requesterId}`);
+                                      setIsOpen(false);
+                                    }
+                                  }}
+                                  className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                                >
+                                  {requesterName}
+                                </button>
+                                {' wants to connect with you'}
+                              </>
+                            ) : (
+                              notification.message
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                            {formatTimeAgo(notification.createdAt)}
+                          </p>
+                        </div>
+                        {!notification.read && !isConnectionRequest && (
+                          <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1" />
+                        )}
+                      </div>
+
+                      {/* Connection Request Actions - LinkedIn Style */}
+                      {isConnectionRequest && connectionId && !processingConnection && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <Button
+                            size="sm"
+                            onClick={(e) => handleAcceptConnection(connectionId, notification.id, e)}
+                            disabled={processingConnection === connectionId}
+                            className="flex-1 h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <UserCheck className="w-3 h-3 mr-1" />
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => handleRejectConnection(connectionId, notification.id, e)}
+                            disabled={processingConnection === connectionId}
+                            className="flex-1 h-8 text-xs border-gray-300 dark:border-gray-600"
+                          >
+                            <UserX className="w-3 h-3 mr-1" />
+                            Decline
+                          </Button>
+                          {requesterId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/profile/${requesterId}`);
+                                setIsOpen(false);
+                              }}
+                              className="h-8 px-3 text-xs border-gray-300 dark:border-gray-600"
+                              title="View Profile"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Loading state for connection requests */}
+                      {isConnectionRequest && processingConnection === connectionId && (
+                        <div className="flex items-center gap-2 mt-3">
+                          <div className="flex-1 h-8 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                          <div className="flex-1 h-8 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                        </div>
+                      )}
+
+                      {/* Click action for non-connection requests */}
+                      {!isConnectionRequest && notification.actionUrl && (
+                        <button
+                          onClick={() => {
+                            if (!notification.read) {
+                              markAsRead(notification.id);
+                            }
+                            router.push(notification.actionUrl!);
+                            setIsOpen(false);
+                          }}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-2"
+                        >
+                          View →
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {notification.message}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {formatTimeAgo(notification.createdAt)}
-                  </p>
                 </div>
-                
-                {!notification.read && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAsRead(notification.id);
-                    }}
-                  >
-                    <Check className="w-3 h-3" />
-                  </Button>
-                )}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
         {/* Footer */}
         {notifications.length > 0 && (
           <>
-            <DropdownMenuSeparator />
-            <div className="p-2">
+            <DropdownMenuSeparator className="flex-shrink-0" />
+            <div className="p-2 flex-shrink-0 border-t border-border/50">
               <Button
                 variant="ghost"
                 size="sm"
-                className="w-full justify-center"
+                className="w-full justify-center text-xs"
                 onClick={() => {
-                  window.location.href = '/notifications';
+                  router.push('/notifications');
                   setIsOpen(false);
                 }}
               >
-                View All Notifications
+                {notifications.length > displayedNotifications.length 
+                  ? `View all ${notifications.length} notifications`
+                  : 'View all notifications'
+                }
               </Button>
             </div>
           </>

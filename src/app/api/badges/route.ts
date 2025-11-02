@@ -9,9 +9,45 @@ import {
   SDG_BADGE_CONFIGS,
   getSDGBadgeRequirements
 } from '@/lib/badge-config';
-import { BadgeTier, ParticipationStatus } from '@prisma/client';
+import { ParticipationStatus } from '@/types/enums';
 import { calculateImpaktrScore } from '@/lib/scoring';
 import { checkAndAwardBadges } from '@/lib/badges';
+
+// Type definitions
+type BadgeTier = 'SUPPORTER' | 'BUILDER' | 'CHAMPION' | 'GUARDIAN';
+
+interface UserParticipation {
+  id: string;
+  hours: number | null;
+  event: {
+    id: string;
+    sdg: string | null;
+  };
+}
+
+interface UserBadge {
+  earnedAt: Date;
+  badge: {
+    name: string;
+    icon: string;
+  };
+}
+
+interface OrganizationBadge {
+  earnedAt: Date;
+  badgeName: string;
+  badgeType: string;
+}
+
+interface OrganizationMember {
+  user: {
+    impactScore: number;
+    participations: Array<{
+      hours: number | null;
+      event: { sdg: string | null };
+    }>;
+  };
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -74,10 +110,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Authenticated individual badge data
+    // Authenticated individual badge data (allows viewing own or others' profiles)
     if (type === 'individual' && userId) {
       const session = await getServerSession(authOptions);
-      if (!session || session.user.id !== userId) {
+      // Allow authenticated users to view badge progress (own or public profiles)
+      if (!session) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
@@ -91,8 +128,15 @@ export async function GET(request: NextRequest) {
           },
           participations: {
             where: { status: ParticipationStatus.VERIFIED },
-            include: {
-              event: true
+            select: {
+              id: true,
+              hours: true,
+              event: {
+                select: {
+                  id: true,
+                  sdg: true
+                }
+              }
             }
           }
         }
@@ -139,7 +183,7 @@ export async function GET(request: NextRequest) {
       const currentRankIndex = INDIVIDUAL_RANK_BADGES.findIndex(b => b.rank === user.tier);
       const nextRank = INDIVIDUAL_RANK_BADGES[currentRankIndex + 1];
 
-      const verifiedHours = user.participations.reduce((sum, p) => sum + (p.hours || 0), 0);
+      const verifiedHours = user.participations.reduce((sum: number, p: UserParticipation) => sum + (p.hours || 0), 0);
       const earnedBadges = user.badges.length;
 
       return NextResponse.json({
@@ -175,9 +219,9 @@ export async function GET(request: NextRequest) {
         sdgBadges: sdgProgress,
         stats: {
           recentlyEarned: user.badges
-            .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
+            .sort((a: UserBadge, b: UserBadge) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
             .slice(0, 5)
-            .map(ub => ({
+            .map((ub: UserBadge) => ({
               name: ub.badge.name,
               earnedAt: ub.earnedAt,
               icon: ub.badge.icon
@@ -225,14 +269,14 @@ export async function GET(request: NextRequest) {
       const nextTier = ORGANIZATION_TIER_BADGES[currentTierIndex + 1];
 
       const totalMembers = organization.members.length;
-      const activeMembers = organization.members.filter(m => m.user.participations.length > 0).length;
+      const activeMembers = organization.members.filter((m: OrganizationMember) => m.user.participations.length > 0).length;
       const participationRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
 
-      const totalScore = organization.members.reduce((sum, m) => sum + m.user.impactScore, 0);
+      const totalScore = organization.members.reduce((sum: number, m: OrganizationMember) => sum + m.user.impactScore, 0);
       const avgScore = totalMembers > 0 ? totalScore / totalMembers : 0;
 
       const uniqueSDGs = new Set(
-        organization.members.flatMap(m =>
+        organization.members.flatMap((m: OrganizationMember) =>
           m.user.participations
             .filter(p => p.event.sdg)
             .map(p => parseInt(p.event.sdg!))
@@ -275,9 +319,9 @@ export async function GET(request: NextRequest) {
         sdgBadges: orgSDGProgress,
         stats: {
           recentlyEarned: organization.badges
-            .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
+            .sort((a: OrganizationBadge, b: OrganizationBadge) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
             .slice(0, 5)
-            .map(ob => ({
+            .map((ob: OrganizationBadge) => ({
               name: ob.badgeName,
               earnedAt: ob.earnedAt,
               type: ob.badgeType
@@ -299,19 +343,77 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper function to calculate SDG progress for individuals
-async function calculateSDGProgress(userId: string, participations: Array<{ hours: number | null; event: { sdg: string | null } }>) {
+async function calculateSDGProgress(userId: string, participations: Array<{ id?: string; hours: number | null; event: { id?: string; sdg: string | null } }>) {
   const sdgStats: Record<number, { hours: number; activities: number }> = {};
+  const processedParticipationIds = new Set<string>();
 
-  participations.forEach(p => {
+  participations.forEach((p: { id?: string; hours: number | null; event: { id?: string; sdg: string | null } }) => {
+    // Skip duplicate participations (shouldn't happen, but safety check)
+    if (p.id && processedParticipationIds.has(p.id)) {
+      return;
+    }
+    if (p.id) {
+      processedParticipationIds.add(p.id);
+    }
     if (p.event.sdg) {
-      const sdgNum = parseInt(p.event.sdg);
-      if (!sdgStats[sdgNum]) {
-        sdgStats[sdgNum] = { hours: 0, activities: 0 };
+      let sdgNumbers: number[] = [];
+      
+      // Debug logging for Alan Greenspan
+      if (userId.includes('alan') || userId.includes('greenspan')) {
+        console.log(`[Badge Progress] Processing participation: eventId=${p.event.id}, hours=${p.hours}, sdg=${p.event.sdg}, sdgType=${typeof p.event.sdg}`);
       }
-      sdgStats[sdgNum].hours += p.hours || 0;
-      sdgStats[sdgNum].activities += 1;
+      
+      // SDG can be stored as JSON string "[1,2,3]" or actual array or single number
+      if (typeof p.event.sdg === 'string') {
+        // Try to parse as JSON first
+        try {
+          const parsed = JSON.parse(p.event.sdg);
+          if (Array.isArray(parsed)) {
+            sdgNumbers = Array.from(new Set(parsed.map((s: unknown) => {
+              if (typeof s === 'number') return s;
+              const n = parseInt(String(s));
+              return isNaN(n) ? 0 : n;
+            }).filter((n: number) => n > 0)));
+          } else {
+            const num = parseInt(parsed.toString());
+            if (!isNaN(num)) {
+              sdgNumbers = [num];
+            }
+          }
+        } catch {
+          // If JSON parse fails, try direct parseInt
+          const num = parseInt(p.event.sdg);
+          if (!isNaN(num)) {
+            sdgNumbers = [num];
+          }
+        }
+      } else if (Array.isArray(p.event.sdg)) {
+        const sdgArray: unknown[] = p.event.sdg;
+        sdgNumbers = Array.from(new Set(sdgArray.map((s: unknown): number => {
+          if (typeof s === 'number') return s;
+          const n = parseInt(String(s));
+          return isNaN(n) ? 0 : n;
+        }).filter((n: number) => n > 0)));
+      } else if (typeof p.event.sdg === 'number') {
+        sdgNumbers = [p.event.sdg];
+      }
+      
+      // Remove duplicates to ensure each SDG is only counted once per participation
+      const uniqueSdgNumbers = Array.from(new Set(sdgNumbers));
+      uniqueSdgNumbers.forEach((sdgNum: number) => {
+        if (sdgNum >= 1 && sdgNum <= 17) {
+          if (!sdgStats[sdgNum]) {
+            sdgStats[sdgNum] = { hours: 0, activities: 0 };
+          }
+          sdgStats[sdgNum].hours += p.hours || 0;
+          sdgStats[sdgNum].activities += 1;
+        }
+      });
     }
   });
+
+  // Debug: Log final stats for troubleshooting
+  console.log(`[Badge Progress] User ${userId} - Final SDG Stats:`, JSON.stringify(Object.fromEntries(Object.entries(sdgStats).map(([k, v]) => [k, { hours: v.hours, activities: v.activities }]))));
 
   return SDG_BADGE_CONFIGS.map(sdg => {
     const stats = sdgStats[sdg.sdgNumber] || { hours: 0, activities: 0 };

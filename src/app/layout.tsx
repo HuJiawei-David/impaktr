@@ -3,6 +3,7 @@
 import './globals.css';
 import { Ubuntu, Raleway } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
+import { Toaster as SonnerToaster } from 'sonner';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SocketProvider } from '@/components/providers/SocketProvider';
@@ -128,6 +129,18 @@ export default function RootLayout({
                         primary: 'hsl(var(--destructive))',
                         secondary: 'hsl(var(--destructive-foreground))',
                       },
+                    },
+                  }}
+                />
+                <SonnerToaster 
+                  position="top-right"
+                  expand={false}
+                  richColors
+                  toastOptions={{
+                    style: {
+                      background: 'hsl(var(--background))',
+                      color: 'hsl(var(--foreground))',
+                      border: '1px solid hsl(var(--border))',
                     },
                   }}
                 />

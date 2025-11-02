@@ -6,6 +6,75 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { EventStatus } from '@/types/enums';
 
+// Helper function to calculate realistic score estimation
+function calculateScoreEstimation(event: {
+  totalHours?: number | null;
+  type: string;
+  intensity?: number | null;
+  skills?: string[] | null;
+  verificationType?: string | null;
+}): {
+  minScore: number;
+  maxScore: number;
+  typicalScore: number;
+  hoursRange: { min: number; max: number; typical: number };
+} {
+  // Determine typical hours based on event type and totalHours
+  const eventTotalHours = event.totalHours || 0;
+  
+  // Default hour ranges based on event type
+  const defaultHourRanges: Record<string, { min: number; max: number; typical: number }> = {
+    'VOLUNTEERING': { min: 2, max: 8, typical: 4 },
+    'WORKSHOP': { min: 2, max: 6, typical: 3 },
+    'FUNDRAISER': { min: 3, max: 12, typical: 6 },
+    'CLEANUP': { min: 2, max: 6, typical: 4 },
+    'AWARENESS': { min: 1, max: 4, typical: 2 },
+    'EDUCATION': { min: 2, max: 8, typical: 4 },
+    'DEFAULT': { min: 2, max: 8, typical: 4 }
+  };
+  
+  // Use event totalHours as typical if available, otherwise use defaults
+  let hoursRange = defaultHourRanges[event.type as string] || defaultHourRanges['DEFAULT'];
+  
+  if (eventTotalHours > 0) {
+    hoursRange = {
+      min: Math.max(1, Math.floor(eventTotalHours * 0.5)),
+      max: Math.ceil(eventTotalHours * 1.5),
+      typical: eventTotalHours
+    };
+  }
+  
+  // Get intensity multiplier
+  const I = event.intensity || 1.0;
+  
+  // Skill multiplier based on event skills
+  const skillsCount = event.skills?.length || 0;
+  const S = 1.0 + (skillsCount * 0.05); // More conservative than the old formula
+  
+  // Quality rating (assume standard)
+  const Q = 1.0;
+  
+  // Verification factor
+  const V = event.verificationType === 'ORGANIZER' ? 1.1 : 1.0;
+  
+  // Location (assume standard)
+  const L = 1.0;
+  
+  // Calculate scores for different hour scenarios using the ACTUAL formula
+  const calculateScore = (hours: number) => {
+    const H = Math.log10(hours + 1) * 100;
+    const score = (H * I * S * Q * V * L) * 0.1;
+    return Math.round(score * 10) / 10;
+  };
+  
+  return {
+    minScore: calculateScore(hoursRange.min),
+    maxScore: calculateScore(hoursRange.max),
+    typicalScore: calculateScore(hoursRange.typical),
+    hoursRange
+  };
+}
+
 const sessionSchema = z.object({
   startAt: z.string().datetime(),
   endAt: z.string().datetime(),
@@ -143,12 +212,16 @@ export async function GET(
       }
     }
 
-    // Transform event to include bookmark status, current participants, and user participation
+    // Calculate realistic score estimation based on event specifications
+    const estimatedScoreRange = calculateScoreEstimation(event);
+
+    // Transform event to include bookmark status, current participants, user participation, and score estimation
     const eventWithBookmark = {
       ...event,
       isBookmarked,
       currentParticipants: event._count.participations,
       userParticipation,
+      estimatedScoreRange,
       // Include attendance fields but NOT the code (for security)
       attendanceEnabled: (event as any).attendanceEnabled || false,
       attendanceEnabledAt: (event as any).attendanceEnabledAt?.toISOString() || null,

@@ -62,6 +62,21 @@ export async function GET(request: NextRequest) {
             }
           }
         },
+        scoreHistory: {
+          where: {
+            participationId: { not: null },
+            reason: { in: ['participation_verified', 'event_completion'] }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          select: {
+            id: true,
+            participationId: true,
+            eventId: true,
+            change: true,
+            createdAt: true
+          }
+        },
         followers: {
           where: { followerId: session.user.id }
         },
@@ -117,11 +132,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Get ALL participations for accurate counting (not just VERIFIED)
+    const allParticipations = await prisma.participation.findMany({
+      where: { userId },
+      select: {
+        eventId: true,
+        status: true,
+        hours: true,
+      }
+    });
+
     // Calculate stats
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const volunteerHours = user.participations.reduce((sum: number, p: any) => sum + (p.hours || 0), 0);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eventsJoined = new Set(user.participations.map((p: any) => p.eventId)).size;
+    const volunteerHours = allParticipations
+      .filter((p) => p.status === 'VERIFIED' || p.status === 'ATTENDED')
+      .reduce((sum: number, p) => sum + (p.hours || 0), 0);
+    
+    // Events joined = all unique events user participated in
+    const eventsJoined = new Set(allParticipations.map((p: { eventId: string }) => p.eventId)).size;
+    
+    // Events completed = events with ATTENDED or VERIFIED status
+    const eventsCompleted = new Set(
+      allParticipations
+        .filter((p: { status: string; eventId: string }) => p.status === 'ATTENDED' || p.status === 'VERIFIED')
+        .map((p: { eventId: string }) => p.eventId)
+    ).size;
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const badgesEarned = user.badges.filter((b: any) => b.earnedAt).length;
 
@@ -134,7 +169,50 @@ export async function GET(request: NextRequest) {
       }
     }) + 1 : undefined;
 
-    // Format recent activities
+    // Create maps for score lookup (by participationId and eventId as fallback)
+    const scoreMapByParticipation = new Map<string, number>();
+    const scoreMapByEvent = new Map<string, number>();
+    // Create map for score breakdown by participationId
+    const scoreBreakdownMap = new Map<string, {
+      hoursComponent: number;
+      intensityComponent: number;
+      skillComponent: number;
+      qualityComponent: number;
+      verificationComponent: number;
+      locationComponent: number;
+      change: number;
+    }>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (user.scoreHistory || []).forEach((sh: any) => {
+      if (sh.change) {
+        if (sh.participationId) {
+          scoreMapByParticipation.set(sh.participationId, sh.change);
+          // Store breakdown for this participation
+          scoreBreakdownMap.set(sh.participationId, {
+            hoursComponent: sh.hoursComponent || 0,
+            intensityComponent: sh.intensityComponent || 0,
+            skillComponent: sh.skillComponent || 0,
+            qualityComponent: sh.qualityComponent || 0,
+            verificationComponent: sh.verificationComponent || 0,
+            locationComponent: sh.locationComponent || 0,
+            change: sh.change || 0
+          });
+        }
+        if (sh.eventId) {
+          // If multiple entries for same event, use the latest/max
+          const existing = scoreMapByEvent.get(sh.eventId) || 0;
+          scoreMapByEvent.set(sh.eventId, Math.max(existing, sh.change));
+        }
+      }
+    });
+
+    console.log(`🔍 ScoreHistory entries: ${user.scoreHistory?.length || 0}`);
+    console.log(`🔍 ScoreMap by participation:`, Array.from(scoreMapByParticipation.entries()));
+    console.log(`🔍 ScoreMap by event:`, Array.from(scoreMapByEvent.entries()));
+    console.log(`🔍 ScoreBreakdownMap size:`, scoreBreakdownMap.size);
+    console.log(`🔍 ScoreBreakdownMap entries:`, Array.from(scoreBreakdownMap.entries()).slice(0, 3));
+
+    // Format recent activities with score points
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const recentActivities = user.participations.map((p: any) => {
       let sdgNumber: number | undefined = undefined;
@@ -170,14 +248,95 @@ export async function GET(request: NextRequest) {
         sdgNumber = sdgNumbers[0];
       }
 
-      return {
+      // Get score points from scoreHistory (try participationId first, then eventId)
+      let points = scoreMapByParticipation.get(p.id) || 0;
+      if (points === 0 && p.eventId) {
+        points = scoreMapByEvent.get(p.eventId) || 0;
+      }
+      
+      // If still no points, try to calculate or estimate
+      // If this is the only participation and we have an impact score, use that
+      if (points === 0 && user.participations.length === 1 && user.impactScore > 0) {
+        points = Math.round(user.impactScore * 10) / 10;
+      } else if (points === 0 && p.hours) {
+        // Fallback: estimate based on hours (simplified scoring formula)
+        // This is a rough estimate - actual scoring uses multiple multipliers
+        const hours = p.hours || 0;
+        const baseScore = Math.log10(hours + 1) * 100;
+        // Apply typical multipliers (conservative estimate)
+        points = Math.round((baseScore * 0.8 * 1.0 * 1.0 * 1.0) * 10) / 10;
+      }
+
+      // Map participation status to activity type
+      // VERIFIED or ATTENDED = completed, others = joined
+      let activityType: string = 'event_joined';
+      if (p.status === 'VERIFIED' || p.status === 'ATTENDED') {
+        activityType = 'event_completed';
+      } else if (p.status === 'PENDING' || p.status === 'CONFIRMED') {
+        activityType = 'event_joined';
+      }
+
+      // Get score breakdown for this participation (only if completed/verified)
+      let scoreBreakdown = null;
+      if (activityType === 'event_completed') {
+        // First try to get from ScoreHistory
+        if (scoreBreakdownMap.has(p.id)) {
+          const storedBreakdown = scoreBreakdownMap.get(p.id);
+          // Only use if it has valid hoursComponent (log-scaled, should be > 0)
+          if (storedBreakdown && storedBreakdown.hoursComponent > 0) {
+            scoreBreakdown = storedBreakdown;
+          }
+        }
+        
+        // If no valid breakdown from ScoreHistory, calculate it from participation data
+        if (!scoreBreakdown && p.hours && p.hours > 0) {
+          const hours = p.hours || 0;
+          // Calculate H component (log-scaled hours)
+          const H = Math.log10(hours + 1) * 100;
+          
+          // Get multipliers from event (with defaults)
+          const I = p.event?.intensity || 1.0;
+          const S = 1.0; // Skill multiplier - would need user skills vs event skills
+          const Q = 1.0; // Quality - would need verification rating
+          const V = p.status === 'VERIFIED' ? 1.1 : 1.0; // Verification factor
+          const L = 1.0; // Location - would need user location
+          
+          scoreBreakdown = {
+            hoursComponent: H,
+            intensityComponent: I,
+            skillComponent: S,
+            qualityComponent: Q,
+            verificationComponent: V,
+            locationComponent: L,
+            change: points // Use the points we already calculated
+          };
+        }
+      }
+
+      const result = {
         id: p.id,
-        type: p.event?.type,
+        type: activityType,
         title: p.event?.title,
         date: p.event?.startDate || p.createdAt,
         sdg: sdgNumber,
-        sdgs: sdgNumbers
+        sdgs: sdgNumbers,
+        points: Math.round(points * 10) / 10, // Round to 1 decimal
+        hours: p.hours || 0,
+        scoreBreakdown: scoreBreakdown
       };
+      
+      // Debug logging for completed events
+      if (activityType === 'event_completed') {
+        console.log(`📊 Activity ${p.id} (${p.event?.title}):`, {
+          hasBreakdown: !!scoreBreakdown,
+          points: result.points,
+          hours: result.hours,
+          status: p.status,
+          breakdown: scoreBreakdown
+        });
+      }
+      
+      return result;
     });
 
     // Format badges
@@ -360,54 +519,52 @@ export async function GET(request: NextRequest) {
     }
 
     // Check connection status between current user and profile user
-    const connectionStatus = null;
-    const connectionId = null;
-    const isConnectionRequester = false;
+    let connectionStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED' | null = null;
+    let connectionId: string | null = null;
+    let isConnectionRequester = false;
     
-    // TODO: Fix connection functionality when Prisma client is properly generated
-    // if (userId !== session.user.id && session.user.id) {
-    //   try {
-    //     const connection = await prisma.connection.findFirst({
-    //       where: {
-    //         OR: [
-    //           { requesterId: session.user.id, addresseeId: userId },
-    //           { requesterId: userId, addresseeId: session.user.id }
-    //         ]
-    //       }
-    //     });
-    //     
-    //     if (connection) {
-    //       connectionStatus = connection.status;
-    //       connectionId = connection.id;
-    //       isConnectionRequester = connection.requesterId === session.user.id;
-    //     }
-    //   } catch (error) {
-    //     console.error('Error fetching connection status:', error);
-    //     // Continue without connection status
-    //   }
-    // }
+    if (userId !== session.user.id && session.user.id) {
+      try {
+        const connection = await prisma.connection.findFirst({
+          where: {
+            OR: [
+              { requesterId: session.user.id, addresseeId: userId },
+              { requesterId: userId, addresseeId: session.user.id }
+            ]
+          }
+        });
+        
+        if (connection) {
+          connectionStatus = connection.status as 'PENDING' | 'ACCEPTED' | 'REJECTED';
+          connectionId = connection.id;
+          isConnectionRequester = connection.requesterId === session.user.id;
+        }
+      } catch (error) {
+        console.error('Error fetching connection status:', error);
+        // Continue without connection status
+      }
+    }
 
-    // Count accepted connections for both users
-    const connectionCount = 0;
-    // TODO: Fix connection functionality when Prisma client is properly generated
-    // try {
-    //   connectionCount = await prisma.connection.count({
-    //     where: {
-    //       AND: [
-    //         {
-    //           OR: [
-    //             { requesterId: userId },
-    //             { addresseeId: userId }
-    //           ]
-    //         },
-    //         { status: 'ACCEPTED' }
-    //       ]
-    //     }
-    //   });
-    // } catch (error) {
-    //   console.error('Error counting connections:', error);
-    //   // Continue with 0 connections
-    // }
+    // Count accepted connections for the profile user
+    let connectionCount = 0;
+    try {
+      connectionCount = await prisma.connection.count({
+        where: {
+          AND: [
+            {
+              OR: [
+                { requesterId: userId },
+                { addresseeId: userId }
+              ]
+            },
+            { status: 'ACCEPTED' }
+          ]
+        }
+      });
+    } catch (error) {
+      console.error('Error counting connections:', error);
+      // Continue with 0 connections
+    }
 
     // Check if current user is following this user (for backward compatibility)
     const isFollowing = user.followers.length > 0;
@@ -422,6 +579,10 @@ export async function GET(request: NextRequest) {
       state: user.state,
       country: user.country,
       website: user.website,
+      phone: user.phone,
+      occupation: user.occupation,
+      organization: user.organization,
+      languages: user.languages,
       tier: user.tier,
       impactScore: user.impactScore,
       volunteerHours,
@@ -462,6 +623,7 @@ export async function GET(request: NextRequest) {
           userType: user.userType,
           tier: user.tier,
           impactScore: user.impactScore,
+          createdAt: user.createdAt,
           profile: {
             sdgFocus: user.sdgFocus || [],
             interests: user.volunteerProfile?.interests || [],
@@ -471,6 +633,7 @@ export async function GET(request: NextRequest) {
             state: user.state,
             country: user.country,
             website: user.website,
+            phone: user.phone,
             firstName: user.firstName,
             lastName: user.lastName,
             displayName: user.displayName,
@@ -481,11 +644,14 @@ export async function GET(request: NextRequest) {
             dateOfBirth: user.dateOfBirth,
             languages: user.languages,
             isPublic: user.isPublic,
-            showEmail: user.showEmail
+            showEmail: user.showEmail,
+            showProgress: user.showProgress,
+            allowMessages: user.allowMessages
           },
           stats: {
             volunteerHours,
             eventsJoined,
+            eventsCompleted,
             badgesEarned,
             followers: user._count.followers,
             following: user._count.following,
@@ -493,7 +659,13 @@ export async function GET(request: NextRequest) {
           },
           badges,
           recentActivities,
-          sdgBreakdown
+          sdgBreakdown,
+          // Add analytics sections to match profile detail page
+          organizationsWorkedWith,
+          autoTaggedSkills,
+          sdgParticipations,
+          certificateCount,
+          certificates
         }
       });
     }
@@ -515,6 +687,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // Define updateData in outer scope so it's available in catch block
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let updateData: any = {};
+  
   try {
     const session = await getSession();
     if (!session?.user?.id) {
@@ -523,58 +699,185 @@ export async function PUT(request: NextRequest) {
 
     const formData = await request.formData();
     
-    // Extract fields from FormData
-    const firstName = formData.get('firstName') as string | null;
-    const lastName = formData.get('lastName') as string | null;
-    const displayName = formData.get('displayName') as string | null;
-    const bio = formData.get('bio') as string | null;
-    const dateOfBirth = formData.get('dateOfBirth') as string | null;
-    const gender = formData.get('gender') as string | null;
-    const nationality = formData.get('nationality') as string | null;
-    const city = formData.get('city') as string | null;
-    const state = formData.get('state') as string | null;
-    const country = formData.get('country') as string | null;
-    const occupation = formData.get('occupation') as string | null;
-    const organization = formData.get('organization') as string | null;
-    const website = formData.get('website') as string | null;
-    const isPublic = formData.get('isPublic') === 'true';
-    const showEmail = formData.get('showEmail') === 'true';
+    // Extract fields from FormData - handle empty strings as null
+    const getField = (field: string) => {
+      const value = formData.get(field) as string | null;
+      return value && value.trim() !== '' ? value : null;
+    };
+    
+    const firstName = getField('firstName');
+    const lastName = getField('lastName');
+    const displayName = getField('displayName');
+    const bio = getField('bio');
+    const dateOfBirthStr = getField('dateOfBirth');
+    const dateOfBirth = dateOfBirthStr ? new Date(dateOfBirthStr) : undefined;
+    const gender = getField('gender');
+    const nationality = getField('nationality');
+    const city = getField('city');
+    const state = getField('state');
+    const country = getField('country');
+    const occupation = getField('occupation');
+    const organization = getField('organization');
+    const website = getField('website');
+    const phone = getField('phone');
+    
+    // Handle boolean fields - check if they exist and are not empty
+    // Only include fields that exist in the Prisma schema
+    const isPublicStr = formData.get('isPublic');
+    const isPublic = isPublicStr !== null && isPublicStr !== '' ? isPublicStr === 'true' : undefined;
+    
+    const showEmailStr = formData.get('showEmail');
+    const showEmail = showEmailStr !== null && showEmailStr !== '' ? showEmailStr === 'true' : undefined;
+    
+    const showProgressStr = formData.get('showProgress');
+    const showProgress = showProgressStr !== null && showProgressStr !== '' ? showProgressStr === 'true' : undefined;
+    
+    const allowMessagesStr = formData.get('allowMessages');
+    const allowMessages = allowMessagesStr !== null && allowMessagesStr !== '' ? allowMessagesStr === 'true' : undefined;
     
     // Parse JSON fields
     const sdgFocusStr = formData.get('sdgFocus') as string | null;
-    const sdgFocus = sdgFocusStr ? JSON.parse(sdgFocusStr) : undefined;
+    let sdgFocus = undefined;
+    if (sdgFocusStr && sdgFocusStr.trim() !== '') {
+      try {
+        sdgFocus = JSON.parse(sdgFocusStr);
+      } catch (e) {
+        console.error('Error parsing sdgFocus:', e);
+      }
+    }
     
     const interestsStr = formData.get('interests') as string | null;
-    const interests = interestsStr ? JSON.parse(interestsStr) : undefined;
+    let interests = undefined;
+    if (interestsStr && interestsStr.trim() !== '') {
+      try {
+        interests = JSON.parse(interestsStr);
+      } catch (e) {
+        console.error('Error parsing interests:', e);
+      }
+    }
     
     const skillsStr = formData.get('skills') as string | null;
-    const skills = skillsStr ? JSON.parse(skillsStr) : undefined;
+    let skills = undefined;
+    if (skillsStr && skillsStr.trim() !== '') {
+      try {
+        skills = JSON.parse(skillsStr);
+      } catch (e) {
+        console.error('Error parsing skills:', e);
+      }
+    }
     
     const languagesStr = formData.get('languages') as string | null;
-    const languages = languagesStr ? JSON.parse(languagesStr) : undefined;
+    let languages = undefined;
+    if (languagesStr && languagesStr.trim() !== '') {
+      try {
+        languages = JSON.parse(languagesStr);
+      } catch (e) {
+        console.error('Error parsing languages:', e);
+      }
+    }
+
+    // Build update data object, only including defined fields that actually exist in the schema
+    updateData = {};
+    
+    // String fields - can be null (empty strings converted to null by getField)
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (bio !== undefined) updateData.bio = bio;
+    if (gender !== undefined) updateData.gender = gender;
+    if (nationality !== undefined) updateData.nationality = nationality;
+    if (city !== undefined) updateData.city = city;
+    if (state !== undefined) updateData.state = state;
+    if (country !== undefined) updateData.country = country;
+    if (occupation !== undefined) updateData.occupation = occupation;
+    if (organization !== undefined) updateData.organization = organization;
+    if (website !== undefined) updateData.website = website;
+    if (phone !== undefined) updateData.phone = phone;
+    
+    // Date fields
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+    
+    // Boolean fields - must be boolean, not undefined
+    if (isPublic !== undefined && typeof isPublic === 'boolean') {
+      updateData.isPublic = isPublic;
+    }
+    if (showEmail !== undefined && typeof showEmail === 'boolean') {
+      updateData.showEmail = showEmail;
+    }
+    if (showProgress !== undefined && typeof showProgress === 'boolean') {
+      updateData.showProgress = showProgress;
+    }
+    if (allowMessages !== undefined && typeof allowMessages === 'boolean') {
+      updateData.allowMessages = allowMessages;
+    }
+    
+    // JSON fields
+    if (sdgFocus !== undefined) updateData.sdgFocus = sdgFocus;
+    if (languages !== undefined) updateData.languages = languages;
+
+    console.log('📝 Profile update data:', JSON.stringify(updateData, null, 2));
+    console.log('👤 Updating user:', session.user.id);
+
+    // Only update if there's data to update
+    if (Object.keys(updateData).length === 0) {
+      console.log('⚠️ No fields to update, skipping database update');
+      // Return current user data
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id }
+      });
+      if (!currentUser) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      // Return response with current user data (same format as successful update)
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: currentUser.id,
+          name: currentUser.name,
+          email: currentUser.email,
+          image: currentUser.image,
+          userType: currentUser.userType,
+          bio: currentUser.bio,
+          phone: currentUser.phone,
+          occupation: currentUser.occupation,
+          organization: currentUser.organization,
+          website: currentUser.website,
+          city: currentUser.city,
+          state: currentUser.state,
+          country: currentUser.country,
+          languages: currentUser.languages,
+          sdgFocus: currentUser.sdgFocus,
+          isPublic: currentUser.isPublic,
+          showEmail: currentUser.showEmail,
+          showProgress: currentUser.showProgress,
+          allowMessages: currentUser.allowMessages,
+          profile: {
+            firstName: currentUser.firstName,
+            lastName: currentUser.lastName,
+            displayName: currentUser.displayName,
+            bio: currentUser.bio,
+          city: currentUser.city,
+          state: currentUser.state,
+          country: currentUser.country,
+          website: currentUser.website,
+          phone: currentUser.phone,
+          occupation: currentUser.occupation,
+            organization: currentUser.organization,
+            languages: currentUser.languages,
+            sdgFocus: currentUser.sdgFocus,
+            isPublic: currentUser.isPublic,
+            showEmail: currentUser.showEmail,
+            showProgress: currentUser.showProgress,
+            allowMessages: currentUser.allowMessages
+          }
+        }
+      });
+    }
 
     // Update user profile
     const updatedUser = await prisma.user.update({
       where: { id: session.user.id },
-      data: {
-        firstName,
-        lastName,
-        displayName,
-        bio,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-        gender,
-        nationality,
-        city,
-        state,
-        country,
-        occupation,
-        organization,
-        website,
-        sdgFocus,
-        isPublic,
-        showEmail,
-        languages
-      }
+      data: updateData
     });
 
     // Update volunteer profile if interests or skills provided
@@ -601,21 +904,50 @@ export async function PUT(request: NextRequest) {
         email: updatedUser.email,
         image: updatedUser.image,
         userType: updatedUser.userType,
+        bio: updatedUser.bio,
+        phone: updatedUser.phone,
+        occupation: updatedUser.occupation,
+        organization: updatedUser.organization,
+        website: updatedUser.website,
+        city: updatedUser.city,
+        state: updatedUser.state,
+        country: updatedUser.country,
+        languages: updatedUser.languages,
+        sdgFocus: updatedUser.sdgFocus,
+        isPublic: updatedUser.isPublic,
+        showEmail: updatedUser.showEmail,
+        showProgress: updatedUser.showProgress,
+        allowMessages: updatedUser.allowMessages,
         profile: {
           firstName: updatedUser.firstName,
           lastName: updatedUser.lastName,
           displayName: updatedUser.displayName,
           bio: updatedUser.bio,
           city: updatedUser.city,
+          state: updatedUser.state,
           country: updatedUser.country,
-          website: updatedUser.website
+          website: updatedUser.website,
+          phone: updatedUser.phone,
+          occupation: updatedUser.occupation,
+          organization: updatedUser.organization,
+          languages: updatedUser.languages,
+          sdgFocus: updatedUser.sdgFocus
         }
       }
     });
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    console.error('❌ Error updating user profile:', error);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Log the update data that caused the error
+    console.error('Failed update data was:', JSON.stringify(updateData, null, 2));
+    
     return NextResponse.json(
-      { error: 'Failed to update user profile' },
+      { 
+        error: 'Failed to update user profile',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

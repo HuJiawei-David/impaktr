@@ -4,18 +4,47 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { User, UserBadge, Participation, Achievement, Badge, Event } from '@prisma/client';
+// Type imports - use Prisma types directly from generated client
+type UserBadge = {
+  id: string;
+  userId: string;
+  badgeId: string;
+  earnedAt: Date | null;
+  badge: {
+    id: string;
+    name: string;
+    category: string;
+    rarity: string;
+  };
+};
+
+type Participation = {
+  id: string;
+  verifiedAt: Date | null;
+  hours: number | null;
+  eventId: string;
+  event: {
+    id: string;
+    title: string;
+  };
+};
+
+type Achievement = {
+  id: string;
+  type: string;
+  title: string | null;
+  points: number | null;
+  verifiedAt: Date | null;
+  createdAt: Date;
+};
 
 // Extended types for user relations
-type UserBadgeWithBadge = UserBadge & {
-  badge: Badge;
-};
+type UserBadgeWithBadge = UserBadge;
 
-type ParticipationWithEvent = Participation & {
-  event: Event;
-};
+type ParticipationWithEvent = Participation;
 
-type UserWithRelations = User & {
+type UserWithRelations = {
+  id: string;
   badges?: UserBadgeWithBadge[];
   participations?: ParticipationWithEvent[];
   achievements?: Achievement[];
@@ -263,6 +292,51 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
       });
     }
   });
+
+  // Generate connection request notifications
+  try {
+    const pendingConnections = await prisma.connection.findMany({
+      where: {
+        addresseeId: userId,
+        status: 'PENDING'
+      },
+      include: {
+        requester: {
+          select: {
+            id: true,
+            name: true,
+            image: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: 10
+    });
+
+    pendingConnections.forEach((connection: { id: string; createdAt: Date; requester: { id: string; name: string | null; image: string | null } }) => {
+      if (notifications.length < limit) {
+        notifications.push({
+          id: `connection_request_${connection.id}`,
+          type: 'event_joined', // Using this type since we don't have connection_request in the enum yet
+          title: 'New Connection Request',
+          message: `${connection.requester.name || 'Someone'} wants to connect with you`,
+          read: false,
+          createdAt: connection.createdAt.toISOString(),
+          actionUrl: `/profile/${connection.requester.id}`,
+          data: {
+            connectionId: connection.id,
+            requesterId: connection.requester.id,
+            requesterName: connection.requester.name,
+            requesterImage: connection.requester.image
+          }
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching connection requests for notifications:', error);
+  }
 
   // Add some system notifications
   if (notifications.length < limit) {

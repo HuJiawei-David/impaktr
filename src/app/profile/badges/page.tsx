@@ -468,9 +468,9 @@ export default function ProfileBadgesPage() {
                     </div>
                     <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
                       <div className="text-2xl font-bold">
-                        {sdg.tiers.reduce((sum, t) => sum + t.progress.hours, 0)}
+                        {sdg.tiers.length > 0 ? sdg.tiers[0].progress.hours : 0}
                       </div>
-                      <div className="text-xs">total hours</div>
+                      <div className="text-xs">hours for this SDG</div>
                     </div>
                   </div>
                 </div>
