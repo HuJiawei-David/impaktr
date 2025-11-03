@@ -77,9 +77,9 @@ export async function GET(
 
     // Calculate event statistics
     const totalParticipants = event.participations.length;
-    const verifiedParticipants = event.participations.filter(p => p.status === 'VERIFIED').length;
-    const pendingParticipants = event.participations.filter(p => p.status === 'PENDING').length;
-    const totalHours = event.participations.reduce((sum, p) => sum + (p.hours || 0), 0);
+    const verifiedParticipants = event.participations.filter((p: { status: string }) => p.status === 'VERIFIED').length;
+    const pendingParticipants = event.participations.filter((p: { status: string }) => p.status === 'PENDING').length;
+    const totalHours = event.participations.reduce((sum: number, p: { hours?: number | null }) => sum + (p.hours || 0), 0);
     const completionRate = totalParticipants > 0 ? (verifiedParticipants / totalParticipants) * 100 : 0;
 
     const stats = {
@@ -134,9 +134,9 @@ export async function GET(
         id: event.id,
         title: event.title,
         description: event.description,
-        startDate: event.startDate.toISOString(),
-        endDate: event.endDate?.toISOString(),
-        registrationDeadline: eventWithExtras.registrationDeadline?.toISOString(),
+        startDate: event.startDate instanceof Date ? event.startDate.toISOString() : new Date(event.startDate).toISOString(),
+        endDate: event.endDate ? (event.endDate instanceof Date ? event.endDate.toISOString() : new Date(event.endDate).toISOString()) : undefined,
+        registrationDeadline: eventWithExtras.registrationDeadline ? (eventWithExtras.registrationDeadline instanceof Date ? eventWithExtras.registrationDeadline.toISOString() : new Date(eventWithExtras.registrationDeadline).toISOString()) : undefined,
         location,
         maxParticipants: event.maxParticipants,
         currentParticipants: event.currentParticipants,
@@ -144,7 +144,7 @@ export async function GET(
         sdg: event.sdg,
         type: event.type,
         isPublic: event.isPublic,
-        createdAt: event.createdAt.toISOString(),
+        createdAt: event.createdAt instanceof Date ? event.createdAt.toISOString() : new Date(event.createdAt).toISOString(),
         imageUrl: event.imageUrl,
         skills: eventWithExtras.skills || [],
         intensity: eventWithExtras.intensity || 1.0,
@@ -156,9 +156,9 @@ export async function GET(
         autoIssueCertificates: eventWithExtras.autoIssueCertificates !== false,
         attendanceCode: (event as any).attendanceCode || null,
         attendanceEnabled: (event as any).attendanceEnabled || false,
-        attendanceEnabledAt: (event as any).attendanceEnabledAt?.toISOString() || null,
-        attendanceDisabledAt: (event as any).attendanceDisabledAt?.toISOString() || null,
-        participations: event.participations.map(p => {
+        attendanceEnabledAt: (event as any).attendanceEnabledAt ? ((event as any).attendanceEnabledAt instanceof Date ? (event as any).attendanceEnabledAt.toISOString() : new Date((event as any).attendanceEnabledAt).toISOString()) : null,
+        attendanceDisabledAt: (event as any).attendanceDisabledAt ? ((event as any).attendanceDisabledAt instanceof Date ? (event as any).attendanceDisabledAt.toISOString() : new Date((event as any).attendanceDisabledAt).toISOString()) : null,
+        participations: event.participations.map((p: any) => {
           // Parse registration info from feedback field
           let registrationInfo: {
             motivation?: string;
@@ -184,12 +184,12 @@ export async function GET(
             id: p.id,
             userId: p.userId,
             status: p.status,
-            joinedAt: p.joinedAt.toISOString(),
-            verifiedAt: p.verifiedAt?.toISOString(),
-            hours: p.hours,
-            feedback: p.feedback,
+            joinedAt: p.joinedAt instanceof Date ? p.joinedAt.toISOString() : new Date(p.joinedAt).toISOString(),
+            verifiedAt: p.verifiedAt ? (p.verifiedAt instanceof Date ? p.verifiedAt.toISOString() : new Date(p.verifiedAt).toISOString()) : undefined,
+            hours: p.hours ?? null,
+            feedback: p.feedback ?? null,
             registrationInfo, // Add parsed registration info
-            user: p.user
+            user: p.user || null
           };
         })
       },
@@ -198,7 +198,13 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching event details:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    }, { status: 500 });
   }
 }
 
@@ -528,6 +534,37 @@ export async function PUT(
           })
         )
       );
+    }
+
+    // If event is DRAFT and has a startDate (either existing or being updated), auto-update status
+    // This ensures events become visible to participants when admin sets startDate, registrationDeadline, attendance code, etc.
+    if (event.status === 'DRAFT') {
+      // Use the updated startDate if provided, otherwise use the existing one
+      const startDateToCheck = updateData.startDate 
+        ? (updateData.startDate instanceof Date ? updateData.startDate : new Date(updateData.startDate))
+        : (event.startDate instanceof Date ? event.startDate : new Date(event.startDate));
+      
+      // Only auto-update status if we have a valid startDate
+      if (startDateToCheck && !isNaN(startDateToCheck.getTime())) {
+        const now = new Date();
+        
+        // Auto-update status based on startDate
+        if (startDateToCheck > now) {
+          // Event starts in the future - set to UPCOMING
+          updateData.status = 'UPCOMING';
+          // Ensure event is public when it becomes visible
+          if (updateData.isPublic === undefined) {
+            updateData.isPublic = true;
+          }
+        } else {
+          // Event starts now or in the past - set to ACTIVE
+          updateData.status = 'ACTIVE';
+          // Ensure event is public when it becomes visible
+          if (updateData.isPublic === undefined) {
+            updateData.isPublic = true;
+          }
+        }
+      }
     }
 
     // Update the event

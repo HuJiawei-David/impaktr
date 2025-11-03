@@ -40,7 +40,6 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { Label } from '@/components/ui/label';
 import { toast } from 'react-hot-toast';
 import { getSDGById, getSDGColor } from '@/constants/sdgs';
 import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
@@ -139,6 +138,7 @@ export default function EventDetailPage() {
   const [showAllRegistrations, setShowAllRegistrations] = useState(false);
   const [showAllVerifications, setShowAllVerifications] = useState(false);
   
+  
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
   
@@ -222,11 +222,14 @@ export default function EventDetailPage() {
     if (user && eventId) {
       fetchEventDetails();
     }
-  }, [isLoading, user, eventId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, user, eventId]);
+
 
   const fetchEventDetails = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`/api/organization/events/${eventId}`);
       
       if (response.status === 401) {
@@ -235,22 +238,26 @@ export default function EventDetailPage() {
       }
 
       if (response.status === 403) {
-        router.push('/organization/dashboard');
+        setError('You do not have permission to view this event');
         return;
       }
 
       if (response.status === 404) {
-        router.push('/organization/events');
+        setError('Event not found');
         return;
       }
 
       if (!response.ok) {
-        throw new Error('Failed to fetch event details');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch event details' }));
+        throw new Error(errorData.error || 'Failed to fetch event details');
       }
 
       const data = await response.json();
+      if (!data.event) {
+        throw new Error('Event data is missing from response');
+      }
       setEvent(data.event);
-      setStats(data.stats);
+      setStats(data.stats || null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching event details:', err);
@@ -258,6 +265,7 @@ export default function EventDetailPage() {
       setLoading(false);
     }
   };
+
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1156,6 +1164,15 @@ export default function EventDetailPage() {
                     </div>
                   </>
                 )}
+                
+                {/* Certificate Configuration Button - Same width as Event Statistics card */}
+                <Button
+                  className="w-full mt-4"
+                  onClick={() => router.push(`/organization/events/${eventId}/certificate`)}
+                >
+                  <Award className="w-4 h-4 mr-2" />
+                  Certificate for this event
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -1425,25 +1442,114 @@ export default function EventDetailPage() {
                             <Card key={participation.id}>
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-4">
-                                  <h4 className="font-medium">{getParticipantName(participation)}</h4>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleCard(participation.id)}
-                                    className="text-gray-600 dark:text-gray-400"
-                                  >
-                                    {isExpanded ? (
-                                      <>
-                                        <ChevronUp className="w-4 h-4 mr-1" />
-                                        Collapse
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ChevronDown className="w-4 h-4 mr-1" />
-                                        Expand
-                                      </>
+                                  <div className="flex-1">
+                                    <h4 className="font-medium">{getParticipantName(participation)}</h4>
+                                    {/* Progress Bar */}
+                                    <div className="mt-2 space-y-1">
+                                      <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400">
+                                        <span>Verification Progress</span>
+                                        <span className="font-medium">
+                                          {participation.status === 'VERIFIED' ? '100%' : participation.status === 'ATTENDED' ? '50%' : '0%'}
+                                        </span>
+                                      </div>
+                                      <Progress 
+                                        value={participation.status === 'VERIFIED' ? 100 : participation.status === 'ATTENDED' ? 50 : 0} 
+                                        className="h-2" 
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-2 ml-4">
+                                    {participation.status !== 'VERIFIED' && (
+                                      <Button
+                                        variant="default"
+                                        size="sm"
+                                        onClick={() => {
+                                          showConfirm({
+                                            title: 'Grant Approval',
+                                            message: `Are you sure you want to grant approval to ${getParticipantName(participation)}? This will issue a certificate and update their impact score.`,
+                                            confirmText: 'Grant Approval',
+                                            cancelText: 'Cancel',
+                                            type: 'warning',
+                                            onConfirm: async () => {
+                                              try {
+                                                // Fetch certificate config first
+                                                const configResponse = await fetch(`/api/organization/events/${eventId}/certificate-config`);
+                                                let certName = event?.title || '';
+                                                let certContent = '';
+                                                if (configResponse.ok) {
+                                                  const configData = await configResponse.json();
+                                                  if (configData.certificateConfig) {
+                                                    certName = configData.certificateConfig.certificateName || event?.title || '';
+                                                    certContent = configData.certificateConfig.certificateContent || '';
+                                                  }
+                                                }
+                                                const response = await fetch(`/api/organization/events/${eventId}/participants/${participation.id}/grant-approval`, {
+                                                  method: 'POST',
+                                                  headers: {
+                                                    'Content-Type': 'application/json',
+                                                  },
+                                                  body: JSON.stringify({
+                                                    certificateName: certName,
+                                                    certificateContent: certContent,
+                                                  }),
+                                                });
+
+                                                if (!response.ok) {
+                                                  let errorData: any = {};
+                                                  try {
+                                                    const responseText = await response.text();
+                                                    if (responseText) {
+                                                      try {
+                                                        errorData = JSON.parse(responseText);
+                                                      } catch {
+                                                        errorData = { error: responseText };
+                                                      }
+                                                    }
+                                                  } catch (parseError) {
+                                                    console.error('Failed to parse error response:', parseError);
+                                                    errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+                                                  }
+                                                  console.error('Grant approval error:', errorData);
+                                                  const errorMessage = errorData.error || errorData.details || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+                                                  throw new Error(errorMessage);
+                                                }
+
+                                                const result = await response.json();
+                                                toast.success(result.message || 'Certificate and impact score sent! Waiting for participant confirmation.');
+                                                fetchEventDetails();
+                                              } catch (error) {
+                                                const errorMessage = error instanceof Error ? error.message : 'Failed to grant approval';
+                                                toast.error(errorMessage);
+                                                console.error('Error granting approval:', error);
+                                              }
+                                            }
+                                          });
+                                        }}
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                      >
+                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                        Grant Approval
+                                      </Button>
                                     )}
-                                  </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleCard(participation.id)}
+                                      className="text-gray-600 dark:text-gray-400"
+                                    >
+                                      {isExpanded ? (
+                                        <>
+                                          <ChevronUp className="w-4 h-4 mr-1" />
+                                          Collapse
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ChevronDown className="w-4 h-4 mr-1" />
+                                          Expand
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
                                 </div>
                                 
                                 {isExpanded && (

@@ -120,63 +120,150 @@ export async function GET(request: NextRequest) {
         };
       }
 
-      const users = await prisma.user.findMany({
-        where,
-        include: {
-          badges: {
-            include: {
-              badge: true,
-            },
-            where: sdg ? {
-              badge: {
-                category: { equals: sdg.toString() },
-              }
-            } : undefined,
-          },
-          participations: {
-            where: { status: 'VERIFIED' },
-            include: {
-              event: true,
-            }
-          },
-          _count: {
-            select: {
-              participations: {
-                where: { status: 'VERIFIED' }
+      let users: any[] = [];
+      try {
+        users = await prisma.user.findMany({
+          where,
+          include: {
+            badges: {
+              include: {
+                badge: true,
               },
+              where: sdg ? {
+                badge: {
+                  category: { equals: sdg.toString() },
+                }
+              } : undefined,
+            },
+            participations: {
+              where: { 
+                status: { in: ['VERIFIED', 'ATTENDED'] } // Include both VERIFIED and ATTENDED statuses
+              },
+              include: {
+                event: true,
+              }
+            },
+            _count: {
+              select: {
+                participations: {
+                  where: { status: { in: ['VERIFIED', 'ATTENDED'] } } // Include both statuses
+                },
+              }
             }
-          }
-        },
-        orderBy: { impactScore: 'desc' },
-        skip,
-        take: limit,
-      });
+          },
+          orderBy: { impactScore: 'desc' },
+          skip,
+          take: limit,
+        });
+      } catch (queryError) {
+        console.error('Error fetching users for leaderboard:', queryError);
+        console.error('Error details:', queryError instanceof Error ? queryError.message : String(queryError));
+        // Return empty results rather than 500 error
+        return NextResponse.json({
+          type,
+          period,
+          sdg,
+          country,
+          users: [],
+          currentUser: undefined,
+          totalUsers: 0,
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
 
-      total = await prisma.user.count({ where });
+      try {
+        total = await prisma.user.count({ where });
+      } catch (countError) {
+        console.error('Error counting users for leaderboard:', countError);
+        total = users.length; // Fallback to result count
+      }
 
       type UserWithRelations = typeof users[0];
       
       // Calculate volunteer hours and unique events
       rankings = users.map((user: UserWithRelations, index) => {
-        const volunteerHours = user.participations?.reduce((sum, p) => sum + (p.hours || 0), 0) || 0;
-        const uniqueEvents = new Set(user.participations?.map(p => p.eventId) || []).size;
-        const badgesEarned = user.badges?.filter(b => b.earnedAt).length || 0;
-        
-        return {
-          rank: skip + index + 1,
-          id: user.id,
-          name: user.name || 'Anonymous User',
-          image: user.image,
-          impactScore: user.impactScore,
-          volunteerHours,
-          eventsJoined: uniqueEvents,
-          badgesEarned,
-          tier: user.tier,
-          location: user.city && user.country ? {
-            city: user.city,
-            country: user.country,
-          } : (user.location || undefined),
-        };
+        try {
+          // Handle null/undefined participations
+          if (!user.participations) {
+            return {
+              rank: skip + index + 1,
+              id: user.id,
+              name: user.name || 'Anonymous User',
+              image: user.image,
+              impactScore: user.impactScore || 0,
+              volunteerHours: 0,
+              eventsJoined: 0,
+              badgesEarned: 0,
+              tier: user.tier,
+              location: user.city && user.country ? {
+                city: user.city,
+                country: user.country,
+              } : (user.location || undefined),
+            };
+          }
+
+          // Filter to only count completed participations (VERIFIED or ATTENDED)
+          const completedParticipations = user.participations.filter(
+            (p: { status: string; hours?: number | null; eventId: string }) => p.status === 'VERIFIED' || p.status === 'ATTENDED'
+          );
+          
+          const volunteerHours = completedParticipations.reduce((sum: number, p: { hours?: number | null }) => sum + (p.hours || 0), 0);
+          const uniqueEvents = new Set(completedParticipations.map((p: { eventId: string }) => p.eventId)).size;
+          const badgesEarned = user.badges?.filter((b: { earnedAt?: Date | null }) => b.earnedAt).length || 0;
+          
+          // Validate impactScore is a valid number
+          let validImpactScore = user.impactScore || 0;
+          if (!Number.isFinite(validImpactScore) || isNaN(validImpactScore)) {
+            console.warn(`Invalid impactScore for user ${user.id}: ${user.impactScore}, setting to 0`);
+            validImpactScore = 0;
+          }
+          
+          return {
+            rank: skip + index + 1,
+            id: user.id,
+            name: user.name || 'Anonymous User',
+            image: user.image,
+            impactScore: validImpactScore,
+            volunteerHours,
+            eventsJoined: uniqueEvents,
+            badgesEarned,
+            tier: user.tier,
+            location: user.city && user.country ? {
+              city: user.city,
+              country: user.country,
+            } : (user.location || undefined),
+          };
+        } catch (userError) {
+          console.error(`Error processing user ${user.id} for leaderboard:`, userError);
+          // Return a safe default for this user
+          // Validate impactScore is a valid number
+          let validImpactScore = 0;
+          if (user.impactScore) {
+            validImpactScore = Number.isFinite(user.impactScore) && !isNaN(user.impactScore) 
+              ? user.impactScore : 0;
+          }
+          
+          return {
+            rank: skip + index + 1,
+            id: user.id,
+            name: user.name || 'Anonymous User',
+            image: user.image,
+            impactScore: validImpactScore,
+            volunteerHours: 0,
+            eventsJoined: 0,
+            badgesEarned: 0,
+            tier: user.tier,
+            location: user.city && user.country ? {
+              city: user.city,
+              country: user.country,
+            } : undefined,
+          };
+        }
       });
 
       // Find current user's ranking if logged in
@@ -186,46 +273,84 @@ export async function GET(request: NextRequest) {
           currentUserRanking = rankings[currentUserIndex];
         } else {
           // Current user not in current page, fetch their ranking separately
-          const currentUser = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            include: {
-              badges: {
-                include: { badge: true },
-                where: sdg ? {
-                  badge: { category: sdg.toString() }
-                } : undefined,
-              },
-              participations: {
-                where: { status: 'VERIFIED' },
-                include: { event: true }
-              },
-              _count: {
-                select: {
-                  participations: { where: { status: 'VERIFIED' } }
+          let currentUser: any = null;
+          try {
+            currentUser = await prisma.user.findUnique({
+              where: { id: session.user.id },
+              include: {
+                badges: {
+                  include: { badge: true },
+                  where: sdg ? {
+                    badge: { category: sdg.toString() }
+                  } : undefined,
+                },
+                participations: {
+                  where: { 
+                    status: { in: ['VERIFIED', 'ATTENDED'] } // Include both statuses
+                  },
+                  include: { event: true }
+                },
+                _count: {
+                  select: {
+                    participations: { 
+                      where: { status: { in: ['VERIFIED', 'ATTENDED'] } } // Include both statuses
+                    }
+                  }
                 }
               }
-            }
-          });
+            });
+          } catch (currentUserError) {
+            console.error('Error fetching current user for leaderboard:', currentUserError);
+            // Continue without current user ranking if query fails
+          }
 
           if (currentUser) {
+            // Validate current user's impactScore is a valid number
+            if (!Number.isFinite(currentUser.impactScore) || isNaN(currentUser.impactScore)) {
+              console.warn(`Invalid impactScore for current user ${currentUser.id}: ${currentUser.impactScore}, setting to 0`);
+              currentUser.impactScore = 0;
+            }
+            
             // Calculate their rank by counting users with higher scores
-            const higherScoreCount = await prisma.user.count({
-              where: {
-                ...where,
-                impactScore: { gt: currentUser.impactScore }
-              }
-            });
+            let higherScoreCount = 0;
+            try {
+              higherScoreCount = await prisma.user.count({
+                where: {
+                  ...where,
+                  impactScore: { gt: currentUser.impactScore }
+                }
+              });
+            } catch (rankError) {
+              console.error('Error calculating current user rank:', rankError);
+              // Continue with 0, will result in rank 1
+            }
 
-            const volunteerHours = currentUser.participations?.reduce((sum, p) => sum + (p.hours || 0), 0) || 0;
-            const uniqueEvents = new Set(currentUser.participations?.map(p => p.eventId) || []).size;
-            const badgesEarned = currentUser.badges?.filter(b => b.earnedAt).length || 0;
+            // Handle null/undefined participations
+            let volunteerHours = 0;
+            let uniqueEvents = 0;
+            if (currentUser.participations) {
+              // Filter to only count completed participations (VERIFIED or ATTENDED)
+              const completedParticipations = currentUser.participations.filter(
+                (p: { status: string; hours?: number | null; eventId: string }) => p.status === 'VERIFIED' || p.status === 'ATTENDED'
+              );
+              volunteerHours = completedParticipations.reduce((sum: number, p: { hours?: number | null }) => sum + (p.hours || 0), 0);
+              uniqueEvents = new Set(completedParticipations.map((p: { eventId: string }) => p.eventId)).size;
+            }
+            const badgesEarned = currentUser.badges?.filter((b: { earnedAt?: Date | null }) => b.earnedAt).length || 0;
 
+            // Validate impactScore for currentUserRanking
+            let validCurrentUserImpactScore = currentUser.impactScore || 0;
+            if (!Number.isFinite(validCurrentUserImpactScore) || isNaN(validCurrentUserImpactScore)) {
+              console.warn(`Invalid impactScore for current user ${currentUser.id}: ${currentUser.impactScore}, setting to 0`);
+              validCurrentUserImpactScore = 0;
+            }
+            
             currentUserRanking = {
               rank: higherScoreCount + 1,
               id: currentUser.id,
               name: currentUser.name || 'Anonymous User',
               image: currentUser.image,
-              impactScore: currentUser.impactScore,
+              impactScore: validCurrentUserImpactScore,
               volunteerHours,
               eventsJoined: uniqueEvents,
               badgesEarned,
@@ -247,32 +372,43 @@ export async function GET(request: NextRequest) {
         where.country = country;
       }
 
-      const organizations = await prisma.organization.findMany({
-        where,
-        include: {
-          corporateBadges: {
-            include: {
-              badge: true,
+      let organizations: any[] = [];
+      try {
+        organizations = await prisma.organization.findMany({
+          where,
+          include: {
+            corporateBadges: {
+              include: {
+                badge: true,
+              },
+              where: sdg ? {
+                badge: {
+                  category: { equals: sdg.toString() },
+                }
+              } : undefined,
             },
-            where: sdg ? {
-              badge: {
-                category: { equals: sdg.toString() },
+            members: true,
+            events: {
+              where: {
+                status: 'COMPLETED',
               }
-            } : undefined,
+            },
           },
-          members: true,
-          events: {
-            where: {
-              status: 'COMPLETED',
-            }
-          },
-        },
-        orderBy: { esgScore: 'desc' },
-        skip,
-        take: limit,
-      });
+          orderBy: { esgScore: 'desc' },
+          skip,
+          take: limit,
+        });
+      } catch (orgError) {
+        console.error('Error fetching organizations for leaderboard:', orgError);
+        organizations = [];
+      }
 
-      total = await prisma.organization.count({ where });
+      try {
+        total = await prisma.organization.count({ where });
+      } catch (countError) {
+        console.error('Error counting organizations:', countError);
+        total = organizations.length;
+      }
 
       type OrgWithRelations = typeof organizations[0];
 
@@ -284,7 +420,7 @@ export async function GET(request: NextRequest) {
         logo: org.logo,
         score: org.esgScore || 0,
         tier: org.subscriptionTier,
-        badges: org.corporateBadges?.map((ob) => ({
+        badges: org.corporateBadges?.map((ob: { badge: { category: string; tier: string; name: string }; earnedAt?: Date | null }) => ({
           sdg: ob.badge.category,
           tier: ob.badge.tier,
           name: ob.badge.name,
@@ -306,21 +442,27 @@ export async function GET(request: NextRequest) {
         total_events: bigint;
       }
       
-      const result = await prisma.$queryRaw<CountryRow[]>`
-        SELECT 
-          users.country as country,
-          COUNT(DISTINCT users.id) as user_count,
-          AVG(users."impactScore") as avg_score,
-          SUM(users."impactScore") as total_score,
-          COUNT(DISTINCT p.id) as total_events
-        FROM users
-        LEFT JOIN participations p ON users.id = p."userId" AND p.status = 'VERIFIED'
-        WHERE users.country IS NOT NULL
-        GROUP BY users.country
-        ORDER BY total_score DESC
-        LIMIT ${limit}
-        OFFSET ${skip}
-      `;
+      let result: CountryRow[] = [];
+      try {
+        result = await prisma.$queryRaw<CountryRow[]>`
+          SELECT 
+            users.country as country,
+            COUNT(DISTINCT users.id) as user_count,
+            AVG(users."impactScore") as avg_score,
+            SUM(users."impactScore") as total_score,
+            COUNT(DISTINCT p.id) as total_events
+          FROM users
+          LEFT JOIN participations p ON users.id = p."userId" AND p.status IN ('VERIFIED', 'ATTENDED')
+          WHERE users.country IS NOT NULL
+          GROUP BY users.country
+          ORDER BY total_score DESC
+          LIMIT ${limit}
+          OFFSET ${skip}
+        `;
+      } catch (countryError) {
+        console.error('Error fetching country leaderboard:', countryError);
+        result = [];
+      }
 
       rankings = result.map((row, index) => ({
         rank: skip + index + 1,

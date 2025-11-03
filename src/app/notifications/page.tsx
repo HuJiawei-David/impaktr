@@ -13,7 +13,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface Notification {
   id: string;
-  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined' | 'connection_request';
+  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined' | 'connection_request' | 'certificate_issued';
   title: string;
   message: string;
   read: boolean;
@@ -24,6 +24,12 @@ interface Notification {
     requesterId?: string;
     requesterName?: string;
     requesterImage?: string | null;
+    certificateId?: string;
+    requiresConfirmation?: boolean;
+    confirmUrl?: string;
+    eventTitle?: string;
+    impactScore?: number;
+    scoreIncrease?: number;
   };
 }
 
@@ -33,6 +39,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingConnection, setProcessingConnection] = useState<string | null>(null);
+  const [processingCertificate, setProcessingCertificate] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -94,6 +101,27 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleConfirmCertificate = async (certificateId: string, notificationId: string) => {
+    setProcessingCertificate(certificateId);
+    
+    try {
+      const response = await fetch(`/api/participants/confirm-certificate/${certificateId}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        fetchNotifications();
+        // Show success message or redirect
+        console.log('Certificate confirmed successfully!');
+      }
+    } catch (error) {
+      console.error('Error confirming certificate:', error);
+    } finally {
+      setProcessingCertificate(null);
+    }
+  };
+
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
       case 'badge_earned':
@@ -107,6 +135,8 @@ export default function NotificationsPage() {
         return <Users className="w-5 h-5 text-indigo-500" />;
       case 'verification_needed':
         return <AlertCircle className="w-5 h-5 text-orange-500" />;
+      case 'certificate_issued':
+        return <Award className="w-5 h-5 text-yellow-500" />;
       default:
         return <Bell className="w-5 h-5 text-gray-500" />;
     }
@@ -149,6 +179,13 @@ export default function NotificationsPage() {
               const requesterId = notification.data?.requesterId;
               const requesterImage = notification.data?.requesterImage;
               const requesterName = notification.data?.requesterName;
+              
+              // Check if this is a certificate confirmation notification
+              const isCertificateConfirmation = notification.type === 'certificate_issued' && 
+                                               notification.data?.requiresConfirmation;
+              const certificateId = notification.data?.certificateId;
+              const eventTitle = notification.data?.eventTitle;
+              const scoreIncrease = notification.data?.scoreIncrease;
               
               return (
                 <Card key={notification.id} className={`${!notification.read ? 'border-l-4 border-l-blue-600' : ''}`}>
@@ -246,6 +283,39 @@ export default function NotificationsPage() {
                           </div>
                         )}
 
+                        {/* Certificate Confirmation Actions */}
+                        {isCertificateConfirmation && certificateId && !processingCertificate && (
+                          <div className="mt-4 space-y-3">
+                            {scoreIncrease && (
+                              <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                <span className="text-sm text-gray-700 dark:text-gray-300">Impact Score Increase:</span>
+                                <span className="text-lg font-bold text-green-600 dark:text-green-400">+{scoreIncrease.toFixed(1)}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleConfirmCertificate(certificateId, notification.id)}
+                                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+                              >
+                                <Check className="w-4 h-4 mr-2" />
+                                Confirm Receipt
+                              </Button>
+                              {notification.actionUrl && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => router.push(notification.actionUrl!)}
+                                  className="border-gray-300 dark:border-gray-600"
+                                >
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  View
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Loading state */}
                         {isConnectionRequest && processingConnection === connectionId && (
                           <div className="flex items-center gap-2 mt-4">
@@ -254,8 +324,15 @@ export default function NotificationsPage() {
                           </div>
                         )}
 
-                        {/* Click action for non-connection requests */}
-                        {!isConnectionRequest && notification.actionUrl && (
+                        {/* Loading state for certificate confirmation */}
+                        {isCertificateConfirmation && processingCertificate === certificateId && (
+                          <div className="flex items-center gap-2 mt-4">
+                            <div className="flex-1 h-9 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+                          </div>
+                        )}
+
+                        {/* Click action for non-connection and non-certificate requests */}
+                        {!isConnectionRequest && !isCertificateConfirmation && notification.actionUrl && (
                           <Button
                             variant="ghost"
                             size="sm"

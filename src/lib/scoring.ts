@@ -4,71 +4,99 @@ import { prisma } from './prisma';
 import { ParticipationStatus } from '@/types/enums';
 
 export async function calculateImpaktrScore(userId: string): Promise<number> {
-  // Get all verified participations for the user
-  const participations = await prisma.participation.findMany({
-    where: {
-      userId,
-      status: ParticipationStatus.VERIFIED,
-    },
-    include: {
-      event: true,
-      verifications: {
-        where: { status: 'APPROVED' }
-      }
-    },
-  });
+  try {
+    // Get all verified and attended participations for the user
+    // ATTENDED status is used when Grant Approval is given but participant hasn't confirmed yet
+    const participations = await prisma.participation.findMany({
+      where: {
+        userId,
+        status: { in: [ParticipationStatus.VERIFIED, ParticipationStatus.ATTENDED] },
+      },
+      include: {
+        event: true,
+        verifications: {
+          where: { status: 'APPROVED' }
+        }
+      },
+    });
 
-  if (participations.length === 0) {
+    if (participations.length === 0) {
+      return 0;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        volunteerProfile: true
+      },
+    });
+
+    if (!user) return 0;
+
+    let totalScore = 0;
+
+    for (const participation of participations) {
+      // Skip if event is null
+      if (!participation.event) {
+        console.warn(`[SCORING] Participation ${participation.id} has null event, skipping`);
+        continue;
+      }
+
+      try {
+        // H = Hours component (log-scaled)
+        const hours = participation.hours || 0;
+        const H = Math.log10(hours + 1) * 100;
+
+        // I = Intensity multiplier (0.8-1.2) - Based on event type
+        const I = getEventIntensity(participation.event);
+
+        // S = Skill multiplier (1.0-1.4) - Based on user skills matching event requirements
+        const S = getSkillMultiplier(participation, user);
+
+        // Q = Quality rating (0.5-1.5) - Based on verification ratings
+        const Q = getQualityRating(participation);
+
+        // V = Verification factor (0.8-1.1) - Based on verification type
+        const V = getVerificationFactor(participation);
+
+        // L = Location fairness multiplier (0.8-1.2)
+        const L = getLocationMultiplier({ country: user.country || undefined });
+
+        // Calculate participation score
+        const participationScore = (H * I * S * Q * V) * L;
+        totalScore += participationScore;
+        
+        console.log(`[SCORING DEBUG] Participation for ${participation.event?.title}:`);
+        console.log(`  H=${H.toFixed(2)}, I=${I}, S=${S}, Q=${Q}, V=${V}, L=${L}`);
+        console.log(`  Raw participation score: ${participationScore.toFixed(2)}`);
+      } catch (participationError) {
+        console.error(`[SCORING] Error calculating score for participation ${participation.id}:`, participationError);
+        // Skip this participation and continue with others
+        continue;
+      }
+    }
+
+    // Apply diminishing returns for very high scores
+    const finalScore = Math.min(totalScore * 0.1, 1000);
+    const roundedScore = Math.round(finalScore * 10) / 10;
+
+    console.log(`[SCORING DEBUG] Total raw: ${totalScore.toFixed(2)}, Final: ${finalScore.toFixed(2)}, Rounded: ${roundedScore}`);
+
+    // Validate the score is a valid finite number
+    if (!Number.isFinite(roundedScore) || isNaN(roundedScore)) {
+      console.warn(`[SCORING] Invalid score calculated: ${roundedScore}, returning 0`);
+      return 0;
+    }
+
+    return Math.max(0, roundedScore); // Ensure non-negative and round to 1 decimal place
+  } catch (error) {
+    console.error(`[SCORING] Error calculating Impaktr score for user ${userId}:`, error);
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    // Return 0 on any error to prevent crashes
     return 0;
   }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      volunteerProfile: true
-    },
-  });
-
-  if (!user) return 0;
-
-  let totalScore = 0;
-
-  for (const participation of participations) {
-    // H = Hours component (log-scaled)
-    const hours = participation.hours || 0;
-    const H = Math.log10(hours + 1) * 100;
-
-    // I = Intensity multiplier (0.8-1.2) - Based on event type
-    const I = getEventIntensity(participation.event);
-
-    // S = Skill multiplier (1.0-1.4) - Based on user skills matching event requirements
-    const S = getSkillMultiplier(participation, user);
-
-    // Q = Quality rating (0.5-1.5) - Based on verification ratings
-    const Q = getQualityRating(participation);
-
-    // V = Verification factor (0.8-1.1) - Based on verification type
-    const V = getVerificationFactor(participation);
-
-    // L = Location fairness multiplier (0.8-1.2)
-    const L = getLocationMultiplier({ country: user.country || undefined });
-
-    // Calculate participation score
-    const participationScore = (H * I * S * Q * V) * L;
-    totalScore += participationScore;
-    
-    console.log(`[SCORING DEBUG] Participation for ${participation.event?.title}:`);
-    console.log(`  H=${H.toFixed(2)}, I=${I}, S=${S}, Q=${Q}, V=${V}, L=${L}`);
-    console.log(`  Raw participation score: ${participationScore.toFixed(2)}`);
-  }
-
-  // Apply diminishing returns for very high scores
-  const finalScore = Math.min(totalScore * 0.1, 1000);
-  const roundedScore = Math.round(finalScore * 10) / 10;
-
-  console.log(`[SCORING DEBUG] Total raw: ${totalScore.toFixed(2)}, Final: ${finalScore.toFixed(2)}, Rounded: ${roundedScore}`);
-
-  return roundedScore; // Round to 1 decimal place
 }
 
 export async function calculateOrganizationScore(organizationId: string): Promise<number> {
@@ -216,6 +244,9 @@ function getLocationMultiplier(location: { country?: string } | null | undefined
 // Helper functions for individual scoring multipliers
 
 function getEventIntensity(event: any): number {
+  // Handle null/undefined event
+  if (!event) return 1.0;
+
   // Use the event's intensity field if available, otherwise fallback to type-based mapping
   if (event.intensity && event.intensity !== 1.0) {
     return event.intensity;
@@ -235,6 +266,9 @@ function getEventIntensity(event: any): number {
 }
 
 function getSkillMultiplier(participation: any, user: any): number {
+  // Handle null/undefined event
+  if (!participation.event) return 1.0;
+
   // Base multiplier
   let multiplier = 1.0;
   

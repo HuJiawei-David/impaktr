@@ -8,158 +8,68 @@
    - Environments: .env.local
 
  ✓ Starting...
- ✓ Ready in 1398ms
- ○ Compiling /api/organizations/dashboard ...
- ✓ Compiled /api/organizations/dashboard in 1528ms (707 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
-[Dashboard API] Session: No session
- GET /api/organizations/dashboard 401 in 2110ms
- ○ Compiling / ...
-(node:51725) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+ ✓ Ready in 1753ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ○ Compiling /organization/events/[id] ...
+(node:64615) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
- ✓ Compiled /api/auth/[...nextauth] in 5.2s (1713 modules)
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/csrf'
-}
- GET / 200 in 5713ms
- ○ Compiling /_error ...
- ✓ Compiled /_error in 832ms (2038 modules)
- GET /api/auth/csrf 500 in 4362ms
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/signout'
-}
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/signout'
-}
- POST /api/auth/_log 500 in 699ms
- POST /api/auth/signout 500 in 698ms
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/csrf'
-}
- GET /api/auth/csrf 500 in 502ms
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/signout'
-}
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/signout'
-}
- POST /api/auth/_log 500 in 478ms
- POST /api/auth/signout 500 in 477ms
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/csrf'
-}
- GET /api/auth/csrf 500 in 481ms
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/signout'
-}
- ⨯ [Error: Cannot find module './vendor-chunks/openid-client.js'
-Require stack:
-- /Users/david/Desktop/impaktr/.next/server/webpack-runtime.js
-- /Users/david/Desktop/impaktr/.next/server/app/api/auth/[...nextauth]/route.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/require.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/load-components.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/build/utils.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/server/dev/static-paths-worker.js
-- /Users/david/Desktop/impaktr/node_modules/next/dist/compiled/jest-worker/processChild.js] {
-  type: 'Error',
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [Array],
-  page: '/api/auth/signout'
-}
- POST /api/auth/_log 500 in 513ms
- POST /api/auth/signout 500 in 509ms
- GET / 200 in 130ms
- GET / 200 in 452ms
+ ✓ Compiled /organization/events/[id] in 4.4s (1315 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /organization/events/cmhenblf30009y4hli6mx71oq 200 in 4684ms
+ ✓ Compiled in 685ms (554 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /organization/events/cmhenblf30009y4hli6mx71oq 200 in 577ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1472ms (1691 modules)
 [next-auth][warn][DEBUG_ENABLED] 
 https://next-auth.js.org/warnings#debug_enabled
- GET /api/auth/session 200 in 367ms
- ✓ Compiled in 3s (1535 modules)
+ GET /api/auth/session 200 in 1991ms
+ ○ Compiling /api/organization/events/[id] ...
+ ✓ Compiled /api/organization/events/[id] in 1619ms (3167 modules)
+(node:64615) NOTE: The AWS SDK for JavaScript (v2) is in maintenance mode.
+ SDK releases are limited to address critical bug fixes and security issues only.
+
+Please migrate your code to use AWS SDK for JavaScript (v3).
+For more information, check the blog post at https://a.co/cUPnyil
+[next-auth][warn][DEBUG_ENABLED] 
+https://next-auth.js.org/warnings#debug_enabled
+(node:64661) NOTE: The AWS SDK for JavaScript (v2) is in maintenance mode.
+ SDK releases are limited to address critical bug fixes and security issues only.
+
+Please migrate your code to use AWS SDK for JavaScript (v3).
+For more information, check the blog post at https://a.co/cUPnyil
+(Use `node --trace-warnings ...` to show where the warning was created)
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."createdAt", "public"."users"."updatedAt", "public"."users"."emailVerified", "public"."users"."image", "public"."users"."name", "public"."users"."password", "public"."users"."bio", "public"."users"."country", "public"."users"."impactScore", "public"."users"."lastActivityDate", "public"."users"."level", "public"."users"."location", "public"."users"."longestStreak", "public"."users"."streak", "public"."users"."totalPoints", "public"."users"."xp", "public"."users"."city", "public"."users"."dateOfBirth", "public"."users"."displayName", "public"."users"."firstName", "public"."users"."gender", "public"."users"."isPublic", "public"."users"."languages", "public"."users"."lastName", "public"."users"."nationality", "public"."users"."occupation", "public"."users"."organization", "public"."users"."referralCode", "public"."users"."role", "public"."users"."sdgFocus", "public"."users"."showEmail", "public"."users"."phone", "public"."users"."showProgress", "public"."users"."allowMessages", "public"."users"."state", "public"."users"."userType"::text, "public"."users"."website", "public"."users"."tier"::text FROM "public"."users" WHERE ("public"."users"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."organization_members"."id", "public"."organization_members"."organizationId", "public"."organization_members"."userId", "public"."organization_members"."role", "public"."organization_members"."joinedAt", "public"."organization_members"."invitedBy", "public"."organization_members"."status", "public"."organization_members"."updatedAt" FROM "public"."organization_members" WHERE "public"."organization_members"."userId" IN ($1) OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."email", "public"."users"."createdAt", "public"."users"."updatedAt", "public"."users"."emailVerified", "public"."users"."image", "public"."users"."name", "public"."users"."password", "public"."users"."bio", "public"."users"."country", "public"."users"."impactScore", "public"."users"."lastActivityDate", "public"."users"."level", "public"."users"."location", "public"."users"."longestStreak", "public"."users"."streak", "public"."users"."totalPoints", "public"."users"."xp", "public"."users"."city", "public"."users"."dateOfBirth", "public"."users"."displayName", "public"."users"."firstName", "public"."users"."gender", "public"."users"."isPublic", "public"."users"."languages", "public"."users"."lastName", "public"."users"."nationality", "public"."users"."occupation", "public"."users"."organization", "public"."users"."referralCode", "public"."users"."role", "public"."users"."sdgFocus", "public"."users"."showEmail", "public"."users"."phone", "public"."users"."showProgress", "public"."users"."allowMessages", "public"."users"."state", "public"."users"."userType"::text, "public"."users"."website", "public"."users"."tier"::text FROM "public"."users" WHERE ("public"."users"."email" = $1 AND 1=1) LIMIT $2 OFFSET $3
+prisma:query SELECT "public"."organization_members"."id", "public"."organization_members"."organizationId", "public"."organization_members"."userId", "public"."organization_members"."role", "public"."organization_members"."joinedAt", "public"."organization_members"."invitedBy", "public"."organization_members"."status", "public"."organization_members"."updatedAt" FROM "public"."organization_members" WHERE ("public"."organization_members"."status" = $1 AND "public"."organization_members"."userId" IN ($2)) OFFSET $3
+prisma:query SELECT "public"."organizations"."id", "public"."organizations"."name", "public"."organizations"."createdAt", "public"."organizations"."updatedAt", "public"."organizations"."stripeCustomerId", "public"."organizations"."subscriptionStatus", "public"."organizations"."address", "public"."organizations"."averageImpactScore", "public"."organizations"."carbonFootprint", "public"."organizations"."city", "public"."organizations"."companySize", "public"."organizations"."country", "public"."organizations"."currentPeriodEnd", "public"."organizations"."description", "public"."organizations"."donationTotal", "public"."organizations"."email", "public"."organizations"."employeeCount", "public"."organizations"."esgScore", "public"."organizations"."eventCount", "public"."organizations"."industry", "public"."organizations"."lastReportDate", "public"."organizations"."logo", "public"."organizations"."maxEvents", "public"."organizations"."maxMembers", "public"."organizations"."nextTierAt", "public"."organizations"."participationRate", "public"."organizations"."phone", "public"."organizations"."reportFrequency", "public"."organizations"."sector", "public"."organizations"."slug", "public"."organizations"."stripeSubscriptionId", "public"."organizations"."subscriptionTier", "public"."organizations"."tierPoints", "public"."organizations"."volunteerHours", "public"."organizations"."website", "public"."organizations"."type", "public"."organizations"."sdgFocusAreas", "public"."organizations"."tier"::text FROM "public"."organizations" WHERE "public"."organizations"."id" IN ($1) OFFSET $2
+ GET /api/organization/current 200 in 3062ms
+prisma:query SELECT "public"."organizations"."id", "public"."organizations"."name", "public"."organizations"."createdAt", "public"."organizations"."updatedAt", "public"."organizations"."stripeCustomerId", "public"."organizations"."subscriptionStatus", "public"."organizations"."address", "public"."organizations"."averageImpactScore", "public"."organizations"."carbonFootprint", "public"."organizations"."city", "public"."organizations"."companySize", "public"."organizations"."country", "public"."organizations"."currentPeriodEnd", "public"."organizations"."description", "public"."organizations"."donationTotal", "public"."organizations"."email", "public"."organizations"."employeeCount", "public"."organizations"."esgScore", "public"."organizations"."eventCount", "public"."organizations"."industry", "public"."organizations"."lastReportDate", "public"."organizations"."logo", "public"."organizations"."maxEvents", "public"."organizations"."maxMembers", "public"."organizations"."nextTierAt", "public"."organizations"."participationRate", "public"."organizations"."phone", "public"."organizations"."reportFrequency", "public"."organizations"."sector", "public"."organizations"."slug", "public"."organizations"."stripeSubscriptionId", "public"."organizations"."subscriptionTier", "public"."organizations"."tierPoints", "public"."organizations"."volunteerHours", "public"."organizations"."website", "public"."organizations"."type", "public"."organizations"."sdgFocusAreas", "public"."organizations"."tier"::text FROM "public"."organizations" WHERE "public"."organizations"."id" IN ($1) OFFSET $2
+prisma:query SELECT "public"."events"."id", "public"."events"."title", "public"."events"."description", "public"."events"."organizationId", "public"."events"."startDate", "public"."events"."endDate", "public"."events"."totalHours", "public"."events"."timezone", "public"."events"."location", "public"."events"."maxParticipants", "public"."events"."currentParticipants", "public"."events"."createdAt", "public"."events"."imageUrl", "public"."events"."organizerId", "public"."events"."sdg", "public"."events"."campaignId", "public"."events"."isPublic", "public"."events"."locationId", "public"."events"."type"::text, "public"."events"."status"::text, "public"."events"."skills", "public"."events"."intensity", "public"."events"."verificationType", "public"."events"."eventInstructions", "public"."events"."materialsNeeded", "public"."events"."emergencyContact", "public"."events"."requiresApproval", "public"."events"."autoIssueCertificates", "public"."events"."registrationDeadline", "public"."events"."attendanceCode", "public"."events"."attendanceEnabled", "public"."events"."attendanceEnabledAt", "public"."events"."attendanceDisabledAt" FROM "public"."events" WHERE ("public"."events"."id" = $1 AND "public"."events"."organizationId" IN ($2)) LIMIT $3 OFFSET $4
+prisma:query SELECT "public"."participations"."id", "public"."participations"."userId", "public"."participations"."eventId", "public"."participations"."status"::text, "public"."participations"."joinedAt", "public"."participations"."verifiedAt", "public"."participations"."hours", "public"."participations"."impactPoints", "public"."participations"."feedback", "public"."participations"."createdAt", "public"."participations"."updatedAt" FROM "public"."participations" WHERE "public"."participations"."eventId" IN ($1) ORDER BY "public"."participations"."joinedAt" DESC OFFSET $2
+prisma:query SELECT "public"."users"."id", "public"."users"."name", "public"."users"."email", "public"."users"."image", "public"."users"."impactScore", "public"."users"."tier"::text, "public"."users"."firstName", "public"."users"."lastName", "public"."users"."dateOfBirth" FROM "public"."users" WHERE "public"."users"."id" IN ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) OFFSET $11
+ GET /api/organization/events/cmhenblf30009y4hli6mx71oq 200 in 3209ms
+ ○ Compiling /organization/events ...
+ ✓ Compiled /organization/events in 781ms (3192 modules)
+ GET /organization/events 200 in 1209ms
+[Error: ENOENT: no such file or directory, stat '/Users/david/Desktop/impaktr/.next/cache/webpack/server-development/0.pack.gz'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/Users/david/Desktop/impaktr/.next/cache/webpack/server-development/0.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat '/Users/david/Desktop/impaktr/.next/cache/webpack/server-development/0.pack.gz'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/Users/david/Desktop/impaktr/.next/cache/webpack/server-development/0.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat '/Users/david/Desktop/impaktr/.next/cache/webpack/server-development/0.pack.gz'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '/Users/david/Desktop/impaktr/.next/cache/webpack/server-development/0.pack.gz'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, stat '/Users/david/Desktop/impaktr/.next/cache/webpack/server-development/0.pack.gz'
+[?25h

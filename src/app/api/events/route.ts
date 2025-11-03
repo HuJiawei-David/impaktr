@@ -59,55 +59,152 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
+    // Get session to check user participation and bookmarks
+    let userId: string | undefined;
+    try {
+      const session = await getSession();
+      userId = session?.user?.id;
+    } catch (error) {
+      // Session error - user not logged in or invalid token
+      userId = undefined;
+    }
+
+    // Get user's participations if logged in
+    let userParticipations: string[] = [];
+    if (userId) {
+      try {
+        const participations = await prisma.participation.findMany({
+          where: { 
+            userId,
+            status: { 
+              notIn: ['CANCELLED', 'REJECTED'] // Exclude cancelled and rejected participations
+            }
+          },
+          select: { eventId: true }
+        });
+        userParticipations = participations.map((p: { eventId: string }) => p.eventId);
+      } catch (error) {
+        // Participation query failed - default to empty array
+        userParticipations = [];
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       isPublic: true, // Only show public events
     };
 
+    // Build base conditions array for AND logic
+    const baseConditions: any[] = [];
+
     // Apply status filter if provided, otherwise show UPCOMING and ACTIVE events
     if (status) {
-      where.status = status;
+      // When status is explicitly provided:
+      // - If user has participations, include their events regardless of status
+      // - OR show events with the specified status
+      if (userParticipations.length > 0) {
+        baseConditions.push({
+          OR: [
+            {
+              id: { in: userParticipations } // User's registered events - no status filter
+            },
+            {
+              status: status // Events with specified status
+            }
+          ]
+        });
+      } else {
+        baseConditions.push({
+          status: status
+        });
+      }
       // For UPCOMING status, also filter by date to exclude past events
-      if (status === 'UPCOMING') {
-        where.startDate = {
-          gte: new Date() // Only events starting from now
-        };
+      // BUT only for non-participant events (participant events are already included above)
+      if (status === 'UPCOMING' && userParticipations.length === 0) {
+        baseConditions.push({
+          startDate: {
+            gte: new Date() // Only events starting from now
+          }
+        });
       }
     } else {
-      where.status = { in: ['UPCOMING', 'ACTIVE'] };
-      // Also filter by date to exclude past events
-      where.startDate = {
-        gte: new Date()
-      };
+      // For default query (no status specified)
+      // If user is a participant, include their events regardless of status/date
+      // AND also show UPCOMING/ACTIVE events for others
+      if (userParticipations.length > 0) {
+        // Use OR to include: user's events OR UPCOMING/ACTIVE events
+        baseConditions.push({
+          OR: [
+            {
+              id: { in: userParticipations } // User's registered events - no status/date filter
+            },
+            {
+              status: { in: ['UPCOMING', 'ACTIVE'] }
+              // Don't filter by startDate - allow events past registration deadline
+            }
+          ]
+        });
+      } else {
+        // No participations - just show UPCOMING and ACTIVE events
+        // Don't filter by startDate to allow events past registration deadline
+        baseConditions.push({
+          status: { in: ['UPCOMING', 'ACTIVE'] }
+        });
+      }
     }
 
+    // Apply search filter
     if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' as const } },
-        { description: { contains: search, mode: 'insensitive' as const } },
-      ];
+      baseConditions.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' as const } },
+          { description: { contains: search, mode: 'insensitive' as const } },
+        ]
+      });
     }
 
+    // Apply SDG filter
     if (sdg) {
-      where.sdg = sdg.toString(); // Use sdg field instead of non-existent sdgTags
+      baseConditions.push({
+        sdg: sdg.toString()
+      });
     }
 
+    // Apply location filter
     if (location) {
-      where.location = {
-        contains: location,
-        mode: 'insensitive' as const
-      };
+      baseConditions.push({
+        location: {
+          contains: location,
+          mode: 'insensitive' as const
+        }
+      });
     }
 
+    // Apply organization filter
     if (organizationId) {
-      where.organizationId = organizationId;
+      baseConditions.push({
+        organizationId: organizationId
+      });
     }
 
     // Apply custom date filters if provided (override default date filters)
     if (startDate || endDate) {
-      where.startDate = {};
-      if (startDate) where.startDate.gte = startDate;
-      if (endDate) where.startDate.lte = endDate;
+      const dateCondition: any = {};
+      if (startDate) dateCondition.gte = startDate;
+      if (endDate) dateCondition.lte = endDate;
+      baseConditions.push({
+        startDate: dateCondition
+      });
+    }
+
+    // Combine all conditions with AND
+    if (baseConditions.length > 0) {
+      where.AND = baseConditions;
+    } else {
+      // If no base conditions, apply status filter directly
+      if (status && !where.status) {
+        where.status = status;
+      }
     }
 
     const [events, total] = await Promise.all([
@@ -130,16 +227,6 @@ export async function GET(request: NextRequest) {
       prisma.event.count({ where }),
     ]);
 
-    // Get session to check bookmark status
-    let userId: string | undefined;
-    try {
-      const session = await getSession();
-      userId = session?.user?.id;
-    } catch (error) {
-      // Session error - user not logged in or invalid token
-      userId = undefined;
-    }
-
     // Get all bookmarks for this user if logged in
     let userBookmarks: string[] = [];
     if (userId) {
@@ -155,10 +242,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Transform events to include bookmark status and correct participant count
+    // Transform events to include bookmark status, participation status, and correct participant count
     const eventsWithBookmarks = events.map((event: { id: string; _count: { participations: number } }) => ({
       ...event,
       isBookmarked: userBookmarks.includes(event.id),
+      isAttending: userParticipations.includes(event.id), // Mark if user is a participant
       currentParticipants: event._count.participations // Use the count of VERIFIED participations
     }));
 

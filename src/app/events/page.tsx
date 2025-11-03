@@ -309,7 +309,7 @@ function EventsPageContent() {
           status: event.status,
           isFavorited: false,
           isBookmarked: event.isBookmarked || false,
-          isAttending: false,
+          isAttending: event.isAttending || false, // Use the isAttending field from API
           trending: false,
           featured: false
         };

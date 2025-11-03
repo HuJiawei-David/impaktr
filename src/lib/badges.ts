@@ -359,10 +359,22 @@ async function updateUserRank(userId: string): Promise<void> {
     if (newRank !== user.tier) {
       console.log(`updateUserRank: Updating ${userId} from ${user.tier} to ${newRank} (score: ${impaktrScore}, hours: ${verifiedHours}, badges: ${earnedBadges})`);
       
-      await prisma.user.update({
-        where: { id: userId },
-        data: { tier: newRank }
-      });
+      // Validate newRank is a valid IndividualRank enum value
+      const validRanks = Object.values(IndividualRank);
+      if (!validRanks.includes(newRank)) {
+        console.error(`updateUserRank: Invalid rank ${newRank} for user ${userId}, keeping existing rank ${user.tier}`);
+        return;
+      }
+      
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { tier: newRank }
+        });
+      } catch (updateError) {
+        console.error(`updateUserRank: Error updating tier for user ${userId}:`, updateError);
+        throw updateError;
+      }
 
       // Create rank achievement (only if rank increased, not decreased)
       const currentRankIndex = INDIVIDUAL_RANK_BADGES.findIndex(b => b.rank === user.tier);

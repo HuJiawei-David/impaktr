@@ -150,26 +150,46 @@ export async function GET(request: NextRequest) {
       try {
         const calculatedScore = await calculateImpaktrScore(user.id);
         
-        // Update score if it has changed
-        if (calculatedScore !== user.impactScore) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { impactScore: calculatedScore }
-          });
-          user.impactScore = calculatedScore;
+        // Validate calculatedScore is a valid finite number
+        if (Number.isFinite(calculatedScore) && !isNaN(calculatedScore) && calculatedScore >= 0) {
+          // Update score if it has changed
+          if (calculatedScore !== user.impactScore) {
+            try {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { impactScore: calculatedScore }
+              });
+              user.impactScore = calculatedScore;
+            } catch (updateError) {
+              console.error('Error updating impactScore in badges API:', updateError);
+              // Continue without updating score
+            }
+          }
+        } else {
+          console.warn(`Invalid calculatedScore for user ${user.id}: ${calculatedScore}, skipping update`);
         }
 
         // Update tier/rank based on actual requirements (score, hours, badges)
-        await checkAndAwardBadges(user.id);
+        try {
+          await checkAndAwardBadges(user.id);
+        } catch (badgeError) {
+          console.error('Error checking/awarding badges in badges API:', badgeError);
+          // Continue without updating badges
+        }
         
         // Re-fetch user to get updated tier
-        const updatedUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { tier: true, impactScore: true }
-        });
-        if (updatedUser) {
-          user.tier = updatedUser.tier;
-          user.impactScore = updatedUser.impactScore;
+        try {
+          const updatedUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { tier: true, impactScore: true }
+          });
+          if (updatedUser) {
+            user.tier = updatedUser.tier;
+            user.impactScore = updatedUser.impactScore;
+          }
+        } catch (fetchError) {
+          console.error('Error fetching updated user in badges API:', fetchError);
+          // Continue with existing values
         }
       } catch (error) {
         console.error('Error recalculating score/tier in badges API:', error);

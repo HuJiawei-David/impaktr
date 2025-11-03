@@ -2,6 +2,7 @@
 
 import { prisma } from './prisma';
 import { emailTemplates, EmailTemplateType, EmailTemplateData } from './email-template';
+import { NotificationType } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import AWS from 'aws-sdk';
 
@@ -140,19 +141,26 @@ class NotificationService {
         return null;
       }
 
-      // Create notification in database
-      const result = await prisma.$executeRaw`
-        INSERT INTO notifications (user_id, type, title, message, read, action_url, data, created_at)
-        VALUES (${notification.userId}, ${notification.type}, ${notification.title}, ${notification.message}, 
-                ${notification.read}, ${notification.actionUrl}, ${JSON.stringify(notification.data)}, NOW())
-        RETURNING id
-      `;
+      // Convert snake_case to ENUM_CASE
+      const dbNotificationType = this.convertNotificationType(notification.type);
+
+      // Create notification in database using Prisma
+      const createdNotification = await prisma.notification.create({
+        data: {
+          userId: notification.userId,
+          type: dbNotificationType as NotificationType,
+          title: notification.title,
+          message: notification.message,
+          isRead: notification.read || false,
+          data: notification.data as any
+        }
+      });
 
       // In a real implementation, you might want to use WebSocket or Server-Sent Events
       // to push real-time notifications to the user's browser
       this.sendRealTimeNotification(notification);
 
-      return 'notification-created';
+      return createdNotification.id;
     } catch (error) {
       console.error('Failed to create in-app notification:', error);
       return null;
@@ -532,6 +540,20 @@ class NotificationService {
     return Math.floor(Math.random() * 1000) + 1; // Mock ranking
   }
 
+  private convertNotificationType(type: string): string {
+    // Convert snake_case to ENUM_CASE for database
+    const conversion: { [key: string]: string } = {
+      'badge_earned': 'BADGE_EARNED',
+      'event_reminder': 'EVENT_REMINDER',
+      'verification_needed': 'VERIFICATION_REQUEST',
+      'certificate_issued': 'CERTIFICATE_ISSUED',
+      'monthly_report': 'MONTHLY_REPORT',
+      'rank_up': 'RANK_UP',
+      'event_joined': 'EVENT_JOINED',
+    };
+    return conversion[type] || type.toUpperCase().replace(/_/g, '_');
+  }
+
   private getPreferenceKey(type: string): keyof NotificationPreferences | null {
     const mapping: { [key: string]: keyof NotificationPreferences } = {
       'badge_earned': 'badges',
@@ -564,10 +586,15 @@ class NotificationService {
 
   private async logEmailSent(to: string, templateType: string, messageId: string): Promise<void> {
     try {
-      await prisma.$executeRaw`
-        INSERT INTO email_logs (recipient, template_type, message_id, sent_at)
-        VALUES (${to}, ${templateType}, ${messageId}, NOW())
-      `;
+      await prisma.emailLog.create({
+        data: {
+          recipient: to,
+          subject: `${templateType} email sent`,
+          content: `Email sent using template: ${templateType}`,
+          status: 'SENT',
+          sentAt: new Date()
+        }
+      });
     } catch (error) {
       console.error('Failed to log email:', error);
     }

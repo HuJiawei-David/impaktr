@@ -1,0 +1,6 @@
+-- Add missing NotificationType enum values
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'CERTIFICATE_ISSUED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'RANK_UP';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'EVENT_JOINED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'MONTHLY_REPORT';
+

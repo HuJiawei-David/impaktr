@@ -15,82 +15,100 @@ export async function GET(request: NextRequest) {
     const userId = url.searchParams.get('id') || session.user.id;
 
     // Fetch user with related data
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        volunteerProfile: {
-          select: {
-            interests: true,
-            skills: true,
-          }
-        },
-        badges: {
-          orderBy: { earnedAt: 'desc' },
-          take: 20,
-          include: {
-            badge: {
-              select: {
-                id: true,
-                name: true,
-                sdgNumber: true,
-                tier: true,
+    let user: any = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          volunteerProfile: {
+            select: {
+              interests: true,
+              skills: true,
+            }
+          },
+          badges: {
+            orderBy: { earnedAt: 'desc' },
+            take: 20,
+            include: {
+              badge: {
+                select: {
+                  id: true,
+                  name: true,
+                  sdgNumber: true,
+                  tier: true,
+                }
               }
             }
-          }
-        },
-        participations: {
-          where: { status: 'VERIFIED' },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-          include: {
-            event: {
-              select: {
-                id: true,
-                title: true,
-                sdg: true,
-                startDate: true,
-                type: true,
-                skills: true,
-                organization: {
-                  select: {
-                    id: true,
-                    name: true,
-                    logo: true
+          },
+          participations: {
+            where: { 
+              status: { in: ['VERIFIED', 'ATTENDED'] } // Include both VERIFIED and ATTENDED statuses
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            include: {
+              event: {
+                select: {
+                  id: true,
+                  title: true,
+                  sdg: true,
+                  startDate: true,
+                  type: true,
+                  skills: true,
+                  intensity: true,
+                  organization: {
+                    select: {
+                      id: true,
+                      name: true,
+                      logo: true
+                    }
                   }
                 }
               }
             }
-          }
-        },
-        scoreHistory: {
-          where: {
-            participationId: { not: null },
-            reason: { in: ['participation_verified', 'event_completion'] }
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-          select: {
-            id: true,
-            participationId: true,
-            eventId: true,
-            change: true,
-            createdAt: true
-          }
-        },
-        followers: {
-          where: { followerId: session.user.id }
-        },
-        _count: {
-          select: {
-            followers: true,
-            following: true,
+          scoreHistory: {
+            where: {
+              participationId: { not: null },
+              reason: { in: ['participation_verified', 'event_completion', 'participation_granted_approval'] }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            select: {
+              id: true,
+              participationId: true,
+              eventId: true,
+              change: true,
+              createdAt: true
+            }
+          },
+          followers: {
+            where: { followerId: session.user.id }
+          },
+          _count: {
+            select: {
+              followers: true,
+              following: true,
+            }
           }
         }
-      }
-    });
+      });
+    } catch (userFetchError) {
+      console.error('Error fetching user data:', userFetchError);
+      console.error('Error type:', userFetchError instanceof Error ? userFetchError.constructor.name : typeof userFetchError);
+      console.error('Error message:', userFetchError instanceof Error ? userFetchError.message : String(userFetchError));
+      console.error('Error stack:', userFetchError instanceof Error ? userFetchError.stack : 'No stack trace');
+      return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 });
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Validate and normalize impactScore
+    if (!Number.isFinite(user.impactScore) || isNaN(user.impactScore)) {
+      console.warn(`Invalid impactScore for user ${user.id}: ${user.impactScore}, setting to 0`);
+      user.impactScore = 0;
     }
 
     // Check if profile is public or if the current user has permission to view
@@ -103,44 +121,71 @@ export async function GET(request: NextRequest) {
       try {
         const calculatedScore = await calculateImpaktrScore(user.id);
         
-        // Update score if it has changed
-        if (calculatedScore !== user.impactScore) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { impactScore: calculatedScore }
-          });
-          user.impactScore = calculatedScore;
+        // Validate calculatedScore is a valid finite number
+        if (Number.isFinite(calculatedScore) && !isNaN(calculatedScore) && calculatedScore >= 0) {
+          // Update score if it has changed
+          if (calculatedScore !== user.impactScore) {
+            try {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { impactScore: calculatedScore }
+              });
+              user.impactScore = calculatedScore;
+            } catch (updateError) {
+              console.error(`Error updating impactScore for user ${user.id}:`, updateError);
+              // Continue without updating score
+            }
+          }
+        } else {
+          console.warn(`Invalid calculatedScore for user ${user.id}: ${calculatedScore}, skipping update`);
         }
 
         // Update tier/rank based on actual requirements (score, hours, badges)
         // This will be done by checkAndAwardBadges which calls updateUserRank
-        await checkAndAwardBadges(user.id);
+        try {
+          await checkAndAwardBadges(user.id);
+        } catch (badgeError) {
+          console.error(`Error checking/awarding badges for user ${user.id}:`, badgeError);
+          // Continue without updating badges
+        }
         
         // Re-fetch user to get updated tier
-        const updatedUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { tier: true, impactScore: true }
-        });
-        if (updatedUser) {
-          user.tier = updatedUser.tier;
-          user.impactScore = updatedUser.impactScore;
+        try {
+          const updatedUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { tier: true, impactScore: true }
+          });
+          if (updatedUser) {
+            user.tier = updatedUser.tier;
+            user.impactScore = updatedUser.impactScore;
+          }
+        } catch (fetchError) {
+          console.error(`Error fetching updated user ${user.id}:`, fetchError);
+          // Continue with existing values
         }
       } catch (error) {
-        console.error(`Error recalculating score/tier for user ${user.id}:`, error);
+        console.error(`Error recalculating score for user ${user.id}:`, error);
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+        // Use existing score - don't update, don't throw
         // Continue with existing score/tier if recalculation fails
-        // But log the error so we can debug issues
       }
     }
 
     // Get ALL participations for accurate counting (not just VERIFIED)
-    const allParticipations = await prisma.participation.findMany({
-      where: { userId },
-      select: {
-        eventId: true,
-        status: true,
-        hours: true,
-      }
-    });
+    let allParticipations: any[] = [];
+    try {
+      allParticipations = await prisma.participation.findMany({
+        where: { userId },
+        select: {
+          eventId: true,
+          status: true,
+          hours: true,
+        }
+      });
+    } catch (participationError) {
+      console.error('Error fetching all participations:', participationError);
+      allParticipations = [];
+    }
 
     // Calculate stats
     const volunteerHours = allParticipations
@@ -162,12 +207,21 @@ export async function GET(request: NextRequest) {
 
     // Get user's global rank (using recalculated score)
     const currentScore = user.userType === 'INDIVIDUAL' ? user.impactScore : 0;
-    const rank = user.userType === 'INDIVIDUAL' ? await prisma.user.count({
-      where: {
-        impactScore: { gt: currentScore },
-        userType: 'INDIVIDUAL'
+    let rank: number | undefined = undefined;
+    if (user.userType === 'INDIVIDUAL') {
+      try {
+        const higherScoreCount = await prisma.user.count({
+          where: {
+            impactScore: { gt: currentScore },
+            userType: 'INDIVIDUAL'
+          }
+        });
+        rank = higherScoreCount + 1;
+      } catch (rankError) {
+        console.error('Error calculating user rank:', rankError);
+        // Continue without rank
       }
-    }) + 1 : undefined;
+    }
 
     // Create maps for score lookup (by participationId and eventId as fallback)
     const scoreMapByParticipation = new Map<string, number>();
@@ -214,7 +268,7 @@ export async function GET(request: NextRequest) {
 
     // Format recent activities with score points
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recentActivities = user.participations.map((p: any) => {
+    const recentActivities = (user.participations || []).map((p: any) => {
       let sdgNumber: number | undefined = undefined;
       let sdgNumbers: number[] = [];
       if (p.event?.sdg) {
@@ -352,8 +406,8 @@ export async function GET(request: NextRequest) {
     // Aggregate organizations worked with
     const organizationsMap = new Map<string, { name: string; logo: string | null; events: number; hours: number }>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    user.participations.forEach((p: any) => {
-      if (p.event.organization) {
+    (user.participations || []).forEach((p: any) => {
+      if (p.event && p.event.organization) {
         const orgId = p.event.organization.id;
         const existing = organizationsMap.get(orgId);
         if (existing) {
@@ -377,8 +431,8 @@ export async function GET(request: NextRequest) {
     // Aggregate SDG breakdown
     const sdgMap = new Map<number, { events: number; hours: number; badges: number }>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    user.participations.forEach((p: any) => {
-      if (p.event.sdg) {
+    (user.participations || []).forEach((p: any) => {
+      if (p.event && p.event.sdg) {
         const sdgNum = parseInt(p.event.sdg);
         const existing = sdgMap.get(sdgNum);
         if (existing) {
@@ -413,7 +467,10 @@ export async function GET(request: NextRequest) {
     const sdgParticipationMap = new Map<number, number>();
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    user.participations.forEach((p: any) => {
+    (user.participations || []).forEach((p: any) => {
+      // Skip if event is null
+      if (!p.event) return;
+
       // Use the actual skills set by the organization when creating the event
       if (p.event.skills && Array.isArray(p.event.skills) && p.event.skills.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -484,7 +541,7 @@ export async function GET(request: NextRequest) {
     
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      certificates = await prisma.certificate.findMany({
+      const rawCertificates = await prisma.certificate.findMany({
         where: { userId },
         orderBy: { issuedAt: 'desc' },
         include: {
@@ -505,14 +562,67 @@ export async function GET(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
       
+      // Filter and safely process certificates, handling missing event or organization data
+      certificates = rawCertificates.map((cert: any) => {
+        try {
+          // Ensure event data exists, provide defaults if missing
+          if (!cert.event) {
+            console.warn(`⚠️ Certificate ${cert.id} has no event data`);
+            return {
+              ...cert,
+              event: {
+                id: cert.eventId || 'unknown',
+                title: cert.title || 'Unknown Event',
+                organization: null
+              }
+            };
+          }
+          
+          // Ensure organization data exists, provide defaults if missing
+          if (!cert.event.organization) {
+            console.warn(`⚠️ Certificate ${cert.id} event has no organization data`);
+            return {
+              ...cert,
+              event: {
+                ...cert.event,
+                organization: {
+                  id: 'unknown',
+                  name: 'Unknown Organization',
+                  logo: null
+                }
+              }
+            };
+          }
+          
+          return cert;
+        } catch (certError) {
+          console.error(`❌ Error processing certificate ${cert.id}:`, certError);
+          // Return a safe default structure
+          return {
+            ...cert,
+            event: {
+              id: cert.eventId || 'unknown',
+              title: cert.title || 'Unknown Event',
+              organization: {
+                id: 'unknown',
+                name: 'Unknown Organization',
+                logo: null
+              }
+            }
+          };
+        }
+      });
+      
       certificateCount = certificates.length;
       console.log(`✅ Fetched ${certificateCount} certificates for user ${userId}`);
       if (certificateCount > 0) {
-        console.log('Certificate sample:', certificates[0]);
+        console.log('Certificate sample:', JSON.stringify(certificates[0], null, 2));
       }
     } catch (error) {
       console.error('❌ Error fetching certificates:', error);
-      console.error('Full error:', error);
+      console.error('Error type:', error?.constructor?.name || typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       // Continue without certificates if there's an error
       certificates = [];
       certificateCount = 0;

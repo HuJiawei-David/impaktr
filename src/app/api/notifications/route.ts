@@ -208,10 +208,26 @@ export async function PUT(request: NextRequest) {
 // Helper functions (these would be moved to a separate service file)
 
 async function generateNotificationsForUser(userId: string, unreadOnly: boolean, limit: number, offset: number) {
-  // This is a mock implementation. In production, you'd query a notifications table
-  const notifications = [];
+  // First, get real notifications from the database
+  const dbNotifications = await prisma.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: limit * 2  // Get more to merge with generated ones
+  });
 
-  // Get recent user activities to generate notifications
+  // Convert database notifications to the expected format
+  const notifications = dbNotifications.map(notif => ({
+    id: notif.id,
+    type: notif.type.toLowerCase().replace(/_/g, '_') as any,
+    title: notif.title,
+    message: notif.message,
+    read: notif.isRead,
+    createdAt: notif.createdAt.toISOString(),
+    actionUrl: (notif.data as any)?.actionUrl,
+    data: notif.data as any
+  }));
+
+  // Get recent user activities to generate additional notifications
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {

@@ -18,7 +18,7 @@ model User {
   password                 String?
   bio                      String?
   country                  String?
-  impactScore              Int                      @default(0)
+  impactScore              Float                    @default(0)
   lastActivityDate         DateTime?
   level                    Int                      @default(1)
   location                 String?
@@ -147,7 +147,7 @@ model Organization {
   volunteerHours       Float                      @default(0)
   website              String?
   type                 String?
-  sdgFocusAreas        Int[]                     // Store original SDG focus areas from registration
+  sdgFocusAreas        Int[] // Store original SDG focus areas from registration
   tier                 OrganizationTier           @default(IMPACT_STARTER)
   campaigns            Campaign[]
   corporateBadges      CorporateBadgeEarned[]
@@ -597,15 +597,15 @@ model Connection {
 }
 
 model Recommendation {
-  id           String   @id @default(cuid())
-  userId       String   // The user being recommended
-  authorId     String   // The user writing the recommendation
-  authorType   String   // 'individual' or 'organization'
-  text         String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation("UserRecommendations", fields: [userId], references: [id], onDelete: Cascade)
-  author       User     @relation("AuthorRecommendations", fields: [authorId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  userId     String // The user being recommended
+  authorId   String // The user writing the recommendation
+  authorType String // 'individual' or 'organization'
+  text       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation("UserRecommendations", fields: [userId], references: [id], onDelete: Cascade)
+  author     User     @relation("AuthorRecommendations", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@unique([userId, authorId])
   @@map("recommendations")
@@ -1556,6 +1556,10 @@ enum NotificationType {
   APPLICATION_UPDATE
   SUPPORT_TICKET
   MESSAGE
+  CERTIFICATE_ISSUED
+  RANK_UP
+  EVENT_JOINED
+  MONTHLY_REPORT
 }
 
 enum SubscriptionTier {
@@ -1655,46 +1659,46 @@ enum CampaignStatus {
 }
 
 model OrganizationPost {
-  id              String   @id @default(cuid())
-  organizationId  String
-  authorId        String   // User who posted (org admin)
-  content         String   @db.Text
-  postType        OrganizationPostType // UPDATE, EVENT_ANNOUNCE, EVENT_RECAP, IMPACT_STORY, ACHIEVEMENT
-  
+  id             String               @id @default(cuid())
+  organizationId String
+  authorId       String // User who posted (org admin)
+  content        String               @db.Text
+  postType       OrganizationPostType // UPDATE, EVENT_ANNOUNCE, EVENT_RECAP, IMPACT_STORY, ACHIEVEMENT
+
   // Media
-  images          String[] // Array of image URLs
-  videos          String[] // Video URLs/embeds
-  documents       Json?    // Document attachments
-  
+  images    String[] // Array of image URLs
+  videos    String[] // Video URLs/embeds
+  documents Json? // Document attachments
+
   // Metadata
-  eventId         String?
-  location        String?
-  sdgs            Int[]
-  tags            String[]
-  
+  eventId  String?
+  location String?
+  sdgs     Int[]
+  tags     String[]
+
   // Impact Metrics
   hoursReported   Float?
   peopleReached   Int?
   volunteersCount Int?
-  
+
   // Interactions
-  likes           Int @default(0)
-  shares          Int @default(0)
-  kudos           Int @default(0)
-  
+  likes  Int @default(0)
+  shares Int @default(0)
+  kudos  Int @default(0)
+
   // Settings
-  visibility      Visibility // PUBLIC, FOLLOWERS, MEMBERS
-  isPinned        Boolean @default(false)
-  scheduledFor    DateTime?
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  author          User @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  event           Event? @relation(fields: [eventId], references: [id])
-  comments        PostComment[]
-  reactions       PostReaction[]
+  visibility   Visibility // PUBLIC, FOLLOWERS, MEMBERS
+  isPinned     Boolean    @default(false)
+  scheduledFor DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  event        Event?         @relation(fields: [eventId], references: [id])
+  comments     PostComment[]
+  reactions    PostReaction[]
 
   @@map("organization_posts")
 }
@@ -1704,43 +1708,43 @@ model PostComment {
   postId    String
   userId    String
   content   String   @db.Text
-  parentId  String?  // For nested replies
+  parentId  String? // For nested replies
   likes     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  post      OrganizationPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    PostComment? @relation("CommentReplies", fields: [parentId], references: [id])
-  replies   PostComment[] @relation("CommentReplies")
+  post      OrganizationPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    PostComment?      @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   PostComment[]     @relation("CommentReplies")
   reactions CommentReaction[]
 
   @@map("post_comments")
 }
 
 model PostReaction {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   postId    String
   userId    String
   type      ReactionType
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
-  post      OrganizationPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post OrganizationPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
   @@map("post_reactions")
 }
 
 model CommentReaction {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   commentId String
   userId    String
   type      ReactionType
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
-  comment   PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([commentId, userId])
   @@map("comment_reactions")
@@ -1775,14 +1779,14 @@ model ValidationResult {
   id               String       @id @default(cuid())
   organizationId   String
   validatedBy      String
-  validationScore  Int          // 0-100 score
+  validationScore  Int // 0-100 score
   isValid          Boolean
-  issues           Json         // Array of ValidationIssue objects
-  recommendations  String[]     // Array of recommendation strings
-  validatorResults Json         // Array of ValidationResult objects from each validator
+  issues           Json // Array of ValidationIssue objects
+  recommendations  String[] // Array of recommendation strings
+  validatorResults Json // Array of ValidationResult objects from each validator
   validatedAt      DateTime     @default(now())
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("validation_results")
