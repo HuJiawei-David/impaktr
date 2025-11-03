@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const userId = url.searchParams.get('id') || session.user.id;
 
     // Fetch user with related data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let user: any = null;
     try {
       user = await prisma.user.findUnique({
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
               status: { in: ['VERIFIED', 'ATTENDED'] } // Include both VERIFIED and ATTENDED statuses
             },
             orderBy: { createdAt: 'desc' },
-            take: 10,
+            take: 20, // Fetch more to filter by date
             include: {
               event: {
                 select: {
@@ -53,6 +54,8 @@ export async function GET(request: NextRequest) {
                   title: true,
                   sdg: true,
                   startDate: true,
+                  endDate: true,
+                  status: true,
                   type: true,
                   skills: true,
                   intensity: true,
@@ -172,6 +175,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get ALL participations for accurate counting (not just VERIFIED)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let allParticipations: any[] = [];
     try {
       allParticipations = await prisma.participation.findMany({
@@ -186,18 +190,59 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching all participations:', participationError);
       allParticipations = [];
     }
+    
+    // Also fetch all participations for stats (including past ones)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allParticipationsForOrgsForStats: any[] = [];
+    try {
+      allParticipationsForOrgsForStats = await prisma.participation.findMany({
+        where: { userId },
+        include: {
+          event: {
+            select: {
+              id: true,
+              status: true,
+              endDate: true,
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                  logo: true
+                }
+              }
+            }
+          }
+        }
+      });
+    } catch (participationError) {
+      console.error('Error fetching all participations for orgs:', participationError);
+      allParticipationsForOrgsForStats = [];
+    }
 
-    // Calculate stats
-    const volunteerHours = allParticipations
+    const currentDate = new Date();
+    
+    // Helper function to check if event has ended
+    const eventHasEnded = (event: { status: string; endDate: Date }) => {
+      return event.status === 'COMPLETED' || new Date(event.endDate) < currentDate;
+    };
+
+    // Calculate stats - only count participations from events that have ended
+    const pastEventParticipations = allParticipations.filter((p: { event: { status: string; endDate: Date } }) => 
+      eventHasEnded(p.event)
+    );
+    
+    const volunteerHours = pastEventParticipations
       .filter((p: { status: string; hours: number | null }) => p.status === 'VERIFIED' || p.status === 'ATTENDED')
       .reduce((sum: number, p: { hours: number | null }) => sum + (p.hours || 0), 0);
     
-    // Events joined = all unique events user participated in
-    const eventsJoined = new Set(allParticipations.map((p: { eventId: string }) => p.eventId)).size;
+    // Events joined = unique events user participated in that have ended
+    const eventsJoined = new Set(
+      pastEventParticipations.map((p: { eventId: string }) => p.eventId)
+    ).size;
     
-    // Events completed = events with ATTENDED or VERIFIED status
+    // Events completed = events with ATTENDED or VERIFIED status from past events
     const eventsCompleted = new Set(
-      allParticipations
+      pastEventParticipations
         .filter((p: { status: string; eventId: string }) => p.status === 'ATTENDED' || p.status === 'VERIFIED')
         .map((p: { eventId: string }) => p.eventId)
     ).size;
@@ -221,6 +266,27 @@ export async function GET(request: NextRequest) {
         console.error('Error calculating user rank:', rankError);
         // Continue without rank
       }
+    }
+
+    // Get user's local rank (same country)
+    let localRank: number | undefined = undefined;
+    let localTotal: number | undefined = undefined;
+    if (user.userType === 'INDIVIDUAL' && user.country) {
+      const localHigherCount = await prisma.user.count({
+        where: {
+          userType: 'INDIVIDUAL',
+          country: user.country,
+          impactScore: { gt: currentScore }
+        }
+      });
+      const localTotalCount = await prisma.user.count({
+        where: {
+          userType: 'INDIVIDUAL',
+          country: user.country
+        }
+      });
+      localRank = localHigherCount + 1;
+      localTotal = localTotalCount;
     }
 
     // Create maps for score lookup (by participationId and eventId as fallback)
@@ -266,9 +332,19 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 ScoreBreakdownMap size:`, scoreBreakdownMap.size);
     console.log(`🔍 ScoreBreakdownMap entries:`, Array.from(scoreBreakdownMap.entries()).slice(0, 3));
 
-    // Format recent activities with score points
+    // Filter participations to only include events that have ended
+    const activitiesDate = new Date();
+    const allPastParticipations = user.participations.filter((p: { event?: { status: string; endDate?: Date } }) => {
+      if (!p.event) return false;
+      const eventHasEnded = p.event.status === 'COMPLETED' || 
+                           (p.event.endDate && new Date(p.event.endDate) < activitiesDate);
+      return eventHasEnded;
+    });
+    const pastParticipations = allPastParticipations.slice(0, 10); // Take top 10 for activities display
+    
+    // Format recent activities with score points (only from past events)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recentActivities = (user.participations || []).map((p: any) => {
+    const recentActivities = pastParticipations.map((p: any) => {
       let sdgNumber: number | undefined = undefined;
       let sdgNumbers: number[] = [];
       if (p.event?.sdg) {
@@ -403,11 +479,41 @@ export async function GET(request: NextRequest) {
       earnedAt: ub.earnedAt
     }));
 
-    // Aggregate organizations worked with
+    // Aggregate organizations worked with (only from COMPLETED/past events)
+    // Fetch ALL verified or attended participations for organizations aggregation (not just recent 10)
+    const allParticipationsForOrgAggregation = await prisma.participation.findMany({
+      where: {
+        userId: userId,
+        status: { in: ['VERIFIED', 'ATTENDED'] }
+      },
+      select: {
+        hours: true,
+        event: {
+          select: {
+            id: true,
+            status: true,
+            endDate: true,
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                logo: true
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    const now = new Date();
     const organizationsMap = new Map<string, { name: string; logo: string | null; events: number; hours: number }>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (user.participations || []).forEach((p: any) => {
-      if (p.event && p.event.organization) {
+    allParticipationsForOrgsForStats.forEach((p: any) => {
+      // Only count organizations from events that have ended
+      const eventHasEnded = p.event?.status === 'COMPLETED' || 
+                           (p.event?.endDate && new Date(p.event.endDate) < now);
+      
+      if (p.event && p.event.organization && eventHasEnded) {
         const orgId = p.event.organization.id;
         const existing = organizationsMap.get(orgId);
         if (existing) {
@@ -428,10 +534,13 @@ export async function GET(request: NextRequest) {
       ...data
     })).sort((a, b) => b.hours - a.hours); // Sort by hours descending
 
-    // Aggregate SDG breakdown
+    // Aggregate SDG breakdown (only from past events)
+    // Handle multiple SDGs per event (same logic as sdgParticipations)
     const sdgMap = new Map<number, { events: number; hours: number; badges: number }>();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (user.participations || []).forEach((p: any) => {
+    // Note: This section processes simple single SDG events, allPastParticipations handles multiple SDGs below
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allPastParticipations.forEach((p: any) => {
       if (p.event && p.event.sdg) {
         const sdgNum = parseInt(p.event.sdg);
         const existing = sdgMap.get(sdgNum);
@@ -447,6 +556,65 @@ export async function GET(request: NextRequest) {
         }
       }
     });
+    
+    // Process past participations for SDG stats (handling multiple SDGs per event)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    allPastParticipations.forEach((p: any) => {
+      if (p.event?.sdg) {
+        let sdgNumbers: number[] = [];
+        
+        // SDG can be stored as JSON string "[1,2,3]" or actual array or single number
+        if (typeof p.event.sdg === 'string') {
+          // Try to parse as JSON first
+          try {
+            const parsed = JSON.parse(p.event.sdg);
+            if (Array.isArray(parsed)) {
+              sdgNumbers = parsed.map((s: unknown) => {
+                if (typeof s === 'number') return s;
+                const n = parseInt(String(s));
+                return isNaN(n) ? 0 : n;
+              }).filter((n: number) => n > 0);
+            } else {
+              const num = parseInt(parsed.toString());
+              if (!isNaN(num)) {
+                sdgNumbers = [num];
+              }
+            }
+          } catch {
+            // If JSON parse fails, try direct parseInt
+            const num = parseInt(p.event.sdg);
+            if (!isNaN(num)) {
+              sdgNumbers = [num];
+            }
+          }
+        } else if (Array.isArray(p.event.sdg)) {
+          sdgNumbers = p.event.sdg.map((s: unknown) => {
+            if (typeof s === 'number') return s;
+            const n = parseInt(String(s));
+            return isNaN(n) ? 0 : n;
+          }).filter((n: number) => n > 0);
+        } else if (typeof p.event.sdg === 'number') {
+          sdgNumbers = [p.event.sdg];
+        }
+        
+        // Count each SDG from this participation
+        sdgNumbers.forEach((sdgNum: number) => {
+          if (sdgNum >= 1 && sdgNum <= 17) {
+            const existing = sdgMap.get(sdgNum);
+            if (existing) {
+              existing.events += 1;
+              existing.hours += p.hours || 0;
+            } else {
+              sdgMap.set(sdgNum, {
+                events: 1,
+                hours: p.hours || 0,
+                badges: 0
+              });
+            }
+          }
+        });
+      }
+    });
     // Add badge counts to SDG breakdown
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     user.badges.forEach((ub: any) => {
@@ -460,17 +628,17 @@ export async function GET(request: NextRequest) {
     const sdgBreakdown = Array.from(sdgMap.entries()).map(([sdgNumber, data]) => ({
       sdgNumber,
       ...data
-    })).sort((a, b) => b.hours - a.hours).slice(0, 3); // Top 3 SDGs
+    })).sort((a, b) => b.hours - a.hours); // All SDGs with activity
 
-    // Auto-tag skills based on SDG and event participation
+    // Auto-tag skills based on SDG and event participation (only from past events)
     const skillsMap = new Map<string, number>();
     const sdgParticipationMap = new Map<number, number>();
     
+    // Use allPastParticipations for skills and SDG aggregation (not just the 10 for activities)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (user.participations || []).forEach((p: any) => {
+    allPastParticipations.forEach((p: any) => {
       // Skip if event is null
       if (!p.event) return;
-
       // Use the actual skills set by the organization when creating the event
       if (p.event.skills && Array.isArray(p.event.skills) && p.event.skills.length > 0) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -563,6 +731,7 @@ export async function GET(request: NextRequest) {
       } as any);
       
       // Filter and safely process certificates, handling missing event or organization data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       certificates = rawCertificates.map((cert: any) => {
         try {
           // Ensure event data exists, provide defaults if missing
@@ -708,7 +877,9 @@ export async function GET(request: NextRequest) {
         followers: user._count.followers,
         following: user._count.following,
         connections: connectionCount,
-        rank
+        rank,
+        localRank,
+        localTotal
       },
       // New employer-focused data
       activeSince: user.createdAt,
@@ -765,7 +936,9 @@ export async function GET(request: NextRequest) {
             badgesEarned,
             followers: user._count.followers,
             following: user._count.following,
-            rank
+            rank,
+            localRank,
+            localTotal
           },
           badges,
           recentActivities,

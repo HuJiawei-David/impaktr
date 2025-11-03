@@ -127,14 +127,18 @@ export async function GET(request: NextRequest) {
             }
           },
           participations: {
-            where: { status: ParticipationStatus.VERIFIED },
+            where: { 
+              status: { in: [ParticipationStatus.VERIFIED, ParticipationStatus.ATTENDED] }
+            },
             select: {
               id: true,
               hours: true,
               event: {
                 select: {
                   id: true,
-                  sdg: true
+                  sdg: true,
+                  status: true,
+                  endDate: true
                 }
               }
             }
@@ -251,7 +255,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Authenticated organization badge data
+    // Organization badge data (authenticated only - for organization members)
     if (type === 'organization' && organizationId) {
       const session = await getServerSession(authOptions);
       if (!session) {
@@ -363,11 +367,20 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper function to calculate SDG progress for individuals
-async function calculateSDGProgress(userId: string, participations: Array<{ id?: string; hours: number | null; event: { id?: string; sdg: string | null } }>) {
+async function calculateSDGProgress(userId: string, participations: Array<{ id?: string; hours: number | null; event: { id?: string; sdg: string | null; status?: string; endDate?: Date } }>) {
   const sdgStats: Record<number, { hours: number; activities: number }> = {};
   const processedParticipationIds = new Set<string>();
 
-  participations.forEach((p: { id?: string; hours: number | null; event: { id?: string; sdg: string | null } }) => {
+  // Filter to only include participations from events that have ended
+  const now = new Date();
+  const pastParticipations = participations.filter((p: { event?: { status?: string; endDate?: Date } }) => {
+    if (!p.event) return false;
+    const eventHasEnded = p.event.status === 'COMPLETED' || 
+                         (p.event.endDate && new Date(p.event.endDate) < now);
+    return eventHasEnded;
+  });
+
+  pastParticipations.forEach((p: { id?: string; hours: number | null; event: { id?: string; sdg: string | null } }) => {
     // Skip duplicate participations (shouldn't happen, but safety check)
     if (p.id && processedParticipationIds.has(p.id)) {
       return;

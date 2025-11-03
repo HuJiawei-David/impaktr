@@ -1,0 +1,33 @@
+
+> impaktr-web@1.0.0 build
+> next build
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/jimmyho/Desktop/package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * /Users/jimmyho/Desktop/impaktrweb/package-lock.json
+
+   ▲ Next.js 15.5.6
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+(node:67055) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ Compiled successfully in 20.4s
+   Skipping linting
+   Checking validity of types ...
+Failed to compile.
+
+./src/app/api/participants/confirm-certificate/[certificateId]/route.ts:153:13
+Type error: Type '"CERTIFICATE_ISSUED"' is not assignable to type 'NotificationType | EnumNotificationTypeFilter<"Notification"> | undefined'.
+
+[0m [90m 151 |[39m           where[33m:[39m {
+ [90m 152 |[39m             userId[33m:[39m user[33m.[39mid[33m,[39m
+[31m[1m>[22m[39m[90m 153 |[39m             type[33m:[39m [32m'CERTIFICATE_ISSUED'[39m[33m,[39m
+ [90m     |[39m             [31m[1m^[22m[39m
+ [90m 154 |[39m             data[33m:[39m {
+ [90m 155 |[39m               path[33m:[39m [[32m'certificateId'[39m][33m,[39m
+ [90m 156 |[39m               equals[33m:[39m certificateId[0m
+Next.js build worker exited with code: 1 and signal: null

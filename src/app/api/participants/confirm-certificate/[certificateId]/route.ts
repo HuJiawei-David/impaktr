@@ -150,7 +150,7 @@ export async function POST(
         await prisma.notification.updateMany({
           where: {
             userId: user.id,
-            type: 'CERTIFICATE_ISSUED',
+            type: 'CERTIFICATE_ISSUED' as any, // Prisma enum needs regeneration after schema update
             data: {
               path: ['certificateId'],
               equals: certificateId

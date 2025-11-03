@@ -5,6 +5,7 @@ export enum UserType {
   CORPORATE = 'CORPORATE',
   SCHOOL = 'SCHOOL',
   HEALTHCARE = 'HEALTHCARE',
+  DEPARTMENT = 'DEPARTMENT',
 }
 
 export enum ParticipationStatus {

@@ -120,6 +120,7 @@ interface UserProfile {
     state: string;
     country: string;
   };
+  country?: string;
   website: string;
   phone?: string;
   languages: string[];
@@ -142,6 +143,8 @@ interface UserProfile {
     certificates: number;
     followers: number;
     following: number;
+    localRank?: number;
+    localTotal?: number;
   };
   badges: Array<{
     id: string;
@@ -292,6 +295,7 @@ export default function ProfilePage() {
             state: user.profile?.state || '',
             country: user.profile?.country || '',
           },
+          country: user.profile?.country || user.country || '',
           website: user.profile?.website || '',
           phone: user.profile?.phone || user.phone || '',
           languages: user.profile?.languages || user.languages || [],
@@ -311,6 +315,8 @@ export default function ProfilePage() {
             eventsJoined: user.stats?.eventsJoined || 0,
             eventsCompleted: user.stats?.eventsCompleted || 0,
             badgesEarned: user.stats?.badgesEarned || 0,
+            localRank: user.stats?.localRank,
+            localTotal: user.stats?.localTotal,
             certificates: user.certificateCount || 0,
             followers: user.stats?.followers || 0,
             following: user.stats?.following || 0,
@@ -983,56 +989,56 @@ export default function ProfilePage() {
               </Card>
             )}
 
-              {/* Recent Activity Preview */}
+            {/* Recent Activity Preview */}
               <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Recent Activity</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setActiveTab('activity')}
-                      className="text-blue-600 hover:text-purple-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                    >
-                      View All →
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Recent Activity</span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setActiveTab('activity')}
+                    className="text-blue-600 hover:text-purple-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  >
+                    View All →
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
                     {profile.recentActivity && profile.recentActivity.length > 0 ? (
                       profile.recentActivity.slice(0, 3).map((activity) => (
                       <div key={activity.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
-                        <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                          <TrendingUp className="w-4 h-4 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
+                      <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                        <TrendingUp className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-sm truncate text-gray-900 dark:text-white">{activity.title}</h4>
                             {activity.description && (
                           <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{activity.description}</p>
                             )}
-                        </div>
-                        <div className="text-right flex-shrink-0">
+                      </div>
+                      <div className="text-right flex-shrink-0">
                             {activity.points && activity.points > 0 && (
                               <div className="text-sm font-bold text-green-600 dark:text-green-400 mb-1">
                                 +{activity.points.toFixed(1)} pts
                               </div>
                             )}
                           <div className="text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                            {formatTimeAgo(activity.date)}
-                          </div>
+                          {formatTimeAgo(activity.date)}
                         </div>
                       </div>
+                    </div>
                       ))
                     ) : (
                       <div className="text-center py-8 text-gray-600 dark:text-gray-400">
-                        <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p>No recent activity</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No recent activity</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             </div>
           )}
@@ -1111,19 +1117,19 @@ export default function ProfilePage() {
                   ) : badgeProgressData?.rankProgress?.nextRank ? (
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
                       <div className="flex items-center justify-between mb-4">
-            <div>
+                      <div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Next Rank</p>
                           <Badge className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold">
                             {badgeProgressData.rankProgress.nextRank.name}
-                          </Badge>
+                            </Badge>
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {Math.round((badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100)}%
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">Complete</p>
-                        </div>
                       </div>
+                  </div>
                       <Progress 
                         value={(badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100} 
                         className="h-3 mb-4" 
@@ -1199,7 +1205,7 @@ export default function ProfilePage() {
                               <p className="text-xs text-gray-400 dark:text-gray-500">
                                 Earned {new Date(badge.earnedAt).toLocaleDateString()}
                               </p>
-                            </div>
+            </div>
                           </div>
                         );
                       })}
@@ -1652,10 +1658,10 @@ export default function ProfilePage() {
           {/* Analytics Tab Content */}
           {activeTab === 'analytics' && (
             <div>
-              <ImpactStatistics userId={profile.id} />
+            <ImpactStatistics userId={profile.id} />
             </div>
           )}
-          </div>
+        </div>
           {/* End Left Column */}
 
           {/* Right Column - Sidebar */}
@@ -1698,19 +1704,43 @@ export default function ProfilePage() {
 
             {/* Leaderboard Ranking */}
             <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
-              <CardContent className="p-6 text-center">
-                <Trophy className="w-12 h-12 mx-auto mb-4 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-white">
-                  Leaderboard Rank
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center mb-4">
+                  <Trophy className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-4 text-center text-gray-900 dark:text-white">
+                  Leaderboard Ranking
                 </h3>
-                <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                  {leaderboardRank ? `#${leaderboardRank.toLocaleString()}` : '-'}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  {leaderboardTotal && leaderboardRank 
-                    ? `out of ${leaderboardTotal.toLocaleString()} volunteers`
-                    : 'Global ranking'}
-                </p>
+                
+                {/* Rankings Side by Side */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {/* Global Rank */}
+                  <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Global
+                    </p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      {leaderboardRank ? `#${leaderboardRank.toLocaleString()}` : '-'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {leaderboardTotal ? `${leaderboardTotal.toLocaleString()} total` : '-'}
+                    </p>
+                  </div>
+                  
+                  {/* Local Rank */}
+                  <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Local {profile?.country ? `(${profile.country})` : ''}
+                    </p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      {profile?.stats?.localRank ? `#${profile.stats.localRank.toLocaleString()}` : '-'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {profile?.stats?.localTotal ? `${profile.stats.localTotal.toLocaleString()} total` : '-'}
+                    </p>
+                  </div>
+                </div>
+
                 <Link href="/leaderboards">
                   <Button 
                     className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"

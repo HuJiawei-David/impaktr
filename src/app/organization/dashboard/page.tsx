@@ -8,13 +8,11 @@ import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { Building2, Image as ImageIcon, Video, FileText, Calendar as CalendarIcon, Plus, Award, TrendingUp, Zap } from 'lucide-react';
+import { Building2, Award, TrendingUp, Zap } from 'lucide-react';
 import CorporateKPIs from '@/components/organization/CorporateKPIs';
 import OrganizationSidebar from '@/components/organization/OrganizationSidebar';
-import { AchievementFeed } from '@/components/dashboard/AchievementFeed';
+import { UnifiedFeed } from '@/components/dashboard/UnifiedFeed';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 
 interface OrganizationData {
   id: string;
@@ -113,9 +111,7 @@ export default function OrganizationDashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCreatePost, setShowCreatePost] = useState(false);
-  const [isCreatingPost, setIsCreatingPost] = useState(false);
-  const [newPostContent, setNewPostContent] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -145,13 +141,37 @@ export default function OrganizationDashboardPage() {
 
       const data = await response.json();
       setDashboardData(data);
+      
+      // Check if current user is admin/owner
+      if (session?.user?.id && data.members) {
+        const currentUserMembership = data.members.find(
+          (m: { user: { email: string; id?: string }; role: string }) => 
+            (session.user.email && m.user.email === session.user.email) || 
+            (session.user.id && m.user.id === session.user.id)
+        );
+        const userIsAdmin = currentUserMembership?.role === 'admin' || 
+                            currentUserMembership?.role === 'owner';
+        console.log('🔍 Admin check:', { 
+          userEmail: session.user.email, 
+          userId: session.user.id,
+          membership: currentUserMembership,
+          role: currentUserMembership?.role,
+          isAdmin: userIsAdmin,
+          allMembers: data.members.map((m: { user: { email: string }; role: string }) => ({ email: m.user.email, role: m.role }))
+        });
+        setIsAdmin(userIsAdmin);
+      } else {
+        // If no membership found, default to showing create post (will be validated on backend)
+        console.log('⚠️ No membership found, defaulting to allow create post');
+        setIsAdmin(true); // Allow posting, backend will validate
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Dashboard fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, session?.user?.id, session?.user?.email]);
 
   useEffect(() => {
     // Don't redirect - just fetch data if we have a session
@@ -196,26 +216,6 @@ export default function OrganizationDashboardPage() {
 
   const { organization } = dashboardData;
 
-  const handleCreateOrgPost = async () => {
-    if (!newPostContent.trim()) return;
-    try {
-      setIsCreatingPost(true);
-      const formData = new FormData();
-      formData.append('content', newPostContent);
-      formData.append('type', 'GENERAL');
-      formData.append('visibility', 'PUBLIC');
-      const res = await fetch('/api/organization/posts', { method: 'POST', body: formData });
-      // Best-effort: close on success
-      if (res.ok) {
-        setShowCreatePost(false);
-        setNewPostContent('');
-      }
-    } catch (e) {
-      // no-op
-    } finally {
-      setIsCreatingPost(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -303,116 +303,18 @@ export default function OrganizationDashboardPage() {
             {/* KPIs */}
             <CorporateKPIs kpis={dashboardData.kpis} />
             
-            {/* Create Post - LinkedIn Style */}
-            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardContent className="p-4">
-                {!showCreatePost ? (
-                  <>
-                    <div className="flex items-center space-x-3 mb-4">
-                      <Avatar className="w-10 h-10">
-                        {organization.logo ? (
-                          <Image 
-                            src={organization.logo} 
-                            alt={organization.name} 
-                            width={40} 
-                            height={40} 
-                            className="h-full w-full object-cover" 
-                          />
-                        ) : (
-                          <div className="w-full h-full rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                            {organization.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                          </div>
-                        )}
-                      </Avatar>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 justify-start text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 pl-4 rounded-full"
-                        onClick={() => setShowCreatePost(true)}
-                      >
-                        Start a post...
-                      </Button>
-                    </div>
-                    <div className="flex items-center justify-around pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
-                        <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        <span className="text-sm font-medium">Photo</span>
-                      </Button>
-                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
-                        <Video className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        <span className="text-sm font-medium">Video</span>
-                      </Button>
-                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
-                        <CalendarIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                        <span className="text-sm font-medium">Event</span>
-                      </Button>
-                      <Button variant="ghost" className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700" onClick={() => setShowCreatePost(true)}>
-                        <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                        <span className="text-sm font-medium">Article</span>
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-10 h-10">
-                          {organization.logo ? (
-                            <Image 
-                              src={organization.logo} 
-                              alt={organization.name} 
-                              width={40} 
-                              height={40} 
-                              className="h-full w-full object-cover" 
-                            />
-                          ) : (
-                            <div className="w-full h-full rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                              {organization.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                            </div>
-                          )}
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{organization.name}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{getOrganizationTypeDisplay(organization.type)}</p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => { setShowCreatePost(false); setNewPostContent(''); }}>
-                        ✕
-                      </Button>
-                    </div>
-                    <Textarea
-                      value={newPostContent}
-                      onChange={(e) => setNewPostContent(e.target.value)}
-                      placeholder="What do you want to talk about?"
-                      className="min-h-[120px] border-0 focus-visible:ring-0 text-base"
-                      autoFocus
-                    />
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <ImageIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <Video className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700">
-                          <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                        </Button>
-                      </div>
-                      <Button onClick={handleCreateOrgPost} disabled={isCreatingPost || !newPostContent.trim()} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full px-6">
-                        {isCreatingPost ? 'Posting...' : 'Post'}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            
             {/* Unified Social Feed - Same as Individual Dashboard */}
             <div className="space-y-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Feed
               </h2>
-              <AchievementFeed maxItems={10} />
+              <UnifiedFeed 
+                type="all" 
+                limit={10}
+                showCreatePost={true}
+                organizationId={organization.id}
+                isOrganizationAdmin={true}
+              />
             </div>
           </div>
 

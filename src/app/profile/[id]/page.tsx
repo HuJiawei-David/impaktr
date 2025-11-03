@@ -143,6 +143,8 @@ interface UserProfile {
     following: number;
     connections: number;
     rank: number;
+    localRank?: number;
+    localTotal?: number;
   };
   // New employer-focused fields
   activeSince: string;
@@ -2159,17 +2161,43 @@ export default function PublicProfilePage() {
 
             {/* Leaderboard Position */}
             <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
-              <CardContent className="p-6 text-center">
-                <Trophy className="w-12 h-12 mx-auto mb-4 text-blue-600 dark:text-blue-400" />
-                <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-white">
-                  Leaderboard Rank
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center mb-4">
+                  <Trophy className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-4 text-center text-gray-900 dark:text-white">
+                  Leaderboard Ranking
                 </h3>
-                <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                  #{profile.stats.rank}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Global ranking
-                </p>
+                
+                {/* Rankings Side by Side */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {/* Global Rank */}
+                  <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Global
+                    </p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      #{profile.stats.rank || '-'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Global ranking
+                    </p>
+                  </div>
+                  
+                  {/* Local Rank */}
+                  <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Local {profile.country ? `(${profile.country})` : ''}
+                    </p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      {profile.stats.localRank ? `#${profile.stats.localRank}` : '-'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {profile.stats.localTotal ? `${profile.stats.localTotal.toLocaleString()} total` : '-'}
+                    </p>
+                  </div>
+                </div>
+
                 <Link href="/leaderboards">
                   <Button 
                     className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-3"

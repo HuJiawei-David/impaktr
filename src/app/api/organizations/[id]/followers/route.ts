@@ -28,20 +28,32 @@ export async function GET(
 
     console.log('Organization found:', organization.name);
 
-    // Get followers with user details - just tier for rank badge
+    // Get followers with user details and organization memberships
     const followers = await prisma.follow.findMany({
       where: {
         followingOrgId: organizationId,
       },
       include: {
         follower: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            userType: true,
-            tier: true,
+          include: {
+            organizationMemberships: {
+              where: {
+                status: 'active'
+              },
+              include: {
+                organization: {
+                  select: {
+                    id: true,
+                    name: true,
+                    tier: true
+                  }
+                }
+              },
+              take: 1, // Get first active membership
+              orderBy: {
+                joinedAt: 'desc'
+              }
+            }
           }
         }
       },
@@ -63,19 +75,27 @@ export async function GET(
 
     console.log('Total followers count:', totalCount);
 
-    // Format the response - simple with just rank
-    const formattedFollowers = followers.map(follow => ({
-      id: follow.follower.id,
-      name: follow.follower.name,
-      email: follow.follower.email,
-      image: follow.follower.image,
-      userType: follow.follower.userType,
-      bio: null,
-      location: null,
-      sdgFocus: [],
-      tier: follow.follower.tier || 'HELPER',
-      followedAt: follow.createdAt,
-    }));
+    // Format the response - use organization tier if user is an organization member
+    const formattedFollowers = followers.map(follow => {
+      const user = follow.follower;
+      const orgMembership = user.organizationMemberships?.[0];
+      
+      // If user is an organization member, use organization tier, otherwise use individual tier
+      const displayTier = orgMembership?.organization?.tier || user.tier || 'HELPER';
+      
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        userType: user.userType,
+        bio: null,
+        location: null,
+        sdgFocus: [],
+        tier: displayTier,
+        followedAt: follow.createdAt,
+      };
+    });
 
     return NextResponse.json({
       followers: formattedFollowers,

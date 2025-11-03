@@ -79,6 +79,9 @@ model User {
   sentInvitations          OrganizationInvitation[]
   organizationMemberships  OrganizationMember[]
   participations           Participation[]
+  departmentAccountsOwned  DepartmentAccess[]  @relation("DepartmentAccount")
+  departmentAccessGrants   DepartmentAccess[]   @relation("Grantor")
+  departmentAccesses      DepartmentAccess[]   @relation("IndividualUser")
   posts                    Post[]
   rateLimitViolations      RateLimitViolation[]
   rateLimits               RateLimit[]
@@ -184,6 +187,27 @@ model OrganizationMember {
 
   @@unique([organizationId, userId])
   @@map("organization_members")
+}
+
+model DepartmentAccess {
+  id                 String   @id @default(cuid())
+  departmentAccountId String
+  individualUserId   String
+  grantedBy          String
+  grantedAt          DateTime @default(now())
+  revokedAt          DateTime?
+  permissions        Json?    // Array of permission strings: ["CREATE_EVENTS", "POST_OPPORTUNITIES", "ADMIN_ACCESS"]
+  updatedAt          DateTime @updatedAt
+  
+  departmentAccount  User     @relation("DepartmentAccount", fields: [departmentAccountId], references: [id], onDelete: Cascade)
+  individualUser     User     @relation("IndividualUser", fields: [individualUserId], references: [id], onDelete: Cascade)
+  grantor            User     @relation("Grantor", fields: [grantedBy], references: [id], onDelete: Cascade)
+  
+  @@unique([departmentAccountId, individualUserId])
+  @@index([departmentAccountId])
+  @@index([individualUserId])
+  @@index([revokedAt])
+  @@map("department_access")
 }
 
 model OrganizationInvitation {
@@ -384,6 +408,7 @@ model Event {
   createdAt             DateTime              @default(now())
   imageUrl              String?
   organizerId           String?
+  createdAsUserId       String?  // Department account ID if event created via department access (audit field)
   sdg                   String?
   campaignId            String?
   isPublic              Boolean               @default(true)
@@ -1458,6 +1483,7 @@ enum UserType {
   CORPORATE
   SCHOOL
   HEALTHCARE
+  DEPARTMENT
 }
 
 enum ParticipationStatus {

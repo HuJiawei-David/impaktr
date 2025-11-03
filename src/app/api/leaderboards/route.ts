@@ -21,6 +21,8 @@ const leaderboardQuerySchema = z.object({
 
 interface RankingEntry {
   rank: number;
+  localRank?: number | null;
+  localTotal?: number | null;
   id?: string;
   name: string;
   image?: string | null;
@@ -311,7 +313,7 @@ export async function GET(request: NextRequest) {
               currentUser.impactScore = 0;
             }
             
-            // Calculate their rank by counting users with higher scores
+            // Calculate their global rank by counting users with higher scores
             let higherScoreCount = 0;
             try {
               higherScoreCount = await prisma.user.count({
@@ -325,11 +327,35 @@ export async function GET(request: NextRequest) {
               // Continue with 0, will result in rank 1
             }
 
-            // Handle null/undefined participations
+            // Calculate local rank (same country)
+            let localRank = null;
+            let localTotal = null;
+            if (currentUser.country) {
+              try {
+                const localHigherCount = await prisma.user.count({
+                  where: {
+                    userType: 'INDIVIDUAL',
+                    country: currentUser.country,
+                    impactScore: { gt: currentUser.impactScore }
+                  }
+                });
+                const localTotalCount = await prisma.user.count({
+                  where: {
+                    userType: 'INDIVIDUAL',
+                    country: currentUser.country
+                  }
+                });
+                localRank = localHigherCount + 1;
+                localTotal = localTotalCount;
+              } catch (localRankError) {
+                console.error('Error calculating local rank:', localRankError);
+              }
+            }
+
+            // Handle null/undefined participations - filter to only count completed participations (VERIFIED or ATTENDED)
             let volunteerHours = 0;
             let uniqueEvents = 0;
             if (currentUser.participations) {
-              // Filter to only count completed participations (VERIFIED or ATTENDED)
               const completedParticipations = currentUser.participations.filter(
                 (p: { status: string; hours?: number | null; eventId: string }) => p.status === 'VERIFIED' || p.status === 'ATTENDED'
               );
@@ -347,6 +373,8 @@ export async function GET(request: NextRequest) {
             
             currentUserRanking = {
               rank: higherScoreCount + 1,
+              localRank,
+              localTotal,
               id: currentUser.id,
               name: currentUser.name || 'Anonymous User',
               image: currentUser.image,

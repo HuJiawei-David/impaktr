@@ -82,21 +82,21 @@ const getActivityIcon = (type: Activity['type']) => {
 const getActivityColor = (type: Activity['type']) => {
   switch (type) {
     case 'event_joined':
-      return 'border-blue-200 bg-blue-50 dark:bg-blue-950/20';
+      return 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40';
     case 'event_completed':
-      return 'border-green-200 bg-green-50 dark:bg-green-950/20';
+      return 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/40';
     case 'badge_earned':
-      return 'border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20';
+      return 'border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/40';
     case 'rank_up':
-      return 'border-purple-200 bg-purple-50 dark:bg-purple-950/20';
+      return 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/40';
     case 'milestone':
-      return 'border-orange-200 bg-orange-50 dark:bg-orange-950/20';
+      return 'border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/40';
     case 'verification':
-      return 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20';
+      return 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40';
     case 'certificate_shared':
-      return 'border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20';
+      return 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40';
     default:
-      return 'border-gray-200 bg-gray-50 dark:bg-gray-950/20';
+      return 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50';
   }
 };
 

@@ -266,7 +266,7 @@ export function getSDGName(sdgNumber: number): string {
 
 export function getRankColor(rank: string): string {
   const rankColors: { [key: string]: string } = {
-    HELPER: '#9CA3AF',
+    HELPER: '#06b6d4', // cyan
     SUPPORTER: '#60A5FA',
     CONTRIBUTOR: '#34D399',
     BUILDER: '#FBBF24',
@@ -278,7 +278,47 @@ export function getRankColor(rank: string): string {
     GLOBAL_CITIZEN: '#10B981',
   };
 
-  return rankColors[rank] || '#9CA3AF';
+  return rankColors[rank] || '#06b6d4';
+}
+
+/**
+ * Standardized function for getting tier badge Tailwind CSS classes.
+ * Use this function everywhere tier badges are displayed to ensure consistency.
+ * 
+ * @param tier - The tier string (e.g., 'HELPER', 'IMPACT_STARTER')
+ * @returns Tailwind CSS classes for the badge background and text colors
+ */
+export function getTierBadgeColor(tier: string): string {
+  // Individual ranks
+  const individualRanks: Record<string, string> = {
+    HELPER: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+    SUPPORTER: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    CONTRIBUTOR: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    BUILDER: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    ADVOCATE: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    CHANGEMAKER: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    MENTOR: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+    LEADER: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    AMBASSADOR: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+    GLOBAL_CITIZEN: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  };
+
+  // Organization tiers
+  const organizationTiers: Record<string, string> = {
+    IMPACT_STARTER: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+    COMMUNITY_BUILDER: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    IMPACT_DRIVER: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    COMMUNITY_ALLY: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    CSR_PRACTITIONER: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    CSR_LEADER: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+    ESG_CHAMPION: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+    TRUSTED_PARTNER: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    INDUSTRY_BENCHMARK: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+    GLOBAL_IMPACT_LEADER: 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200',
+  };
+
+  // Check individual ranks first, then organization tiers, then default
+  return individualRanks[tier] || organizationTiers[tier] || 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200';
 }
 
 export function validateFileType(file: File, allowedTypes: string[]): boolean {

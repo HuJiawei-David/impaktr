@@ -13,14 +13,36 @@ export async function calculateImpaktrScore(userId: string): Promise<number> {
         status: { in: [ParticipationStatus.VERIFIED, ParticipationStatus.ATTENDED] },
       },
       include: {
-        event: true,
+        event: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            endDate: true,
+            type: true,
+            intensity: true,
+            skills: true,
+            location: true,
+            sdg: true,
+            organizationId: true,
+          }
+        },
         verifications: {
           where: { status: 'APPROVED' }
         }
       },
     });
+    
+    // Filter to only include participations from events that have ended (both VERIFIED and ATTENDED count)
+    const now = new Date();
+    const pastParticipations = participations.filter(p => {
+      if (!p.event) return false;
+      const eventHasEnded = p.event.status === 'COMPLETED' || 
+                           (p.event.endDate && new Date(p.event.endDate) < now);
+      return eventHasEnded;
+    });
 
-    if (participations.length === 0) {
+    if (pastParticipations.length === 0) {
       return 0;
     }
 
@@ -35,7 +57,7 @@ export async function calculateImpaktrScore(userId: string): Promise<number> {
 
     let totalScore = 0;
 
-    for (const participation of participations) {
+    for (const participation of pastParticipations) {
       // Skip if event is null
       if (!participation.event) {
         console.warn(`[SCORING] Participation ${participation.id} has null event, skipping`);

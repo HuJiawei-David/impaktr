@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { EventStatus, EventCategory } from '@/types/enums';
+import { EventStatus, EventCategory, UserType } from '@/types/enums';
 import { Prisma } from '@prisma/client';
 import { uploadToS3, FileSystemError } from '@/lib/aws';
 
@@ -179,9 +179,19 @@ export async function GET(request: NextRequest) {
       
       try {
         if (event.location && typeof event.location === 'string') {
-          location = JSON.parse(event.location);
+          const parsed = JSON.parse(event.location);
+          location = {
+            address: parsed.address || '',
+            city: parsed.city || '',
+            isVirtual: parsed.isVirtual ?? false
+          };
         } else if (event.location && typeof event.location === 'object') {
-          location = event.location as any;
+          const loc = event.location as { city?: string; isVirtual?: boolean; address?: string };
+          location = {
+            address: loc.address || '',
+            city: loc.city || '',
+            isVirtual: loc.isVirtual ?? false
+          };
         }
       } catch (error) {
         console.error('Error parsing location JSON:', error);
@@ -249,11 +259,11 @@ export async function POST(request: NextRequest) {
     // Try to parse as FormData first, then fall back to JSON
     const contentType = request.headers.get('content-type');
     
-    let body;
-    let imageFiles: File[] = [];
+    let body: Record<string, unknown>;
+    const imageFiles: File[] = [];
     
     // Clone the request so we can try multiple parsing methods
-    let requestClone = request.clone();
+    const requestClone = request.clone();
     
     try {
       // Try FormData first
@@ -262,7 +272,7 @@ export async function POST(request: NextRequest) {
       
       if (eventDataString && typeof eventDataString === 'string') {
         console.log('Parsing FormData, eventData string:', eventDataString.substring(0, 100));
-        body = JSON.parse(eventDataString);
+        body = JSON.parse(eventDataString) as Record<string, unknown>;
         
         // Collect image files
         let imageIndex = 0;
@@ -282,7 +292,7 @@ export async function POST(request: NextRequest) {
       // If FormData parsing fails, try JSON
       console.log('FormData parsing failed, trying JSON:', formDataError);
       try {
-        body = await requestClone.json();
+        body = (await requestClone.json()) as Record<string, unknown>;
         console.log('Successfully parsed as JSON');
       } catch (jsonError) {
         console.error('Both FormData and JSON parsing failed');
@@ -310,24 +320,94 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check if user has permission to create events for any organization
-    const adminMembership = user.organizationMemberships.find(
-      membership => membership.role === 'admin' || membership.role === 'owner'
-    );
+    // Extract department account usage from already parsed body
+    const bodyWithDept = body as { createdAsDepartmentId?: string; organizationId?: string };
+    const { createdAsDepartmentId, organizationId: requestedOrgId } = bodyWithDept;
 
-    if (!adminMembership) {
+    let organizationId: string | undefined;
+    let createdAsUserId: string | undefined;
+
+    // Check if creating as department account
+    if (createdAsDepartmentId) {
+      const { hasDepartmentAccess } = await import('@/lib/organization-permissions');
+      const deptAccess = await hasDepartmentAccess(user.id, createdAsDepartmentId);
+      
+      if (!deptAccess) {
+        return NextResponse.json(
+          { error: 'No access to this department account' },
+          { status: 403 }
+        );
+      }
+
+      // Get organization from department account
+      const deptAccount = await prisma.user.findUnique({
+        where: { id: createdAsDepartmentId },
+        include: {
+          organizationMemberships: {
+            include: {
+              organization: {
+                select: {
+                  id: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Check if it's a department account
+      if (!deptAccount || (deptAccount.userType as string) !== 'DEPARTMENT') {
+        return NextResponse.json(
+          { error: 'Invalid department account' },
+          { status: 400 }
+        );
+      }
+
+      organizationId = deptAccount.organizationMemberships[0]?.organization.id;
+      createdAsUserId = createdAsDepartmentId;
+
+      if (!organizationId) {
+        return NextResponse.json(
+          { error: 'Department account not linked to organization' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Standard check: direct membership
+      const { hasOrganizationAccess, getAccessibleOrganizations } = await import('@/lib/organization-permissions');
+      
+      if (requestedOrgId) {
+        const hasAccess = await hasOrganizationAccess(user.id, requestedOrgId);
+        if (!hasAccess) {
+          return NextResponse.json(
+            { error: 'No organization admin access' },
+            { status: 403 }
+          );
+        }
+        organizationId = requestedOrgId;
+      } else {
+        // Get first accessible organization
+        const accessibleOrgs = await getAccessibleOrganizations(user.id);
+        if (accessibleOrgs.length === 0) {
+          return NextResponse.json(
+            { error: 'No organization admin access' },
+            { status: 403 }
+          );
+        }
+        organizationId = accessibleOrgs[0].id;
+      }
+    }
+
+    if (!organizationId) {
       return NextResponse.json(
-        { error: 'No organization admin access' },
-        { status: 403 }
+        { error: 'Organization ID required' },
+        { status: 400 }
       );
     }
 
-    // Use the first admin organization (in a real app, this should be specified)
-    const organizationId = adminMembership.organizationId;
-
     // Upload images to S3 if any
     const imageUrls: string[] = [];
-    let uploadErrors: string[] = [];
+    const uploadErrors: string[] = [];
     
     // Validate image types before upload
     const allowedImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -445,6 +525,7 @@ export async function POST(request: NextRequest) {
         location: JSON.stringify(locationData),
         maxParticipants: validatedData.maxParticipants,
         organizerId: user.id,
+        ...(createdAsUserId ? { createdAsUserId } : {}),
         organizationId,
         status: EventStatus.DRAFT,
         type: EventCategory.VOLUNTEERING,

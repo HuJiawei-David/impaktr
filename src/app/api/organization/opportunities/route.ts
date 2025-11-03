@@ -27,25 +27,61 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user is part of an organization
-    const membership = await prisma.organizationMember.findFirst({
-      where: {
-        userId: session.user.id,
-        status: 'active',
-        role: { in: ['admin', 'owner'] }
-      }
-    });
-
-    if (!membership) {
-      return NextResponse.json({ error: 'Only organization admins can create opportunities' }, { status: 403 });
-    }
-
     const body = await request.json();
     const validatedData = createOpportunitySchema.parse(body);
+    const { createdAsDepartmentId, organizationId: requestedOrgId } = body as any;
+
+    let organizationId: string | undefined;
+
+    // Check if creating as department account
+    if (createdAsDepartmentId) {
+      const { hasDepartmentAccess } = await import('@/lib/organization-permissions');
+      const deptAccess = await hasDepartmentAccess(session.user.id, createdAsDepartmentId);
+      
+      if (!deptAccess) {
+        return NextResponse.json(
+          { error: 'No access to this department account' },
+          { status: 403 }
+        );
+      }
+
+      organizationId = deptAccess.organizationId;
+    } else {
+      // Standard check: direct membership or use requested org
+      const { hasOrganizationAccess, getAccessibleOrganizations } = await import('@/lib/organization-permissions');
+      
+      if (requestedOrgId) {
+        const hasAccess = await hasOrganizationAccess(session.user.id, requestedOrgId);
+        if (!hasAccess) {
+          return NextResponse.json(
+            { error: 'Only organization admins can create opportunities' },
+            { status: 403 }
+          );
+        }
+        organizationId = requestedOrgId;
+      } else {
+        // Get first accessible organization
+        const accessibleOrgs = await getAccessibleOrganizations(session.user.id);
+        if (accessibleOrgs.length === 0) {
+          return NextResponse.json(
+            { error: 'Only organization admins can create opportunities' },
+            { status: 403 }
+          );
+        }
+        organizationId = accessibleOrgs[0].id;
+      }
+    }
+
+    if (!organizationId) {
+      return NextResponse.json(
+        { error: 'Organization ID required' },
+        { status: 400 }
+      );
+    }
 
     const opportunity = await prisma.opportunity.create({
       data: {
-        organizationId: membership.organizationId,
+        organizationId,
         title: validatedData.title,
         description: validatedData.description,
         requirements: validatedData.requirements,

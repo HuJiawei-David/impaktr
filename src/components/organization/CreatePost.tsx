@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,15 +12,16 @@ import {
   Video, 
   FileText, 
   MapPin, 
-  Calendar,
-  Users,
   Clock,
+  Users,
   Target,
   Send,
   X,
-  Plus
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { getSDGById } from '@/constants/sdgs';
+import Image from 'next/image';
 
 interface CreatePostProps {
   organizationId: string;
@@ -29,6 +30,7 @@ interface CreatePostProps {
 }
 
 export function CreatePost({ organizationId, onPostCreated, onCancel }: CreatePostProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState('UPDATE');
   const [images, setImages] = useState<string[]>([]);
@@ -128,6 +130,7 @@ export function CreatePost({ organizationId, onPostCreated, onCancel }: CreatePo
       setVolunteersCount('');
       setVisibility('PUBLIC');
       setIsPinned(false);
+      setIsExpanded(false);
 
       onPostCreated?.();
     } catch (error) {
@@ -138,23 +141,33 @@ export function CreatePost({ organizationId, onPostCreated, onCancel }: CreatePo
     }
   };
 
+  // Collapsed state - compact button to create post
+  if (!isExpanded) {
+    return (
+      <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+        <CardContent className="p-4">
+          <Button
+            onClick={() => setIsExpanded(true)}
+            variant="outline"
+            className="w-full justify-start text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-full h-12"
+          >
+            <FileText className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
+            Start a post...
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Expanded state - full form
   return (
     <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-blue-600" />
-          Create New Post
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Post Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Post Type
-            </label>
+      <CardContent className="p-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Header with Post Type and Close */}
+          <div className="flex items-center justify-between mb-4">
             <Select value={postType} onValueChange={setPostType}>
-              <SelectTrigger>
+              <SelectTrigger className="w-[200px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -168,223 +181,261 @@ export function CreatePost({ organizationId, onPostCreated, onCancel }: CreatePo
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIsExpanded(false);
+                if (onCancel) onCancel();
+              }}
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </div>
 
-          {/* Content */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              What's happening? *
-            </label>
-            <Textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Share an update, announce an event, or tell your impact story..."
-              className="min-h-[120px] resize-none"
-              required
-            />
-          </div>
+          {/* Content Textarea */}
+          <Textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="What do you want to talk about?"
+            className="min-h-[120px] resize-none border-0 focus-visible:ring-0 text-base"
+            required
+            autoFocus
+          />
 
-          {/* Media Upload Placeholders */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">Add Images</p>
-              <p className="text-xs text-gray-400">Up to 10 photos</p>
-            </div>
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-              <Video className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">Add Video</p>
-              <p className="text-xs text-gray-400">YouTube/Vimeo links</p>
-            </div>
-          </div>
-
-          {/* Location */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <MapPin className="w-4 h-4 inline mr-1" />
-              Location (optional)
-            </label>
-            <Input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Where did this happen?"
-            />
-          </div>
-
-          {/* SDG Focus */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <Target className="w-4 h-4 inline mr-1" />
-              SDG Focus Areas
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].map((sdgId) => {
-                const sdg = getSDGById(sdgId);
-                const isSelected = selectedSDGs.includes(sdgId);
-                
-                return (
-                  <button
-                    key={sdgId}
-                    type="button"
-                    onClick={() => handleToggleSDG(sdgId)}
-                    className={`p-2 rounded-lg border-2 transition-all ${
-                      isSelected 
-                        ? 'border-opacity-100 shadow-md' 
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                    }`}
-                    style={isSelected ? { borderColor: sdg?.color } : {}}
-                  >
-                    <div className="w-8 h-8 mx-auto mb-1 rounded overflow-hidden">
-                      {sdg && (
-                        <img 
-                          src={sdg.image} 
-                          alt={`SDG ${sdg.id}`}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                    </div>
-                    <p className="text-xs font-medium text-center">SDG {sdgId}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Impact Metrics */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <Clock className="w-4 h-4 inline mr-1" />
-                Hours Reported
-              </label>
-              <Input
-                type="number"
-                value={hoursReported}
-                onChange={(e) => setHoursReported(e.target.value ? Number(e.target.value) : '')}
-                placeholder="0"
-                min="0"
-                step="0.5"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <Users className="w-4 h-4 inline mr-1" />
-                People Reached
-              </label>
-              <Input
-                type="number"
-                value={peopleReached}
-                onChange={(e) => setPeopleReached(e.target.value ? Number(e.target.value) : '')}
-                placeholder="0"
-                min="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <Users className="w-4 h-4 inline mr-1" />
-                Volunteers
-              </label>
-              <Input
-                type="number"
-                value={volunteersCount}
-                onChange={(e) => setVolunteersCount(e.target.value ? Number(e.target.value) : '')}
-                placeholder="0"
-                min="0"
-              />
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Tags
-            </label>
-            <div className="flex gap-2 mb-2">
-              <Input
-                value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
-                placeholder="Add a tag..."
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-              />
-              <Button type="button" onClick={handleAddTag} size="sm">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="flex items-center gap-1">
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(tag)}
-                      className="ml-1 hover:text-red-600"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
-                ))}
+          {/* Expanded Options (collapsible) */}
+          <details className="group">
+            <summary className="cursor-pointer text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 flex items-center gap-1">
+              <ChevronDown className="w-4 h-4 group-open:hidden" />
+              <ChevronUp className="w-4 h-4 hidden group-open:block" />
+              Add details (optional)
+            </summary>
+            
+            <div className="mt-4 space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {/* Media Upload Placeholders */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-3 text-center hover:border-blue-500 dark:hover:border-blue-500 transition-colors"
+                >
+                  <ImageIcon className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Add Images</p>
+                </button>
+                <button
+                  type="button"
+                  className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-3 text-center hover:border-green-500 dark:hover:border-green-500 transition-colors"
+                >
+                  <Video className="w-5 h-5 mx-auto mb-1 text-gray-400" />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Add Video</p>
+                </button>
               </div>
-            )}
-          </div>
 
-          {/* Visibility & Settings */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Visibility
-              </label>
-              <Select value={visibility} onValueChange={setVisibility}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {visibilityOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div>
-                        <div className="font-medium">{option.label}</div>
-                        <div className="text-xs text-gray-500">{option.description}</div>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Location */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <MapPin className="w-3 h-3 inline mr-1" />
+                  Location (optional)
+                </label>
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Where did this happen?"
+                  className="h-9"
+                />
+              </div>
+
+              {/* SDG Focus - Badge Style */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <Target className="w-3 h-3 inline mr-1" />
+                  SDG Focus Areas
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].map((sdgId) => {
+                    const sdgInfo = getSDGById(sdgId);
+                    if (!sdgInfo) return null;
+                    const isSelected = selectedSDGs.includes(sdgId);
+                    
+                    return (
+                      <Badge
+                        key={sdgId}
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => handleToggleSDG(sdgId)}
+                        className={`px-3 py-1 text-sm flex items-center gap-1.5 cursor-pointer transition-all ${
+                          isSelected 
+                            ? 'border-2 shadow-md' 
+                            : 'hover:border-opacity-100'
+                        }`}
+                        style={isSelected ? { 
+                          borderColor: sdgInfo.color,
+                          backgroundColor: `${sdgInfo.color}15`,
+                          color: sdgInfo.color
+                        } : { borderColor: sdgInfo.color }}
+                      >
+                        <Image 
+                          src={sdgInfo.image || ''} 
+                          alt={`SDG ${sdgInfo.id}`}
+                          width={16}
+                          height={16}
+                          className="w-4 h-4 flex-shrink-0"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                        <span className="font-semibold">SDG {sdgInfo.id}</span>
+                        <span className="text-gray-600 dark:text-gray-400">{sdgInfo.title}</span>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Impact Metrics */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <Clock className="w-3 h-3 inline mr-1" />
+                    Hours
+                  </label>
+                  <Input
+                    type="number"
+                    value={hoursReported}
+                    onChange={(e) => setHoursReported(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="0"
+                    min="0"
+                    step="0.5"
+                    className="h-9"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <Users className="w-3 h-3 inline mr-1" />
+                    People Reached
+                  </label>
+                  <Input
+                    type="number"
+                    value={peopleReached}
+                    onChange={(e) => setPeopleReached(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="0"
+                    min="0"
+                    className="h-9"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <Users className="w-3 h-3 inline mr-1" />
+                    Volunteers
+                  </label>
+                  <Input
+                    type="number"
+                    value={volunteersCount}
+                    onChange={(e) => setVolunteersCount(e.target.value ? Number(e.target.value) : '')}
+                    placeholder="0"
+                    min="0"
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Tags
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add a tag..."
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    className="h-9"
+                  />
+                  <Button type="button" onClick={handleAddTag} size="sm" className="h-9">
+                    <X className="w-4 h-4 rotate-45" />
+                  </Button>
+                </div>
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          className="ml-1 hover:text-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Visibility */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Visibility
+                </label>
+                <Select value={visibility} onValueChange={setVisibility}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visibilityOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Pin Post */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isPinned"
+                  checked={isPinned}
+                  onChange={(e) => setIsPinned(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <label htmlFor="isPinned" className="text-sm text-gray-700 dark:text-gray-300">
+                  Pin this post
+                </label>
+              </div>
             </div>
-            <div className="flex items-center space-x-2 pt-6">
-              <input
-                type="checkbox"
-                id="isPinned"
-                checked={isPinned}
-                onChange={(e) => setIsPinned(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <label htmlFor="isPinned" className="text-sm text-gray-700 dark:text-gray-300">
-                Pin this post
-              </label>
-            </div>
-          </div>
+          </details>
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            {onCancel && (
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-            )}
+          <div className="flex justify-end pt-3 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setIsExpanded(false);
+                if (onCancel) onCancel();
+              }}
+              className="mr-2"
+            >
+              Cancel
+            </Button>
             <Button 
               type="submit" 
               disabled={isSubmitting || !content.trim()}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full px-6"
             >
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Publishing...
+                  Posting...
                 </>
               ) : (
                 <>
                   <Send className="w-4 h-4 mr-2" />
-                  Publish Post
+                  Post
                 </>
               )}
             </Button>

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { EventStatus } from '@/types/events';
 
@@ -95,7 +96,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Build base conditions array for AND logic
-    const baseConditions: any[] = [];
+    const baseConditions: Prisma.EventWhereInput[] = [];
 
     // Apply status filter if provided, otherwise show UPCOMING and ACTIVE events
     if (status) {
@@ -189,7 +190,7 @@ export async function GET(request: NextRequest) {
 
     // Apply custom date filters if provided (override default date filters)
     if (startDate || endDate) {
-      const dateCondition: any = {};
+      const dateCondition: { gte?: Date; lte?: Date } = {};
       if (startDate) dateCondition.gte = startDate;
       if (endDate) dateCondition.lte = endDate;
       baseConditions.push({

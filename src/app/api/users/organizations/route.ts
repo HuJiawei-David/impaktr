@@ -34,19 +34,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Filter organizations where user has admin or owner role
-    const adminOrganizations = user.organizationMemberships
-      .filter(membership => 
-        membership.role === 'admin' || membership.role === 'owner'
-      )
-      .map(membership => ({
-        id: membership.organization.id,
-        name: membership.organization.name,
-        logo: membership.organization.logo,
-        type: membership.organization.type,
-        description: membership.organization.description,
-        role: membership.role,
-      }));
+    // Get all accessible organizations (direct + department)
+    const { getAccessibleOrganizations } = await import('@/lib/organization-permissions');
+    const accessibleOrgs = await getAccessibleOrganizations(user.id);
+
+    // Fetch full organization details for each
+    const orgDetails = await Promise.all(
+      accessibleOrgs.map(async (org) => {
+        const fullOrg = await prisma.organization.findUnique({
+          where: { id: org.id },
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+            type: true,
+            description: true,
+          }
+        });
+        
+        return {
+          id: org.id,
+          name: org.name,
+          logo: fullOrg?.logo,
+          type: fullOrg?.type,
+          description: fullOrg?.description,
+          role: org.role || 'admin',
+          accessType: org.type, // 'direct' or 'department'
+          departmentAccountId: org.departmentAccountId,
+        };
+      })
+    );
+    
+    const adminOrganizations = orgDetails;
 
     return NextResponse.json({
       organizations: adminOrganizations,

@@ -216,16 +216,20 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
   });
 
   // Convert database notifications to the expected format
-  const notifications = dbNotifications.map(notif => ({
-    id: notif.id,
-    type: notif.type.toLowerCase().replace(/_/g, '_') as any,
-    title: notif.title,
-    message: notif.message,
-    read: notif.isRead,
-    createdAt: notif.createdAt.toISOString(),
-    actionUrl: (notif.data as any)?.actionUrl,
-    data: notif.data as any
-  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const notifications = dbNotifications.map(notif => {
+    const notificationData = notif.data as { actionUrl?: string } | null;
+    return {
+      id: notif.id,
+      type: notif.type.toLowerCase().replace(/_/g, '_') as string,
+      title: notif.title,
+      message: notif.message,
+      read: notif.isRead,
+      createdAt: notif.createdAt.toISOString(),
+      actionUrl: notificationData?.actionUrl,
+      data: notif.data
+    };
+  });
 
   // Get recent user activities to generate additional notifications
   const user = await prisma.user.findUnique({

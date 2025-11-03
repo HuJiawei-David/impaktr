@@ -42,6 +42,7 @@ import { EventCard } from '@/components/events/EventCard';
 import { FollowersList } from '@/components/organization/FollowersList';
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard';
 import { getSDGById } from '@/constants/sdgs';
+import { getTierBadgeColor } from '@/lib/utils';
 
 // Type definitions
 interface Opportunity {
@@ -270,20 +271,9 @@ interface Organization {
   }>;
 }
 
+// Use centralized tier badge color function from utils
 const getTierColor = (tier: string) => {
-  const tierMap: Record<string, string> = {
-    'IMPACT_STARTER': 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-800',
-    'COMMUNITY_BUILDER': 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30',
-    'IMPACT_DRIVER': 'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/30',
-    'COMMUNITY_ALLY': 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
-    'CSR_PRACTITIONER': 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30',
-    'CSR_LEADER': 'text-pink-600 bg-pink-100 dark:text-pink-400 dark:bg-pink-900/30',
-    'ESG_CHAMPION': 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30',
-    'TRUSTED_PARTNER': 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30',
-    'INDUSTRY_BENCHMARK': 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30',
-    'GLOBAL_IMPACT_LEADER': 'text-purple-600 bg-gradient-to-r from-purple-100 to-pink-100 dark:text-purple-300 dark:from-purple-900/30 dark:to-pink-900/30',
-  };
-  return tierMap[tier] || tierMap['IMPACT_STARTER'];
+  return getTierBadgeColor(tier);
 };
 
 const formatTierName = (tier: string) => {
@@ -329,7 +319,7 @@ export default function OrganizationProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'feed' | 'about' | 'events' | 'opportunities' | 'impact' | 'followers'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'about' | 'events' | 'opportunities' | 'impact' | 'followers'>('about');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [bookmarkedOpportunities, setBookmarkedOpportunities] = useState<string[]>([]);
@@ -339,13 +329,21 @@ export default function OrganizationProfilePage() {
   const fetchOrganization = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`/api/organizations/${orgId}`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch organization');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to fetch organization:', response.status, errorData);
+        throw new Error(errorData.error || `Failed to fetch organization: ${response.status}`);
       }
       
       const data = await response.json();
+      
+      if (!data.organization) {
+        throw new Error('Organization data not found in response');
+      }
+      
       setOrganization(data.organization);
       setIsFollowing(data.organization.isFollowing);
       
@@ -358,7 +356,7 @@ export default function OrganizationProfilePage() {
       }
     } catch (err) {
       console.error('Error fetching organization:', err);
-      setError('Failed to load organization');
+      setError(err instanceof Error ? err.message : 'Failed to load organization');
     } finally {
       setLoading(false);
     }
@@ -739,17 +737,6 @@ export default function OrganizationProfilePage() {
             {/* Pill Navigation */}
             <div className="flex flex-wrap gap-2 mb-6">
               <Button
-                variant={activeTab === 'feed' ? 'default' : 'outline'}
-                onClick={() => setActiveTab('feed')}
-                className={`rounded-full px-6 py-2 ${
-                  activeTab === 'feed' 
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                Feed
-              </Button>
-              <Button
                 variant={activeTab === 'about' ? 'default' : 'outline'}
                 onClick={() => setActiveTab('about')}
                 className={`rounded-full px-6 py-2 ${
@@ -759,6 +746,17 @@ export default function OrganizationProfilePage() {
                 }`}
               >
                 About
+              </Button>
+              <Button
+                variant={activeTab === 'feed' ? 'default' : 'outline'}
+                onClick={() => setActiveTab('feed')}
+                className={`rounded-full px-6 py-2 ${
+                  activeTab === 'feed' 
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                Latest Posts
               </Button>
               <Button
                 variant={activeTab === 'events' ? 'default' : 'outline'}
@@ -927,7 +925,7 @@ export default function OrganizationProfilePage() {
                 {organization.members && organization.members.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {organization.members.slice(0, 6).map((member) => (
-                      <div key={member.userId} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div key={member.userId} className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                         <Avatar className="w-12 h-12">
                           {member.user?.image ? (
                             <AvatarImage src={member.user.image} alt={member.user.name || member.user.email} />
@@ -953,7 +951,7 @@ export default function OrganizationProfilePage() {
                       </div>
                     ))}
                     {organization.members.length > 6 && (
-                      <div className="flex items-center justify-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center justify-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                           +{organization.members.length - 6} more team members
                     </p>
@@ -1536,54 +1534,53 @@ export default function OrganizationProfilePage() {
             </Card>
 
             {/* Leaderboard Ranking */}
-            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="w-5 h-5 text-blue-600" />
+            <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center mb-4">
+                  <Trophy className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="font-semibold text-lg mb-4 text-center text-gray-900 dark:text-white">
                   Leaderboard Ranking
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Global Rank */}
-                <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Global Rank</p>
-                    <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 px-3 py-1">
-                      {organization.tier.replace(/_/g, ' ').split(' ').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
-                    </Badge>
-          </div>
-                  <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                    #12
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    out of 1,247 organizations
-                  </p>
-        </div>
-
-                {/* Local Rank */}
-                <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Local Rank ({organization.country || 'Malaysia'})
+                </h3>
+                
+                {/* Rankings Side by Side */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {/* Global Rank */}
+                  <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Global
+                    </p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      #12
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      1,247 total
                     </p>
                   </div>
-                  <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                    #3
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    out of 89 organizations
-                  </p>
+                  
+                  {/* Local Rank */}
+                  <div className="text-center p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                      Local ({organization.country || 'Malaysia'})
+                    </p>
+                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                      #3
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      89 total
+                    </p>
+                  </div>
                 </div>
 
                 {/* View Full Leaderboard Button */}
-                <div className="pt-4">
-                  <Link href="/leaderboards?type=organizations">
-                    <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
-                      View Full Leaderboard
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
+                <Link href="/leaderboards?type=organizations">
+                  <Button 
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 py-2"
+                  >
+                    View Leaderboard
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
 

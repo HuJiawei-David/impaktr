@@ -66,6 +66,7 @@ interface OrganizationWithRelations {
   country?: string;
   website?: string;
   sdgFocusAreas?: number[];
+  createdAt: Date;
   members: OrganizationMember[];
   events: OrganizationEvent[];
   opportunities: OrganizationOpportunity[];
@@ -101,7 +102,9 @@ export async function GET(
         },
         events: {
           where: {
-            status: { in: ['UPCOMING', 'ONGOING', 'COMPLETED'] }
+            status: { in: ['UPCOMING', 'ONGOING', 'ACTIVE'] }, // Exclude COMPLETED
+            startDate: { gte: new Date() }, // Only events that haven't started yet
+            endDate: { gte: new Date() } // And haven't ended
           },
           orderBy: { startDate: 'desc' },
           take: 5,
@@ -178,14 +181,19 @@ export async function GET(
       }
     });
 
-    // Get top volunteers by hours (from THIS organization's events only, individuals only)
+    // Get top volunteers by hours (from THIS organization's COMPLETED/past events only, individuals only)
+    const now = new Date();
     const topVolunteersData = await prisma.user.findMany({
       where: {
         userType: 'INDIVIDUAL', // Only individuals
         participations: {
           some: {
             event: {
-              organizationId: id // Only events from THIS organization
+              organizationId: id, // Only events from THIS organization
+              OR: [
+                { status: 'COMPLETED' },
+                { endDate: { lt: now } }
+              ]
             },
             status: 'VERIFIED'
           }
@@ -199,7 +207,11 @@ export async function GET(
         participations: {
           where: {
             event: {
-              organizationId: id // Only count hours from THIS organization's events
+              organizationId: id, // Only count hours from THIS organization's events
+              OR: [
+                { status: 'COMPLETED' },
+                { endDate: { lt: now } }
+              ]
             },
             status: 'VERIFIED'
           },
@@ -224,19 +236,29 @@ export async function GET(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         hours: user.participations.reduce((sum: number, p: any) => sum + (p.hours || 0), 0)
       }))
+      // Filter out volunteers with 0 hours and sort
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((volunteer: any) => volunteer.hours > 0)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .sort((a: any, b: any) => b.hours - a.hours)
       .slice(0, 5);
 
-    // Get recent events (upcoming ones for sidebar)
-    const recentEvents = organization.events.filter(event => event.status === 'UPCOMING').slice(0, 3);
+    // Get recent events (upcoming ones for sidebar) - already filtered by endDate in the query
+    const currentTime = new Date();
+    const recentEvents = organization.events.filter(event => {
+      const eventHasEnded = event.status === 'COMPLETED' || 
+                           (event.endDate && new Date(event.endDate) < currentTime);
+      return !eventHasEnded && (event.status === 'UPCOMING' || event.status === 'ONGOING' || event.status === 'ACTIVE');
+    }).slice(0, 3);
 
     // Additionally, fetch separate upcoming and past events lists for Events tab
     const [upcomingEvents, pastEvents] = await Promise.all([
       prisma.event.findMany({
         where: {
           organizationId: id,
-          status: { in: ['UPCOMING', 'ONGOING'] }
+          status: { in: ['UPCOMING', 'ONGOING', 'ACTIVE'] },
+          startDate: { gte: new Date() }, // Only events that haven't started yet
+          endDate: { gte: new Date() } // And haven't ended
         },
         orderBy: { startDate: 'asc' },
         take: 12,
@@ -262,7 +284,10 @@ export async function GET(
       prisma.event.findMany({
         where: {
           organizationId: id,
-          status: 'COMPLETED'
+          OR: [
+            { endDate: { lt: new Date() } }, // Events that have ended
+            { startDate: { lt: new Date() } } // OR events that have started (ongoing events)
+          ]
         },
         orderBy: { startDate: 'desc' },
         take: 12,
@@ -325,6 +350,7 @@ export async function GET(
     // Add computed fields to organization
     const organizationWithComputed = {
       ...organization,
+      createdAt: organization.createdAt.toISOString(),
       totalHours: totalHours._sum.hours || 0,
       memberCount,
       eventCount,
@@ -343,6 +369,12 @@ export async function GET(
     return NextResponse.json({ organization: organizationWithComputed });
   } catch (error) {
     console.error('Error fetching organization:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack });
+    return NextResponse.json({ 
+      error: 'Failed to fetch organization', 
+      details: errorMessage 
+    }, { status: 500 });
   }
 }
