@@ -5,14 +5,20 @@ import { calculateImpaktrScore } from '@/lib/scoring';
 import { checkAndAwardBadges } from '@/lib/badges';
 
 export async function GET(request: NextRequest) {
+  console.log('📥 [API] GET /api/users/profile - Request received');
   try {
+    console.log('🔐 [API] Fetching session...');
     const session = await getSession();
+    console.log('🔐 [API] Session fetched:', session ? `User ID: ${session.user?.id}` : 'No session');
+    
     if (!session?.user?.id) {
+      console.log('❌ [API] Unauthorized - No session or user ID');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const url = new URL(request.url);
     const userId = url.searchParams.get('id') || session.user.id;
+    console.log(`👤 [API] Fetching profile for user: ${userId}`);
 
     // Fetch user with related data
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,6 +190,12 @@ export async function GET(request: NextRequest) {
           eventId: true,
           status: true,
           hours: true,
+          event: {
+            select: {
+              status: true,
+              endDate: true,
+            }
+          }
         }
       });
     } catch (participationError) {
@@ -227,9 +239,11 @@ export async function GET(request: NextRequest) {
     };
 
     // Calculate stats - only count participations from events that have ended
-    const pastEventParticipations = allParticipations.filter((p: { event: { status: string; endDate: Date } }) => 
-      eventHasEnded(p.event)
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pastEventParticipations = allParticipations.filter((p: any) => {
+      if (!p.event) return false;
+      return eventHasEnded(p.event);
+    });
     
     const volunteerHours = pastEventParticipations
       .filter((p: { status: string; hours: number | null }) => p.status === 'VERIFIED' || p.status === 'ATTENDED')
@@ -334,7 +348,8 @@ export async function GET(request: NextRequest) {
 
     // Filter participations to only include events that have ended
     const activitiesDate = new Date();
-    const allPastParticipations = user.participations.filter((p: { event?: { status: string; endDate?: Date } }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allPastParticipations = (user.participations || []).filter((p: any) => {
       if (!p.event) return false;
       const eventHasEnded = p.event.status === 'COMPLETED' || 
                            (p.event.endDate && new Date(p.event.endDate) < activitiesDate);
@@ -481,29 +496,36 @@ export async function GET(request: NextRequest) {
 
     // Aggregate organizations worked with (only from COMPLETED/past events)
     // Fetch ALL verified or attended participations for organizations aggregation (not just recent 10)
-    const allParticipationsForOrgAggregation = await prisma.participation.findMany({
-      where: {
-        userId: userId,
-        status: { in: ['VERIFIED', 'ATTENDED'] }
-      },
-      select: {
-        hours: true,
-        event: {
-          select: {
-            id: true,
-            status: true,
-            endDate: true,
-            organization: {
-              select: {
-                id: true,
-                name: true,
-                logo: true
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let allParticipationsForOrgAggregation: any[] = [];
+    try {
+      allParticipationsForOrgAggregation = await prisma.participation.findMany({
+        where: {
+          userId: userId,
+          status: { in: ['VERIFIED', 'ATTENDED'] }
+        },
+        select: {
+          hours: true,
+          event: {
+            select: {
+              id: true,
+              status: true,
+              endDate: true,
+              organization: {
+                select: {
+                  id: true,
+                  name: true,
+                  logo: true
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+    } catch (orgAggError) {
+      console.error('Error fetching participations for org aggregation:', orgAggError);
+      allParticipationsForOrgAggregation = [];
+    }
     
     const now = new Date();
     const organizationsMap = new Map<string, { name: string; logo: string | null; events: number; hours: number }>();
@@ -961,9 +983,16 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ profile: profileData });
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('❌ Error fetching user profile:', error);
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
     return NextResponse.json(
-      { error: 'Failed to fetch user profile' },
+      { 
+        error: 'Failed to fetch user profile',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

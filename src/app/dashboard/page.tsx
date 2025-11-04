@@ -296,7 +296,9 @@ export default function DashboardPage() {
           },
         });
         if (!response.ok) {
-          throw new Error('Failed to fetch profile data');
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Profile API error:', response.status, errorData);
+          throw new Error(errorData.error || `Failed to fetch profile data: ${response.status}`);
         }
         
         const data = await response.json();
