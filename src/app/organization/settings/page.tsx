@@ -192,7 +192,7 @@ export default function OrganizationSettingsPage() {
             </Button>
             <Button
               variant={activeTab === 'members' ? 'default' : 'outline'}
-              onClick={() => setActiveTab('members')}
+              onClick={() => router.push('/organization/settings/members')}
               className={`rounded-full px-6 py-2 ${
                 activeTab === 'members' 
                   ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
@@ -222,6 +222,17 @@ export default function OrganizationSettingsPage() {
               }`}
             >
               Security
+            </Button>
+            <Button
+              variant={activeTab === 'departments' ? 'default' : 'outline'}
+              onClick={() => router.push('/organization/settings/departments')}
+              className={`rounded-full px-6 py-2 ${
+                activeTab === 'departments' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              Departments
             </Button>
           </div>
 

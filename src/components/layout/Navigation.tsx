@@ -30,7 +30,8 @@ import {
   MessageCircle,
   Briefcase,
   Target,
-  BookOpen
+  BookOpen,
+  Key
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -476,6 +477,16 @@ export function Navigation() {
                               <div className="flex flex-col">
                                 <span className="font-medium text-gray-900 dark:text-white">Members & Permissions</span>
                                 <span className="text-xs text-gray-500 dark:text-gray-400">Manage team access</span>
+                              </div>
+                            </DropdownMenuItem>
+                          </Link>
+
+                          <Link href="/organization/settings/departments">
+                            <DropdownMenuItem className="mx-2 px-3 py-3 rounded-lg">
+                              <Key className="mr-3 h-5 w-5 text-gray-500 dark:text-gray-400" />
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900 dark:text-white">Department Accounts</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Manage delegated access</span>
                               </div>
                             </DropdownMenuItem>
                           </Link>

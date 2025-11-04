@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         id: dept.id,
         name: dept.name,
         email: dept.email,
-        createdAt: dept.createdAt,
+        createdAt: dept.createdAt.toISOString(),
         activeAccesses: dept.departmentAccountsOwned.length
       }))
     });

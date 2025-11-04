@@ -311,6 +311,12 @@ export async function GET(request: NextRequest) {
               email: true,
               image: true
             }
+          },
+          grantor: {
+            select: {
+              id: true,
+              name: true
+            }
           }
         },
         orderBy: {
@@ -322,8 +328,9 @@ export async function GET(request: NextRequest) {
         accesses: accesses.map(a => ({
           id: a.id,
           individualUser: a.individualUser,
-          permissions: a.permissions,
-          grantedAt: a.grantedAt
+          permissions: a.permissions as string[],
+          grantedAt: a.grantedAt.toISOString(),
+          grantedBy: a.grantor ? { name: a.grantor.name } : { name: 'Unknown' }
         }))
       });
     } else {
