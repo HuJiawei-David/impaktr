@@ -265,7 +265,20 @@ export async function GET(request: NextRequest) {
     const badgesEarned = user.badges.filter((b: any) => b.earnedAt).length;
 
     // Get user's global rank (using recalculated score)
-    const currentScore = user.userType === 'INDIVIDUAL' ? user.impactScore : 0;
+    // Ensure currentScore is a valid finite number (convert from Decimal if needed)
+    let currentScore = 0;
+    if (user.userType === 'INDIVIDUAL') {
+      const rawScore = user.impactScore;
+      // Convert to number if it's a Decimal or string
+      const numScore = typeof rawScore === 'number' ? rawScore : Number(rawScore);
+      if (Number.isFinite(numScore) && !isNaN(numScore) && numScore >= 0) {
+        currentScore = numScore;
+      } else {
+        console.warn(`Invalid impactScore for user ${user.id}: ${rawScore}, using 0 for rank calculation`);
+        currentScore = 0;
+      }
+    }
+    
     let rank: number | undefined = undefined;
     if (user.userType === 'INDIVIDUAL') {
       try {
@@ -278,6 +291,7 @@ export async function GET(request: NextRequest) {
         rank = higherScoreCount + 1;
       } catch (rankError) {
         console.error('Error calculating user rank:', rankError);
+        console.error('Current score value:', currentScore, typeof currentScore);
         // Continue without rank
       }
     }
@@ -285,22 +299,29 @@ export async function GET(request: NextRequest) {
     // Get user's local rank (same country)
     let localRank: number | undefined = undefined;
     let localTotal: number | undefined = undefined;
-    if (user.userType === 'INDIVIDUAL' && user.country) {
-      const localHigherCount = await prisma.user.count({
-        where: {
-          userType: 'INDIVIDUAL',
-          country: user.country,
-          impactScore: { gt: currentScore }
-        }
-      });
-      const localTotalCount = await prisma.user.count({
-        where: {
-          userType: 'INDIVIDUAL',
-          country: user.country
-        }
-      });
-      localRank = localHigherCount + 1;
-      localTotal = localTotalCount;
+    if (user.userType === 'INDIVIDUAL' && user.country && typeof user.country === 'string' && user.country.trim() !== '') {
+      try {
+        const localHigherCount = await prisma.user.count({
+          where: {
+            userType: 'INDIVIDUAL',
+            country: user.country.trim(),
+            impactScore: { gt: currentScore }
+          }
+        });
+        const localTotalCount = await prisma.user.count({
+          where: {
+            userType: 'INDIVIDUAL',
+            country: user.country.trim()
+          }
+        });
+        localRank = localHigherCount + 1;
+        localTotal = localTotalCount;
+      } catch (localRankError) {
+        console.error('Error calculating local rank:', localRankError);
+        console.error('Current score value:', currentScore, typeof currentScore);
+        console.error('Country value:', user.country, typeof user.country);
+        // Continue without local rank
+      }
     }
 
     // Create maps for score lookup (by participationId and eventId as fallback)
@@ -988,10 +1009,28 @@ export async function GET(request: NextRequest) {
     console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     
+    // Ensure we always return a valid JSON response
+    let errorMessage = 'Failed to fetch user profile';
+    let errorDetails = 'Unknown error';
+    
+    try {
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+        errorDetails = error.stack || error.message || errorDetails;
+      } else if (typeof error === 'string') {
+        errorDetails = error;
+      } else {
+        errorDetails = JSON.stringify(error);
+      }
+    } catch (serializationError) {
+      console.error('Error serializing error object:', serializationError);
+      errorDetails = 'Unable to serialize error details';
+    }
+    
     return NextResponse.json(
       { 
-        error: 'Failed to fetch user profile',
-        details: error instanceof Error ? error.message : String(error)
+        error: errorMessage,
+        details: errorDetails
       },
       { status: 500 }
     );

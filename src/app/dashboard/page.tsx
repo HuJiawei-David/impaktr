@@ -296,9 +296,21 @@ export default function DashboardPage() {
           },
         });
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          let errorData: { error?: string; details?: string } = { error: 'Unknown error' };
+          try {
+            const text = await response.text();
+            if (text) {
+              errorData = JSON.parse(text);
+            }
+          } catch (parseError) {
+            console.error('Failed to parse error response:', parseError);
+            errorData = { 
+              error: `HTTP ${response.status}: ${response.statusText}`,
+              details: 'Failed to parse error response'
+            };
+          }
           console.error('Profile API error:', response.status, errorData);
-          throw new Error(errorData.error || `Failed to fetch profile data: ${response.status}`);
+          throw new Error(errorData.error || errorData.details || `Failed to fetch profile data: ${response.status}`);
         }
         
         const data = await response.json();
