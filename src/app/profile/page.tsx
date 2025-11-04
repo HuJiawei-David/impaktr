@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { 
   User, 
   Award, 
@@ -26,7 +27,8 @@ import {
   CheckCircle,
   ChevronRight,
   Trophy,
-  Lock
+  Lock,
+  FileText
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -209,6 +211,7 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const user = session?.user;
   const isLoading = status === 'loading';
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -239,6 +242,8 @@ export default function ProfilePage() {
   const [badgeProgressLoading, setBadgeProgressLoading] = useState(false);
   const [leaderboardRank, setLeaderboardRank] = useState<number | null>(null);
   const [leaderboardTotal, setLeaderboardTotal] = useState<number | null>(null);
+  const [participations, setParticipations] = useState<any[]>([]);
+  const [isLoadingParticipations, setIsLoadingParticipations] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -251,6 +256,12 @@ export default function ProfilePage() {
       fetchLeaderboardRank();
     }
   }, [isLoading, user]);
+
+  useEffect(() => {
+    if (activeTab === 'certificates' && profile?.id) {
+      fetchParticipations();
+    }
+  }, [activeTab, profile?.id]);
 
   const fetchLeaderboardRank = async () => {
     try {
@@ -265,6 +276,85 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Error fetching leaderboard rank:', error);
     }
+  };
+
+  const fetchParticipations = async () => {
+    if (!profile?.id) return;
+    try {
+      setIsLoadingParticipations(true);
+      // Try the participations API first
+      const response = await fetch(`/api/users/${profile.id}/participations?status=VERIFIED&status=ATTENDED&limit=100`);
+      if (response.ok) {
+        const data = await response.json();
+        setParticipations(data.participations || []);
+      } else {
+        // Fallback: use participations from profile API response if available
+        // The profile API includes participations in the response
+        console.log('Participations API not available, using profile data');
+        setParticipations([]);
+      }
+    } catch (error) {
+      console.error('Error fetching participations:', error);
+      setParticipations([]);
+    } finally {
+      setIsLoadingParticipations(false);
+    }
+  };
+
+  // Helper function to calculate age from date of birth
+  const calculateAge = (dateOfBirth: string | null | undefined): string => {
+    if (!dateOfBirth) return '';
+    try {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age.toString();
+    } catch (e) {
+      return '';
+    }
+  };
+
+  // Helper function to get first name from participation
+  const getParticipantFirstName = (participation: any): string => {
+    if (participation?.user?.firstName) {
+      return participation.user.firstName;
+    }
+    // Parse from name field if firstName is not available
+    // First name is all parts except the last one (e.g., "Li Yuan" from "Li Yuan Peng")
+    if (participation?.user?.name) {
+      const parts = participation.user.name.trim().split(/\s+/);
+      if (parts.length > 1) {
+        return parts.slice(0, -1).join(' ') || '-';
+      }
+      return parts[0] || '-';
+    }
+    return '-';
+  };
+
+  // Helper function to get last name from participation
+  const getParticipantLastName = (participation: any): string => {
+    if (participation?.user?.lastName) {
+      return participation.user.lastName;
+    }
+    // Parse from name field if lastName is not available
+    // Last name is the last part (e.g., "Peng" from "Li Yuan Peng")
+    if (participation?.user?.name) {
+      const parts = participation.user.name.trim().split(/\s+/);
+      if (parts.length > 1) {
+        return parts[parts.length - 1] || '-';
+      }
+    }
+    return '-';
+  };
+
+
+  const handleGenerateCertificate = async (participation: any) => {
+    // Navigate to certificate preview page instead of opening dialog
+    router.push(`/profile/certificates/${participation.id}`);
   };
 
   const fetchProfile = async () => {
@@ -1540,119 +1630,227 @@ export default function ProfilePage() {
 
           {/* Certificates Tab Content */}
           {activeTab === 'certificates' && (
-            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="w-5 h-5 text-green-600" />
-                  Certificates ({profile.certificateCount || 0})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {profile.certificates && profile.certificates.length > 0 ? (
+            <div className="space-y-6">
+              {/* Event Cards Section */}
+              <div>
+                {isLoadingParticipations ? (
+                  <div className="text-center py-8">
+                    <LoadingSpinner size="md" />
+                  </div>
+                ) : participations.length > 0 ? (
                   <div className="space-y-4">
-                    {profile.certificates.map((certificate) => (
-                      <Card key={certificate.id} className="border border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-3 mb-2">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                                <Award className="w-5 h-5 text-white" />
-            </div>
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900 dark:text-white">
-                                  {certificate.title}
-                                </h3>
-                                {certificate.event && (
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    For: {certificate.event.title}
-                                  </p>
+                    {participations.map((participation) => {
+                      const event = participation.event;
+                      if (!event) return null;
+                      
+                      // Parse location data
+                      let locationData: any = {};
+                      if (event.location) {
+                        try {
+                          locationData = typeof event.location === 'string' 
+                            ? JSON.parse(event.location) 
+                            : event.location;
+                        } catch (e) {
+                          locationData = { city: 'Unknown', country: 'Unknown', isVirtual: false };
+                        }
+                      }
+                      
+                      // Parse SDG data
+                      let sdgData: number[] = [];
+                      if (event.sdg) {
+                        try {
+                          sdgData = typeof event.sdg === 'string' 
+                            ? JSON.parse(event.sdg) 
+                            : Array.isArray(event.sdg) 
+                            ? event.sdg 
+                            : [event.sdg];
+                        } catch (e) {
+                          sdgData = [];
+                        }
+                      }
+                      
+                      const mainImage = event.imageUrl || (event.images && event.images.length > 0 ? event.images[0] : null);
+                      
+                      const formatEventDate = (dateString: string) => {
+                        const date = new Date(dateString);
+                        return date.toLocaleDateString('en-US', { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric',
+                          year: 'numeric'
+                        });
+                      };
+                      
+                      const formatEventTimeRange = (startDate: string, endDate?: string) => {
+                        const start = new Date(startDate);
+                        const end = endDate ? new Date(endDate) : null;
+                        const startTime = start.toLocaleTimeString('en-US', { 
+                          hour: 'numeric', 
+                          minute: '2-digit',
+                          hour12: true 
+                        });
+                        if (end && end.getTime() !== start.getTime()) {
+                          const endTime = end.toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit',
+                            hour12: true 
+                          });
+                          return `${startTime} - ${endTime}`;
+                        }
+                        return startTime;
+                      };
+                      
+                      return (
+                        <Card key={participation.id} className="border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow overflow-hidden">
+                          <div className="flex">
+                            {/* Event Card Content */}
+                            <div className="flex-1 flex">
+                              {/* Event Image */}
+                              <div className="relative w-48 h-48 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 flex-shrink-0">
+                                {mainImage ? (
+                                  <Image 
+                                    src={mainImage} 
+                                    alt={event.title}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Calendar className="w-12 h-12 text-gray-400" />
+                                  </div>
+                                )}
+                                {event.status === 'COMPLETED' && (
+                                  <Badge className="absolute top-2 left-2 bg-gray-500 text-white border border-white dark:border-transparent px-3 py-1">
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    Completed
+                                  </Badge>
                                 )}
                               </div>
-                            </div>
-                            
-                            <div className="ml-13 space-y-2">
-                              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                <div className="flex items-center gap-1">
-                                  <span className="font-medium">Certificate ID:</span>
-                                  <code className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">
-                                    {certificate.id.slice(-8).toUpperCase()}
-                                  </code>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <span className="font-medium">Issued:</span>
-                                  <span>{new Date(certificate.issuedAt).toLocaleDateString('en-US', { 
-                                    year: 'numeric', 
-                                    month: 'long', 
-                                    day: 'numeric' 
-                                  })}</span>
-                                </div>
-                              </div>
                               
-                              {certificate.issuedBy && (
-                                <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-400">
-                                  <span className="font-medium">Issued by:</span>
-                                  <span>{certificate.issuedBy}</span>
+                              {/* Event Details */}
+                              <CardContent className="p-4 flex-1 flex flex-col">
+                                <div className="flex justify-between items-start mb-2">
+                                  <h3 className="font-semibold text-lg line-clamp-2">{event.title}</h3>
                                 </div>
-                              )}
-                              
-                              {certificate.event?.organization && (
-                                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                                  <span className="font-medium">Organization:</span>
-                                  <div className="flex items-center gap-2">
-                                    {certificate.event.organization.logo && (
+                                
+                                {/* Organization Info */}
+                                {event.organization && (
+                                  <div className="flex items-center gap-2 mb-3">
+                                    {event.organization.logo ? (
                                       <Image 
-                                        src={certificate.event.organization.logo} 
-                                        alt={certificate.event.organization.name}
-                                        width={16}
-                                        height={16}
-                                        className="w-4 h-4 rounded-full object-cover"
+                                        src={event.organization.logo} 
+                                        alt={event.organization.name}
+                                        width={20}
+                                        height={20}
+                                        className="rounded-full object-cover"
                                       />
+                                    ) : (
+                                      <div className="w-5 h-5 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                                        <Building2 className="w-3 h-3 text-white" />
+                                      </div>
                                     )}
-                                    <span>{certificate.event.organization.name}</span>
+                                    <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                      {event.organization.name}
+                                    </span>
                                   </div>
+                                )}
+                                
+                                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1 mb-3">
+                                  {event.startDate && (
+                                    <>
+                                      <div className="flex items-center">
+                                        <Calendar className="w-4 h-4 mr-2" />
+                                        {formatEventDate(event.startDate)}
+                                      </div>
+                                      {event.endDate && (
+                                        <div className="flex items-center ml-6">
+                                          <Clock className="w-4 h-4 mr-2" />
+                                          {formatEventTimeRange(event.startDate, event.endDate)}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                  
+                                  <div className="flex items-center">
+                                    <MapPin className="w-4 h-4 mr-2" />
+                                    {locationData.isVirtual ? 'Virtual Event' : `${locationData.city || 'Unknown'}, ${locationData.country || 'Unknown'}`}
+                                  </div>
+                                  
+                                  {participation.hoursVerified && (
+                                    <div className="flex items-center">
+                                      <Clock className="w-4 h-4 mr-2" />
+                                      <span>{participation.hoursVerified} hours verified</span>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                              
-                              {certificate.description && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                                  {certificate.description}
-                                </p>
-                              )}
+                                
+                                <div className="flex items-center gap-2 mt-auto">
+                                  {participation.status && (
+                                    <Badge className={participation.status === 'VERIFIED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'}>
+                                      {participation.status}
+                                    </Badge>
+                                  )}
+                                  {sdgData && sdgData.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {sdgData.slice(0, 3).map((sdg: number) => {
+                                        const sdgInfo = getSDGById(sdg);
+                                        return (
+                                          <Badge 
+                                            key={sdg} 
+                                            className="text-xs px-2 py-0.5"
+                                            style={{ 
+                                              backgroundColor: `${getSDGColor(sdg)}20`,
+                                              color: getSDGColor(sdg),
+                                              borderColor: getSDGColor(sdg)
+                                            }}
+                                          >
+                                            SDG {sdg}
+                                          </Badge>
+                                        );
+                                      })}
+                                      {sdgData.length > 3 && (
+                                        <Badge className="text-xs px-2 py-0.5 bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                                          +{sdgData.length - 3}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
                             </div>
                             
-                            <div className="flex justify-between items-center">
-                              <Badge className="px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 w-fit">
-                                Verified ✓
-                              </Badge>
-                              {certificate.certificateUrl && (
-                                <Button
-                                  className="text-xs bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 px-3 py-1"
-                                  onClick={() => window.open(certificate.certificateUrl, '_blank')}
-                                >
-                                  View Certificate
-                                </Button>
-                              )}
+                            {/* Generate Certificate Button */}
+                            <div className="flex items-center p-4 border-l border-gray-200 dark:border-gray-700">
+                              <Button
+                                onClick={() => handleGenerateCertificate(participation)}
+                                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 whitespace-nowrap"
+                              >
+                                <FileText className="w-4 h-4 mr-2" />
+                                {participation.certificate ? 'View Certificate' : 'Generate Certificate'}
+                              </Button>
                             </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                        </Card>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <Award className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-2">
-                      No Certificates Yet
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Complete volunteer events to earn verified certificates from organizations
-                    </p>
-                  </div>
+                  <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                    <CardContent className="p-12 text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        <Calendar className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-2">
+                        No Completed Events Yet
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Complete and verify participation in events to generate certificates
+                      </p>
+                    </CardContent>
+                  </Card>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Analytics Tab Content */}
@@ -1790,6 +1988,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
