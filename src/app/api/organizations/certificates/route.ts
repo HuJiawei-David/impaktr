@@ -94,14 +94,7 @@ export async function POST(request: NextRequest) {
       verificationMethod: 'ORGANIZER'
     };
 
-    // Generate certificate PDF
-    const pdfBuffer = await generateOrganizationCertificate(certificateData);
-
-    // Upload to S3
-    const s3Key = `certificates/organizations/${event.organizationId || event.organizerId}/${Date.now()}-${participantId}.pdf`;
-    const certificateUrl = await uploadToS3(pdfBuffer, s3Key, 'application/pdf');
-
-    // Create certificate record
+    // Create certificate record first to get unique ID
     const certificate = await prisma.certificate.create({
       data: {
         userId: participantId,
@@ -111,12 +104,27 @@ export async function POST(request: NextRequest) {
           `Certificate issued by ${certificateData.organizationName} for participation in ${event.title}` +
           (customMessage && customMessage.trim().length > 0 ? `\n\nNote: ${customMessage.trim()}` : ''),
         eventId,
-        certificateUrl,
         issuedAt: new Date()
       }
     });
 
-    return NextResponse.json({ certificate, downloadUrl: certificateUrl }, { status: 201 });
+    // Generate certificate PDF with certificate ID
+    const pdfBuffer = await generateOrganizationCertificate({
+      ...certificateData,
+      certificateId: certificate.id
+    });
+
+    // Upload to S3
+    const s3Key = `certificates/organizations/${event.organizationId || event.organizerId}/${certificate.id}.pdf`;
+    const certificateUrl = await uploadToS3(pdfBuffer, s3Key, 'application/pdf');
+
+    // Update certificate record with PDF URL
+    const updatedCertificate = await prisma.certificate.update({
+      where: { id: certificate.id },
+      data: { certificateUrl }
+    });
+
+    return NextResponse.json({ certificate: updatedCertificate, downloadUrl: certificateUrl }, { status: 201 });
   } catch (error) {
     console.error('Error issuing organization certificate:', error);
     return NextResponse.json(

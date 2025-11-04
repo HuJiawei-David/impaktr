@@ -144,14 +144,27 @@ export async function POST(request: NextRequest) {
       try {
         const { user: recipientUser, participation, event } = recipient;
         
-        // Prepare certificate data
+        // Create certificate record first to get unique ID
+        const certificate = await prisma.certificate.create({
+          data: {
+            userId: recipientUser.id,
+            type: validatedData.certificateType,
+            title: validatedData.title,
+            description: validatedData.description,
+            eventId: event?.id,
+            templateId: validatedData.templateId,
+            issuedAt: new Date()
+          }
+        });
+
+        // Prepare certificate data with certificate ID
         const certificateData = {
           recipientName: recipientUser.name || recipientUser.email,
           recipientEmail: recipientUser.email,
           organizationName: organization.name,
           organizationLogo: organization.logo,
           issueDate: new Date(),
-          certificateId: `CERT-${organization.id.slice(-6)}-${Date.now()}-${recipientUser.id.slice(-4)}`,
+          certificateId: certificate.id,
           type: validatedData.certificateType,
           title: validatedData.title,
           description: validatedData.description,
@@ -163,8 +176,7 @@ export async function POST(request: NextRequest) {
             sdgTags: event.sdg ? [parseInt(event.sdg)] : undefined
           }),
           ...(participation && {
-            hoursCompleted: participation.hours || 0,
-            completionDate: participation.verifiedAt || participation.updatedAt
+            hoursContributed: participation.hours || 0
           })
         };
 
@@ -172,29 +184,17 @@ export async function POST(request: NextRequest) {
         const pdfBuffer = await generateCertificatePDF(certificateData);
         
         // Upload to S3
-        const s3Key = `certificates/${organization.id}/${recipientUser.id}/${certificateData.certificateId}.pdf`;
+        const s3Key = `certificates/${organization.id}/${recipientUser.id}/${certificate.id}.pdf`;
         const certificateUrl = await uploadToS3(pdfBuffer, s3Key, 'application/pdf');
 
-        // Generate shareable URL
-        const shareUrl = `${process.env.NEXTAUTH_URL}/certificates/verify/${certificateData.certificateId}`;
-
-        // Create certificate record
-        const certificate = await prisma.certificate.create({
-          data: {
-            userId: recipientUser.id,
-            type: validatedData.certificateType,
-            title: validatedData.title,
-            description: validatedData.description,
-            eventId: event?.id,
-            certificateUrl,
-            templateId: validatedData.templateId,
-            issuedAt: new Date(),
-            // Add organization reference (assuming you have this field)
-            // organizationId: organization.id,
-            // Add certificate metadata
-            // certificateId: certificateData.certificateId,
-          }
+        // Update certificate record with PDF URL
+        const updatedCertificate = await prisma.certificate.update({
+          where: { id: certificate.id },
+          data: { certificateUrl }
         });
+
+        // Generate shareable URL
+        const shareUrl = `${process.env.NEXTAUTH_URL}/certificates/verify/${certificate.id}`;
 
         issuedCertificates.push({
           certificateId: certificate.id,

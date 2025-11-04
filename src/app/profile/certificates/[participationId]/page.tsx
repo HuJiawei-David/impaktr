@@ -27,6 +27,7 @@ export default function ParticipantCertificatePage() {
   const [certificateConfig, setCertificateConfig] = useState<{ certificateName: string; certificateContent: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -200,7 +201,7 @@ export default function ParticipantCertificatePage() {
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           <div className="mb-6">
-            <Button variant="outline" onClick={() => router.push('/profile')}>
+            <Button variant="outline" onClick={() => router.push('/profile?tab=certificates')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Profile
             </Button>
@@ -216,7 +217,7 @@ export default function ParticipantCertificatePage() {
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 {error || 'The certificate you are looking for does not exist or you do not have permission to view it.'}
               </p>
-              <Button onClick={() => router.push('/profile')}>
+              <Button onClick={() => router.push('/profile?tab=certificates')}>
                 Back to Profile
               </Button>
             </CardContent>
@@ -231,7 +232,7 @@ export default function ParticipantCertificatePage() {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="mb-6">
-          <Button variant="outline" onClick={() => router.push('/profile')}>
+          <Button variant="outline" onClick={() => router.push('/profile?tab=certificates')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Profile
           </Button>
@@ -341,28 +342,36 @@ export default function ParticipantCertificatePage() {
                         }) : 'N/A'}
                       </p>
                     </div>
+                    {certificate?.id && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                          Certificate ID
+                        </p>
+                        <p className="text-base font-semibold text-gray-900 dark:text-white font-mono">
+                          {certificate.id}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Issued Date */}
                   <div className="mt-6 pt-4 border-t border-gray-300 dark:border-gray-600">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                        Issued Date
-                      </p>
-                      <p className="text-base font-semibold text-gray-900 dark:text-white">
-                        {certificate?.issueDate 
-                          ? new Date(certificate.issueDate).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            })
-                          : new Date().toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            })}
-                      </p>
-                    </div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                      Issued Date
+                    </p>
+                    <p className="text-base font-semibold text-gray-900 dark:text-white">
+                      {certificate?.issueDate 
+                        ? new Date(certificate.issueDate).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })
+                        : new Date().toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                    </p>
                   </div>
                 </div>
 
@@ -373,37 +382,85 @@ export default function ParticipantCertificatePage() {
                   </p>
                 </div>
 
-                {/* Action Buttons for Generated Certificate */}
-                {certificate && (
+                {/* Action Buttons */}
+                {(certificate || certificateConfig) && (
                   <div className="mt-6 pt-6 border-t border-gray-300 dark:border-gray-600 flex justify-center space-x-4">
-                    {certificate.certificateUrl && (
-                      <Button
-                        onClick={() => {
+                    <Button
+                      onClick={async () => {
+                        if (certificate?.certificateUrl) {
+                          // Download existing PDF
                           const link = document.createElement('a');
-                          link.href = certificate.certificateUrl!;
-                          link.download = `${certificate.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+                          link.href = certificate.certificateUrl;
+                          link.download = `${(certificate.title || participation?.event?.title || 'Certificate').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
                           document.body.appendChild(link);
                           link.click();
                           document.body.removeChild(link);
+                          toast.success('Certificate downloaded!');
+                        } else if (participation?.id) {
+                          // Generate and download PDF
+                          setIsDownloading(true);
+                          try {
+                            const response = await fetch('/api/certificates/generate', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                type: 'participation',
+                                participationId: participation.id
+                              })
+                            });
+
+                            if (response.ok) {
+                              const data = await response.json();
+                              const downloadUrl = data.downloadUrl;
+                              
+                              if (downloadUrl) {
+                                const link = document.createElement('a');
+                                link.href = downloadUrl;
+                                link.download = `${(participation?.event?.title || 'Certificate').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                toast.success('Certificate downloaded successfully!');
+                                
+                                // Refresh certificate data if it was created
+                                if (data.certificate) {
+                                  await fetchParticipationData();
+                                }
+                              } else {
+                                throw new Error('No download URL received');
+                              }
+                            } else {
+                              const errorData = await response.json().catch(() => ({ error: 'Failed to generate certificate' }));
+                              throw new Error(errorData.error || 'Failed to generate certificate');
+                            }
+                          } catch (error) {
+                            console.error('Download error:', error);
+                            toast.error(error instanceof Error ? error.message : 'Failed to download certificate');
+                          } finally {
+                            setIsDownloading(false);
+                          }
+                        }
+                      }}
+                      disabled={isDownloading || !participation?.id}
+                      className="flex items-center space-x-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>{isDownloading ? 'Generating...' : 'Download PDF'}</span>
+                    </Button>
+                    {certificate && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const shareUrl = certificate.shareUrl || window.location.href;
+                          navigator.clipboard.writeText(shareUrl);
+                          toast.success('Certificate link copied to clipboard!');
                         }}
                         className="flex items-center space-x-2"
                       >
-                        <Download className="w-4 h-4" />
-                        <span>Download PDF</span>
+                        <Share2 className="w-4 h-4" />
+                        <span>Share</span>
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        const shareUrl = certificate.shareUrl || window.location.href;
-                        navigator.clipboard.writeText(shareUrl);
-                        toast.success('Certificate link copied to clipboard!');
-                      }}
-                      className="flex items-center space-x-2"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span>Share</span>
-                    </Button>
                   </div>
                 )}
               </div>

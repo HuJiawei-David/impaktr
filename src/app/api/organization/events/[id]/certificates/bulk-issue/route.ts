@@ -375,7 +375,38 @@ async function processBulkCertificateGeneration(
         });
 
         if (existingCert) {
-          console.log(`Certificate already exists for participant ${job.participantId}`);
+          console.log(`Certificate already exists for participant ${job.participantId}, using existing certificate ID: ${existingCert.id}`);
+          // If certificate exists but PDF is missing, regenerate it with the existing certificate ID
+          if (!existingCert.certificateUrl) {
+            // Generate certificate data with existing certificate ID
+            const certificateData = {
+              type: 'event_participation',
+              recipientName: job.participantName,
+              recipientEmail: job.participantEmail,
+              eventTitle: event.title,
+              eventDate: event.startDate,
+              hoursContributed: job.hoursContributed,
+              organizationName: event.organization?.name || 'Organization',
+              sdgTags: event.sdg ? [parseInt(event.sdg)] : undefined,
+              issueDate: existingCert.issuedAt,
+              certificateId: existingCert.id // Use existing certificate ID
+            };
+
+            // Generate PDF with existing certificate ID
+            const pdfBuffer = await generateCertificatePDF(certificateData);
+            
+            // Upload to S3
+            const s3Key = `certificates/${event.id}/${job.participantId}/${existingCert.id}.pdf`;
+            const certificateUrl = await uploadToS3(pdfBuffer, s3Key, 'application/pdf');
+
+            // Update certificate record with PDF URL
+            await prisma.certificate.update({
+              where: { id: existingCert.id },
+              data: { certificateUrl }
+            });
+
+            job.certificateUrl = certificateUrl;
+          }
           return {
             success: true,
             certificate: existingCert,
@@ -383,33 +414,7 @@ async function processBulkCertificateGeneration(
           };
         }
 
-        // Generate certificate data
-        const certificateData = {
-          type: 'event_participation',
-          recipientName: job.participantName,
-          recipientEmail: job.participantEmail,
-          eventTitle: event.title,
-          eventDate: event.startDate,
-          completionDate: event.endDate || event.startDate,
-          hoursContributed: job.hoursContributed,
-          organizationName: event.organization?.name || 'Organization',
-          sdg: event.sdg,
-          customMessage: config.customMessage,
-          includeQRCode: config.includeQRCode,
-          branding: config.organizationBranding,
-          issueDate: new Date(),
-          certificateId: `CERT-${event.id}-${job.participantId}-${Date.now()}`,
-          verificationUrl: `${process.env.NEXTAUTH_URL}/verify/${event.id}/${job.participantId}`
-        };
-
-        // Generate PDF
-        const pdfBuffer = await generateCertificatePDF(certificateData);
-        
-        // Upload to S3
-        const s3Key = `certificates/${event.id}/${job.participantId}/${Date.now()}.pdf`;
-        const certificateUrl = await uploadToS3(pdfBuffer, s3Key, 'application/pdf');
-
-        // Create certificate record
+        // Create certificate record first to get unique ID
         const certificate = await prisma.certificate.create({
           data: {
             userId: job.participantId,
@@ -417,10 +422,35 @@ async function processBulkCertificateGeneration(
             title: `${event.title} - Participation Certificate`,
             description: `Certificate of participation in "${event.title}"`,
             eventId: event.id,
-            certificateUrl,
-            // shareUrl field doesn't exist in Certificate model
             issuedAt: new Date()
           }
+        });
+
+        // Generate certificate data with certificate ID
+        const certificateData = {
+          type: 'event_participation',
+          recipientName: job.participantName,
+          recipientEmail: job.participantEmail,
+          eventTitle: event.title,
+          eventDate: event.startDate,
+          hoursContributed: job.hoursContributed,
+          organizationName: event.organization?.name || 'Organization',
+          sdgTags: event.sdg ? [parseInt(event.sdg)] : undefined,
+          issueDate: new Date(),
+          certificateId: certificate.id
+        };
+
+        // Generate PDF
+        const pdfBuffer = await generateCertificatePDF(certificateData);
+        
+        // Upload to S3
+        const s3Key = `certificates/${event.id}/${job.participantId}/${certificate.id}.pdf`;
+        const certificateUrl = await uploadToS3(pdfBuffer, s3Key, 'application/pdf');
+
+        // Update certificate record with PDF URL
+        const updatedCertificate = await prisma.certificate.update({
+          where: { id: certificate.id },
+          data: { certificateUrl }
         });
 
         // Send email if requested

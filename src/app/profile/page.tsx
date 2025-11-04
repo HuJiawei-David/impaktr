@@ -2,10 +2,10 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   User, 
   Award, 
@@ -209,13 +209,15 @@ interface UserProfile {
   }>;
 }
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = session?.user;
   const isLoading = status === 'loading';
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  // Initialize activeTab from URL query parameter, default to 'about'
   const [activeTab, setActiveTab] = useState('about');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [badgeProgressData, setBadgeProgressData] = useState<{
@@ -244,6 +246,15 @@ export default function ProfilePage() {
   const [leaderboardTotal, setLeaderboardTotal] = useState<number | null>(null);
   const [participations, setParticipations] = useState<any[]>([]);
   const [isLoadingParticipations, setIsLoadingParticipations] = useState(false);
+
+  // Initialize and update activeTab from URL query parameter
+  useEffect(() => {
+    const tabFromUrl = searchParams?.get('tab');
+    if (tabFromUrl && ['about', 'activity', 'badges', 'certificates', 'analytics'].includes(tabFromUrl)) {
+      setActiveTab(tabFromUrl);
+    }
+    // If no tab parameter, keep the current activeTab (default is 'about')
+  }, [searchParams]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -1990,5 +2001,13 @@ export default function ProfilePage() {
       </div>
 
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><LoadingSpinner /></div>}>
+      <ProfilePageContent />
+    </Suspense>
   );
 }
