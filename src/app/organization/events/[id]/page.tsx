@@ -1449,11 +1449,11 @@ export default function EventDetailPage() {
                                       <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400">
                                         <span>Verification Progress</span>
                                         <span className="font-medium">
-                                          {participation.status === 'VERIFIED' ? '100%' : participation.status === 'ATTENDED' ? '50%' : '0%'}
+                                          {participation.status === 'VERIFIED' ? '100%' : participation.status === 'ATTENDED' ? '75%' : '0%'}
                                         </span>
                                       </div>
                                       <Progress 
-                                        value={participation.status === 'VERIFIED' ? 100 : participation.status === 'ATTENDED' ? 50 : 0} 
+                                        value={participation.status === 'VERIFIED' ? 100 : participation.status === 'ATTENDED' ? 75 : 0} 
                                         className="h-2" 
                                       />
                                     </div>

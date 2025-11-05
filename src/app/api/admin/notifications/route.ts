@@ -3,6 +3,8 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const sendNotificationSchema = z.object({
   userId: z.string().optional(),
   organizationId: z.string().optional(),

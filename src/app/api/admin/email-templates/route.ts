@@ -3,6 +3,8 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic';
+
 const createTemplateSchema = z.object({
   name: z.string().min(1).max(100),
   subject: z.string().min(1).max(200),
