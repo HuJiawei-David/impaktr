@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { calculateImpaktrScore } from '@/lib/scoring';
 import { checkAndAwardBadges } from '@/lib/badges';
 import { notificationService } from '@/lib/notification-service';
+import { emitToUser } from '@/lib/socket';
 
 const grantApprovalSchema = z.object({
   certificateName: z.string().optional(),
@@ -453,44 +454,114 @@ export async function POST(
       // Send notification to participant about certificate and impact score
       try {
         const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-        const certificateUrl = `${baseUrl}/profile`;
+        // Use certificate page URL for better UX
+        const certificateUrl = `${baseUrl}/profile/certificates/${participationId}`;
         const confirmUrl = `${baseUrl}/api/participants/confirm-certificate/${certificate.id}`;
         
         console.log('[Grant Approval] Sending notification to participant');
+        console.log('[Grant Approval] Notification data:', {
+          certificateId: certificate.id,
+          eventTitle: event.title,
+          impactScore: newScore,
+          scoreIncrease: newScore - oldScore,
+          requiresConfirmation: true,
+          confirmUrl: confirmUrl
+        });
+        
         // Create an in-app notification with action buttons
-        await prisma.notification.create({
-          data: {
-            userId: participantId,
-            type: 'CERTIFICATE_ISSUED' as NotificationType,
+        const notificationData = {
+          actionUrl: certificateUrl,
+          eventTitle: event.title,
+          certificateId: certificate.id,
+          impactScore: newScore,
+          scoreIncrease: newScore - oldScore,
+          requiresConfirmation: true,
+          confirmUrl: confirmUrl,
+        };
+        
+        // Create in-app notification - ONLY CREATE ONCE
+        let createdNotification;
+        try {
+          createdNotification = await prisma.notification.create({
+            data: {
+              userId: participantId,
+              type: 'CERTIFICATE_ISSUED' as NotificationType,
+              title: '🎉 Certificate & Impact Score Received!',
+              message: `You've received a certificate for ${event.title} and your impact score has been updated! Please confirm to complete the process.`,
+              isRead: false,
+              data: notificationData
+            }
+          });
+          console.log('[Grant Approval] Notification created successfully:', {
+            id: createdNotification.id,
+            type: createdNotification.type,
+            userId: createdNotification.userId,
+            hasData: !!createdNotification.data,
+            dataKeys: createdNotification.data ? Object.keys(createdNotification.data as object) : []
+          });
+        } catch (notificationCreateError) {
+          // Log detailed error information
+          console.error('[Grant Approval] FAILED to create notification:', {
+            error: notificationCreateError instanceof Error ? notificationCreateError.message : String(notificationCreateError),
+            stack: notificationCreateError instanceof Error ? notificationCreateError.stack : undefined,
+            participantId: participantId,
+            notificationData: notificationData
+          });
+          // Re-throw the error to prevent continuing - notification creation is critical
+          throw new Error(`Failed to create notification: ${notificationCreateError instanceof Error ? notificationCreateError.message : String(notificationCreateError)}`);
+        }
+        
+        // Send real-time notification via socket
+        try {
+          const socketNotification = {
+            type: 'certificate_issued',
             title: '🎉 Certificate & Impact Score Received!',
             message: `You've received a certificate for ${event.title} and your impact score has been updated! Please confirm to complete the process.`,
-            isRead: false,
-            data: {
-              actionUrl: certificateUrl,
-              eventTitle: event.title,
-              certificateId: certificate.id,
-              impactScore: newScore,
-              scoreIncrease: newScore - oldScore,
-              requiresConfirmation: true,
-              confirmUrl: confirmUrl,
-            }
-          }
-        });
-        console.log('[Grant Approval] Notification created');
+            data: notificationData
+          };
+          console.log('[Grant Approval] Sending socket notification:', socketNotification);
+          emitToUser(participantId, 'notification', socketNotification);
+          console.log('[Grant Approval] Real-time notification sent via socket');
+        } catch (socketError) {
+          console.error('[Grant Approval] Error sending socket notification:', socketError);
+          // Don't fail if socket fails - the notification is still in the database
+        }
         
-        // Also send email notification
-        await notificationService.notifyCertificateIssued(
-          participantId,
-          {
-            eventTitle: event.title,
-            organizationName: event.organization?.name || 'Impaktr',
-            organizationLogo: event.organization?.logo || undefined,
-            hoursContributed: participation.hours || 0,
-            certificateUrl: certificateUrl,
-            linkedInShareUrl: `${baseUrl}/certificates/share/${certificate.id}`
+        // Send email notification separately (do NOT call notifyCertificateIssued as it creates duplicate notification)
+        try {
+          const participantUser = await prisma.user.findUnique({
+            where: { id: participantId },
+            select: { email: true, name: true }
+          });
+
+          if (participantUser?.email) {
+            // Send email directly without creating another notification
+            const emailSent = await notificationService.sendEmail({
+              to: participantUser.email,
+              templateType: 'certificateIssued',
+              data: {
+                eventTitle: event.title,
+                organizationName: event.organization?.name || 'Impaktr',
+                organizationLogo: event.organization?.logo || undefined,
+                hoursContributed: participation.hours || 0,
+                certificateUrl: certificateUrl,
+                linkedInShareUrl: `${baseUrl}/certificates/share/${certificate.id}`,
+                recipientName: participantUser.name || 'User',
+                recipientEmail: participantUser.email
+              }
+            });
+            if (emailSent) {
+              console.log('[Grant Approval] Email notification sent successfully');
+            } else {
+              console.warn('[Grant Approval] Email notification failed to send, but notification was created');
+            }
+          } else {
+            console.warn('[Grant Approval] Participant user not found or has no email, skipping email notification');
           }
-        );
-        console.log('[Grant Approval] Email notification sent');
+        } catch (emailError) {
+          console.error('[Grant Approval] Error sending email notification:', emailError);
+          // Don't fail if email fails - the notification is still in the database
+        }
       } catch (notifyError) {
         console.error('[Grant Approval] Error sending certificate notification:', notifyError);
         // Don't fail the whole operation if notification fails

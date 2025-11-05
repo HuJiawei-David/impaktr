@@ -63,6 +63,19 @@ export default function NotificationsPage() {
     }
   }, [status, fetchNotifications, router]);
 
+  // Listen for certificate confirmation to refresh notifications
+  useEffect(() => {
+    const handleCertificateConfirmed = () => {
+      fetchNotifications();
+    };
+
+    // Listen for custom event when certificate is confirmed
+    window.addEventListener('certificate-confirmed', handleCertificateConfirmed);
+    return () => {
+      window.removeEventListener('certificate-confirmed', handleCertificateConfirmed);
+    };
+  }, [fetchNotifications]);
+
   const handleAcceptConnection = async (connectionId: string, notificationId: string) => {
     setProcessingConnection(connectionId);
     
@@ -112,6 +125,8 @@ export default function NotificationsPage() {
       if (response.ok) {
         setNotifications(prev => prev.filter(n => n.id !== notificationId));
         fetchNotifications();
+        // Dispatch event to notify other components (like Navigation) to refresh
+        window.dispatchEvent(new CustomEvent('certificate-confirmed'));
         // Show success message or redirect
         console.log('Certificate confirmed successfully!');
       }

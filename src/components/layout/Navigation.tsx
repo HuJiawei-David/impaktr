@@ -54,6 +54,7 @@ const navigationItems = [
   { href: '/events', label: 'Events', icon: Calendar },
   { href: '/opportunities', label: 'Opportunities', icon: Briefcase },
   { href: '/messages', label: 'Messages', icon: MessageCircle },
+  { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/leaderboards', label: 'Leaderboards', icon: Trophy },
   { href: '/community', label: 'Community', icon: Users },
 ];
@@ -93,6 +94,9 @@ export function Navigation() {
   
   // Event notification store
   const { newEventCount, clearCount } = useEventNotificationStore();
+  
+  // State for certificate confirmation notifications
+  const [certificateNotificationCount, setCertificateNotificationCount] = useState(0);
 
   // Determine if user is an organization
   // Only show org navbar for /organization/* routes, NOT /organizations/[id] (public profile view)
@@ -126,6 +130,49 @@ export function Navigation() {
         .catch(err => console.error('Error fetching organization data:', err));
     }
   }, [isOrgContext, user]);
+
+  // Fetch certificate notification count (only for individual users)
+  useEffect(() => {
+    if (!isOrganization && user) {
+      const fetchCertificateNotifications = async () => {
+        try {
+          const response = await fetch('/api/notifications?unread=true');
+          if (response.ok) {
+            const data = await response.json();
+            // Count notifications that require certificate confirmation
+            const pendingConfirmations = (data.notifications || []).filter((n: any) => {
+              const isCertificateType = n.type === 'certificate_issued' || n.type === 'CERTIFICATE_ISSUED';
+              const notificationData = n.data && typeof n.data === 'object' ? n.data : null;
+              const requiresConfirmation = notificationData?.requiresConfirmation === true || 
+                                          notificationData?.requiresConfirmation === 'true' ||
+                                          notificationData?.requiresConfirmation === 1;
+              return isCertificateType && requiresConfirmation && !n.read;
+            });
+            setCertificateNotificationCount(pendingConfirmations.length);
+          }
+        } catch (error) {
+          console.error('Error fetching certificate notifications:', error);
+        }
+      };
+
+      fetchCertificateNotifications();
+      // Refresh every 30 seconds
+      const interval = setInterval(fetchCertificateNotifications, 30000);
+      
+      // Listen for certificate confirmation events to refresh immediately
+      const handleCertificateConfirmed = () => {
+        fetchCertificateNotifications();
+      };
+      window.addEventListener('certificate-confirmed', handleCertificateConfirmed);
+      
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('certificate-confirmed', handleCertificateConfirmed);
+      };
+    }
+    // Return undefined if condition not met to satisfy TypeScript
+    return undefined;
+  }, [isOrganization, user]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -210,7 +257,9 @@ export function Navigation() {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
                   const isEventsButton = item.label === 'Events';
-                  const showNotificationBadge = isEventsButton && newEventCount > 0;
+                  const isNotificationsButton = item.label === 'Notifications';
+                  const showEventBadge = isEventsButton && newEventCount > 0;
+                  const showCertificateBadge = isNotificationsButton && certificateNotificationCount > 0;
 
                   return (
                     <Link
@@ -220,6 +269,8 @@ export function Navigation() {
                         if (isEventsButton && newEventCount > 0) {
                           clearCount();
                         }
+                        // Note: We don't clear certificate count here because it should reflect actual unread notifications
+                        // The count will be updated when notifications are fetched
                       }}
                       className={cn(
                         "relative flex flex-col items-center justify-center px-4 py-2 rounded-md text-xs font-medium transition-all duration-200 min-w-[80px] group",
@@ -233,7 +284,7 @@ export function Navigation() {
                         isActive ? "scale-110" : "group-hover:scale-110"
                       )} />
                       <span className="truncate">{item.label}</span>
-                      {showNotificationBadge && (
+                      {showEventBadge && (
                         <Badge
                           variant="destructive"
                           className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
@@ -241,16 +292,18 @@ export function Navigation() {
                           {newEventCount > 9 ? '9+' : newEventCount}
                         </Badge>
                       )}
+                      {showCertificateBadge && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                        >
+                          {certificateNotificationCount > 9 ? '9+' : certificateNotificationCount}
+                        </Badge>
+                      )}
                     </Link>
                   );
                 })}
 
-                {/* Notification - Only for individual users */}
-                {!isOrganization && (
-                  <div className="flex items-center ml-2 pl-2 border-l border-gray-200 dark:border-gray-600">
-                    <NotificationDropdown />
-                  </div>
-                )}
               </div>
             </div>
           ) : (
@@ -586,7 +639,9 @@ export function Navigation() {
                   const Icon = item.icon;
                   const isActive = pathname.startsWith(item.href);
                   const isEventsButton = item.label === 'Events';
-                  const showNotificationBadge = isEventsButton && newEventCount > 0;
+                  const isNotificationsButton = item.label === 'Notifications';
+                  const showEventBadge = isEventsButton && newEventCount > 0;
+                  const showCertificateBadge = isNotificationsButton && certificateNotificationCount > 0;
 
                   return (
                     <Link
@@ -603,16 +658,27 @@ export function Navigation() {
                         if (isEventsButton && newEventCount > 0) {
                           clearCount();
                         }
+                        if (isNotificationsButton && certificateNotificationCount > 0) {
+                          setCertificateNotificationCount(0);
+                        }
                       }}
                     >
                       <Icon className="w-5 h-5" />
                       <span>{item.label}</span>
-                      {showNotificationBadge && (
+                      {showEventBadge && (
                         <Badge
                           variant="destructive"
                           className="absolute top-1 right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
                         >
                           {newEventCount > 9 ? '9+' : newEventCount}
+                        </Badge>
+                      )}
+                      {showCertificateBadge && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute top-1 right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                        >
+                          {certificateNotificationCount > 9 ? '9+' : certificateNotificationCount}
                         </Badge>
                       )}
                     </Link>
@@ -811,7 +877,9 @@ export function Navigation() {
             const Icon = item.icon;
             const isActive = pathname.startsWith(item.href);
             const isEventsButton = item.label === 'Events';
-            const showNotificationBadge = isEventsButton && newEventCount > 0;
+            const isNotificationsButton = item.label === 'Notifications';
+            const showEventBadge = isEventsButton && newEventCount > 0;
+            const showCertificateBadge = isNotificationsButton && certificateNotificationCount > 0;
 
             return (
               <Link
@@ -820,6 +888,9 @@ export function Navigation() {
                 onClick={() => {
                   if (isEventsButton && newEventCount > 0) {
                     clearCount();
+                  }
+                  if (isNotificationsButton && certificateNotificationCount > 0) {
+                    setCertificateNotificationCount(0);
                   }
                 }}
                 className={cn(
@@ -834,12 +905,20 @@ export function Navigation() {
                   isActive ? "scale-110" : ""
                 )} />
                 <span className="truncate text-[10px]">{item.label}</span>
-                {showNotificationBadge && (
+                {showEventBadge && (
                   <Badge
                     variant="destructive"
                     className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
                   >
                     {newEventCount > 9 ? '9+' : newEventCount}
+                  </Badge>
+                )}
+                {showCertificateBadge && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                  >
+                    {certificateNotificationCount > 9 ? '9+' : certificateNotificationCount}
                   </Badge>
                 )}
                 {isActive && (

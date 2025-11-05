@@ -147,19 +147,32 @@ export async function POST(
         }
 
         // Mark the notification as read
-        await prisma.notification.updateMany({
+        // Find notifications for this certificate using raw query or findMany + update
+        const notificationsToUpdate = await prisma.notification.findMany({
           where: {
             userId: user.id,
-            type: 'CERTIFICATE_ISSUED' as any, // Prisma enum needs regeneration after schema update
-            data: {
-              path: ['certificateId'],
-              equals: certificateId
-            }
-          },
-          data: {
-            isRead: true
+            type: 'CERTIFICATE_ISSUED',
+            isRead: false
           }
         });
+        
+        // Filter notifications that match this certificateId in their data
+        const matchingNotifications = notificationsToUpdate.filter(notif => {
+          const notifData = notif.data as any;
+          return notifData?.certificateId === certificateId;
+        });
+        
+        // Update matching notifications
+        if (matchingNotifications.length > 0) {
+          await prisma.notification.updateMany({
+            where: {
+              id: { in: matchingNotifications.map(n => n.id) }
+            },
+            data: {
+              isRead: true
+            }
+          });
+        }
 
         console.log('[Confirm Certificate] Operation completed successfully');
         return NextResponse.json({ 

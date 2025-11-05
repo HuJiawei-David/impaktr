@@ -210,7 +210,10 @@ export async function PUT(request: NextRequest) {
 async function generateNotificationsForUser(userId: string, unreadOnly: boolean, limit: number, offset: number) {
   // First, get real notifications from the database
   const dbNotifications = await prisma.notification.findMany({
-    where: { userId },
+    where: { 
+      userId,
+      ...(unreadOnly ? { isRead: false } : {})
+    },
     orderBy: { createdAt: 'desc' },
     take: limit * 2  // Get more to merge with generated ones
   });
@@ -218,17 +221,46 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
   // Convert database notifications to the expected format
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const notifications = dbNotifications.map(notif => {
-    const notificationData = notif.data as { actionUrl?: string } | null;
-    return {
+    const notificationData = notif.data as { 
+      actionUrl?: string;
+      requiresConfirmation?: boolean;
+      confirmUrl?: string;
+      certificateId?: string;
+      eventTitle?: string;
+      impactScore?: number;
+      scoreIncrease?: number;
+      connectionId?: string;
+      requesterId?: string;
+      requesterName?: string;
+      requesterImage?: string | null;
+      [key: string]: any;
+    } | null;
+    // Convert enum type (e.g., CERTIFICATE_ISSUED) to lowercase with underscores (certificate_issued)
+    const typeLower = notif.type.toLowerCase();
+    const notification = {
       id: notif.id,
-      type: notif.type.toLowerCase().replace(/_/g, '_') as string,
+      type: typeLower as string,
       title: notif.title,
       message: notif.message,
       read: notif.isRead,
       createdAt: notif.createdAt.toISOString(),
       actionUrl: notificationData?.actionUrl,
-      data: notif.data
+      data: notif.data // Pass the complete data object
     };
+    
+    // Debug log for certificate notifications
+    if (typeLower === 'certificate_issued') {
+      console.log('[Notifications API] Certificate notification:', {
+        id: notification.id,
+        type: notification.type,
+        hasData: !!notification.data,
+        requiresConfirmation: notificationData?.requiresConfirmation,
+        certificateId: notificationData?.certificateId,
+        data: notification.data
+      });
+    }
+    
+    return notification;
   });
 
   // Get recent user activities to generate additional notifications
@@ -386,8 +418,15 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
     notifications.push(...systemNotifications);
   }
 
-  // Sort by date (newest first)
-  notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Sort by date (newest first), but prioritize unread notifications
+  notifications.sort((a, b) => {
+    // First sort by read status (unread first)
+    if (a.read !== b.read) {
+      return a.read ? 1 : -1;
+    }
+    // Then by date (newest first)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   // Filter by unread if requested
   const filteredNotifications = unreadOnly 
@@ -395,24 +434,68 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
     : notifications;
 
   // Apply pagination
-  return filteredNotifications.slice(offset, offset + limit);
+  const result = filteredNotifications.slice(offset, offset + limit);
+  
+  // Debug: Log certificate notifications in result
+  const certNotifications = result.filter(n => n.type === 'certificate_issued');
+  if (certNotifications.length > 0) {
+    console.log('[Notifications API] Certificate notifications in result:', certNotifications.map(n => ({
+      id: n.id,
+      type: n.type,
+      read: n.read,
+      hasData: !!n.data,
+      requiresConfirmation: (n.data as any)?.requiresConfirmation,
+      certificateId: (n.data as any)?.certificateId
+    })));
+  }
+  
+  return result;
 }
 
 async function getUnreadNotificationsCount(userId: string): Promise<number> {
-  // Mock implementation - in production, this would query a notifications table
-  const notifications = await generateNotificationsForUser(userId, true, 100, 0);
-  return notifications.filter(n => !n.read).length;
+  // Count unread notifications directly from database
+  const dbUnreadCount = await prisma.notification.count({
+    where: {
+      userId,
+      isRead: false
+    }
+  });
+  
+  // Also count pending connection requests (they're not in notifications table but should be counted)
+  const pendingConnections = await prisma.connection.count({
+    where: {
+      addresseeId: userId,
+      status: 'PENDING'
+    }
+  });
+  
+  return dbUnreadCount + pendingConnections;
 }
 
 async function markAllNotificationsAsRead(userId: string): Promise<void> {
-  // In production, this would update a notifications table
-  // For now, we'll just log the action
-  console.log(`Marking all notifications as read for user: ${userId}`);
+  // Update all unread notifications for the user
+  await prisma.notification.updateMany({
+    where: {
+      userId: userId,
+      isRead: false
+    },
+    data: {
+      isRead: true
+    }
+  });
 }
 
 async function markNotificationsAsRead(userId: string, notificationIds: string[]): Promise<void> {
-  // In production, this would update specific notifications in the database
-  console.log(`Marking notifications as read for user ${userId}:`, notificationIds);
+  // Update specific notifications as read, ensuring they belong to the user
+  await prisma.notification.updateMany({
+    where: {
+      id: { in: notificationIds },
+      userId: userId
+    },
+    data: {
+      isRead: true
+    }
+  });
 }
 
 async function checkAdminPrivileges(userId: string): Promise<boolean> {

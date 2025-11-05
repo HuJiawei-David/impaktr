@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatTimeAgo } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { useSocket } from '@/components/providers/SocketProvider';
 
 interface Notification {
   id: string;
@@ -46,6 +47,7 @@ export function NotificationDropdown() {
   const [processingConnection, setProcessingConnection] = useState<string | null>(null);
   const [processingCertificate, setProcessingCertificate] = useState<string | null>(null);
   const router = useRouter();
+  const { socket } = useSocket();
   
   // Limit to 5 notifications in dropdown
   const displayedNotifications = notifications.slice(0, 5);
@@ -55,13 +57,26 @@ export function NotificationDropdown() {
       const response = await fetch('/api/notifications');
       if (response.ok) {
         const data = await response.json();
+        console.log('[NotificationDropdown] Fetched notifications:', {
+          count: data.notifications?.length || 0,
+          unreadCount: data.unreadCount || 0,
+          notifications: data.notifications?.map((n: Notification) => ({
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            read: n.read,
+            hasData: !!n.data,
+            requiresConfirmation: n.data?.requiresConfirmation,
+            certificateId: n.data?.certificateId
+          }))
+        });
         setNotifications(data.notifications || []);
         setUnreadCount(data.unreadCount || 0);
       } else {
-        console.error('Failed to fetch notifications');
+        console.error('[NotificationDropdown] Failed to fetch notifications:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('[NotificationDropdown] Error fetching notifications:', error);
     }
   }, []);
 
@@ -78,6 +93,87 @@ export function NotificationDropdown() {
       fetchNotifications();
     }
   }, [isOpen, fetchNotifications]);
+
+  // Listen for real-time socket notifications
+  useEffect(() => {
+    if (!socket) {
+      console.log('[NotificationDropdown] Socket not available, skipping real-time notifications');
+      return;
+    }
+
+    const handleNotification = (notificationData: {
+      type: string;
+      title: string;
+      message: string;
+      data?: Notification['data'];
+    }) => {
+      console.log('[NotificationDropdown] Received real-time notification:', notificationData);
+      
+      // Create a temporary notification ID (will be replaced when we fetch from API)
+      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Ensure data is an object and preserve all properties
+      const notificationDataObj = notificationData.data && typeof notificationData.data === 'object' 
+        ? notificationData.data 
+        : {};
+      
+      // Normalize notification type to match expected format
+      let normalizedType = notificationData.type;
+      if (normalizedType === 'CERTIFICATE_ISSUED' || normalizedType === 'certificate_issued') {
+        normalizedType = 'certificate_issued';
+      }
+      
+      // Extract actionUrl from data if present, or use undefined
+      const actionUrl = (notificationDataObj as { actionUrl?: string })?.actionUrl;
+      
+      // Add the notification to the list
+      const newNotification: Notification = {
+        id: tempId,
+        type: normalizedType as Notification['type'],
+        title: notificationData.title,
+        message: notificationData.message,
+        read: false,
+        createdAt: new Date().toISOString(),
+        actionUrl: actionUrl,
+        data: notificationDataObj as Notification['data'],
+      };
+
+      console.log('[NotificationDropdown] Adding socket notification:', {
+        id: newNotification.id,
+        type: newNotification.type,
+        normalizedType,
+        hasData: !!newNotification.data,
+        dataKeys: Object.keys(notificationDataObj),
+        requiresConfirmation: notificationDataObj?.requiresConfirmation,
+        requiresConfirmationType: typeof notificationDataObj?.requiresConfirmation,
+        certificateId: notificationDataObj?.certificateId,
+        fullData: notificationDataObj
+      });
+
+      // Add to the beginning of the list
+      setNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
+      setUnreadCount(prev => {
+        const newCount = prev + 1;
+        console.log('[NotificationDropdown] Updated unread count:', newCount);
+        return newCount;
+      });
+
+      // Also refresh from API to get the real notification with proper ID
+      // This ensures we have the correct data from the database
+      setTimeout(() => {
+        console.log('[NotificationDropdown] Refreshing notifications from API after socket notification');
+        fetchNotifications();
+      }, 500);
+    };
+
+    console.log('[NotificationDropdown] Setting up socket notification listener');
+    socket.on('notification', handleNotification);
+
+    return () => {
+      console.log('[NotificationDropdown] Cleaning up socket notification listener');
+      socket.off('notification', handleNotification);
+    };
+  }, [socket, fetchNotifications]);
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -170,6 +266,9 @@ export function NotificationDropdown() {
         // Refresh notifications to get updated count
         fetchNotifications();
         
+        // Dispatch event to notify Navigation component to refresh certificate count
+        window.dispatchEvent(new CustomEvent('certificate-confirmed'));
+        
         // Show success message
         console.log('Certificate confirmed successfully!');
       } else {
@@ -260,11 +359,44 @@ export function NotificationDropdown() {
               const requesterName = notification.data?.requesterName;
               
               // Check if this is a certificate confirmation notification
-              const isCertificateConfirmation = notification.type === 'certificate_issued' && 
-                                               notification.data?.requiresConfirmation;
-              const certificateId = notification.data?.certificateId;
-              const eventTitle = notification.data?.eventTitle;
-              const scoreIncrease = notification.data?.scoreIncrease;
+              // Make sure data exists and is an object
+              const notificationData = notification.data && typeof notification.data === 'object' ? notification.data : null;
+              
+              // Normalize type check - handle both uppercase and lowercase
+              const notificationTypeLower = typeof notification.type === 'string' ? notification.type.toLowerCase() : '';
+              const isCertificateType = notification.type === 'certificate_issued' || 
+                                      notificationTypeLower === 'certificate_issued';
+              
+              // Check for certificate confirmation - requiresConfirmation can be true, "true", or 1
+              const requiresConfirmationValue = notificationData?.requiresConfirmation as unknown;
+              const requiresConfirmation = requiresConfirmationValue === true || 
+                                          requiresConfirmationValue === 'true' ||
+                                          requiresConfirmationValue === 1 ||
+                                          requiresConfirmationValue === '1';
+              
+              const isCertificateConfirmation = isCertificateType && requiresConfirmation;
+              const certificateId = notificationData?.certificateId;
+              const eventTitle = notificationData?.eventTitle;
+              const scoreIncrease = notificationData?.scoreIncrease;
+              
+              // Debug log for certificate notifications
+              if (isCertificateType) {
+                console.log('[NotificationDropdown] Certificate notification detected:', {
+                  id: notification.id,
+                  type: notification.type,
+                  isCertificateType,
+                  isCertificateConfirmation,
+                  hasData: !!notification.data,
+                  dataType: typeof notification.data,
+                  dataIsObject: notification.data && typeof notification.data === 'object',
+                  requiresConfirmation: notificationData?.requiresConfirmation,
+                  requiresConfirmationValue: notificationData?.requiresConfirmation,
+                  requiresConfirmationType: typeof notificationData?.requiresConfirmation,
+                  certificateId,
+                  certificateIdExists: !!certificateId,
+                  fullData: notification.data
+                });
+              }
               
               return (
                 <div
@@ -386,7 +518,7 @@ export function NotificationDropdown() {
                       {/* Certificate Confirmation Actions */}
                       {isCertificateConfirmation && certificateId && !processingCertificate && (
                         <div className="mt-3 space-y-2">
-                          {scoreIncrease && (
+                          {scoreIncrease !== undefined && scoreIncrease !== null && (
                             <div className="flex items-center justify-between text-xs bg-green-50 dark:bg-green-900/20 p-2 rounded">
                               <span className="text-gray-600 dark:text-gray-400">Impact Score Increase:</span>
                               <span className="font-bold text-green-600 dark:text-green-400">+{scoreIncrease.toFixed(1)}</span>
