@@ -92,12 +92,12 @@ export async function POST(
       return NextResponse.json({ error: 'Participant already verified' }, { status: 400 });
     }
 
-    // Update participation status to APPROVED_PENDING (waiting for participant confirmation)
-    console.log('[Grant Approval] Updating participation status');
+    // Update participation status to VERIFIED immediately (no need to wait for participant confirmation)
+    console.log('[Grant Approval] Updating participation status to VERIFIED');
     const updatedParticipation = await prisma.participation.update({
       where: { id: participationId },
       data: {
-        status: 'ATTENDED', // Keep as ATTENDED until participant confirms
+        status: 'VERIFIED', // Immediately verified when admin grants approval
         verifiedAt: new Date()
       }
     });
@@ -135,151 +135,13 @@ export async function POST(
     // Calculate and update user's Impaktr Score
     const participantId = participation.userId;
     const oldScore = participation.user.impactScore || 0;
-    console.log('[Grant Approval] Calculating impact score with temporary participation');
+    console.log('[Grant Approval] Calculating impact score with VERIFIED participation');
     
-    // Temporary function to calculate score including current participation (even if ATTENDED)
-    async function calculateScoreWithPendingParticipation(userId: string, currentParticipation: any): Promise<number> {
-      // Get all VERIFIED participations
-      const verifiedParticipations = await prisma.participation.findMany({
-        where: {
-          userId,
-          status: 'VERIFIED',
-        },
-        include: {
-          event: true,
-          verifications: {
-            where: { status: 'APPROVED' }
-          }
-        },
-      });
-
-      // Get user info for scoring calculations
-      const participantUser = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          volunteerProfile: true
-        },
-      });
-
-      if (!participantUser) return 0;
-
-      // Import scoring helper functions (inline implementation based on scoring.ts)
-      const getEventIntensity = (event: any): number => {
-        if (event.intensity && event.intensity !== 1.0) return event.intensity;
-        const intensityMap: { [key: string]: number } = {
-          'VOLUNTEERING': 1.0,
-          'WORKSHOP': 1.1,
-          'FUNDRAISER': 1.2,
-          'CLEANUP': 0.9,
-          'AWARENESS': 1.0,
-          'OTHER': 1.0
-        };
-        return intensityMap[event.type] || 1.0;
-      };
-
-      const getSkillMultiplier = (participation: any, user: any): number => {
-        let multiplier = 1.0;
-        if (user.volunteerProfile?.skills && user.volunteerProfile.skills.length > 0) {
-          multiplier += 0.2;
-        }
-        if (participation.event.skills && participation.event.skills.length > 0) {
-          multiplier += 0.2;
-          if (user.volunteerProfile?.skills) {
-            const matchingSkills = user.volunteerProfile.skills.filter((skill: string) =>
-              participation.event.skills.some((eventSkill: string) =>
-                eventSkill.toLowerCase().includes(skill.toLowerCase()) ||
-                skill.toLowerCase().includes(eventSkill.toLowerCase())
-              )
-            );
-            if (matchingSkills.length > 0) multiplier += 0.1;
-          }
-        }
-        return Math.min(multiplier, 1.4);
-      };
-
-      const getQualityRating = (participation: any): number => {
-        if (participation.verifications && participation.verifications.length > 0) {
-          const verification = participation.verifications.find((v: any) => v.status === 'APPROVED');
-          if (verification?.rating) {
-            return Math.max(0.5, Math.min(verification.rating, 1.5));
-          }
-        }
-        return 1.0;
-      };
-
-      const getVerificationFactor = (participation: any): number => {
-        const verificationMap: { [key: string]: number } = {
-          'SELF': 0.8,
-          'ORGANIZER': 1.1,
-          'PEER': 1.0,
-          'GPS': 1.05
-        };
-        if (participation.verifications && participation.verifications.length > 0) {
-          const verification = participation.verifications.find((v: any) => v.status === 'APPROVED');
-          if (verification?.type) {
-            return verificationMap[verification.type] || 1.0;
-          }
-        }
-        return 1.0;
-      };
-
-      const getLocationMultiplier = (country?: string): number => {
-        if (!country) return 1.0;
-        const countryMultipliers: { [key: string]: number } = {
-          'Malaysia': 1.1,
-          'Thailand': 1.1,
-          'Indonesia': 1.2,
-          'Philippines': 1.2,
-          'Vietnam': 1.2,
-          'India': 1.2,
-          'Bangladesh': 1.3,
-          'Pakistan': 1.3,
-          'Nigeria': 1.3,
-          'Kenya': 1.3,
-          'Ghana': 1.3,
-        };
-        return countryMultipliers[country] || 1.0;
-      };
-
-      let totalScore = 0;
-
-      // Calculate score for all VERIFIED participations
-      for (const p of verifiedParticipations) {
-        const hours = p.hours || 0;
-        const H = Math.log10(hours + 1) * 100;
-        const I = getEventIntensity(p.event);
-        const S = getSkillMultiplier(p, participantUser);
-        const Q = getQualityRating(p);
-        const V = getVerificationFactor(p);
-        const L = getLocationMultiplier(participantUser.country || undefined);
-        const participationScore = (H * I * S * Q * V) * L;
-        totalScore += participationScore;
-      }
-
-      // Temporarily include current participation (even if ATTENDED)
-      // This gives us the projected score after confirmation
-      const hours = currentParticipation.hours || 0;
-      const H = Math.log10(hours + 1) * 100;
-      const I = getEventIntensity(currentParticipation.event);
-      const S = getSkillMultiplier(currentParticipation, participantUser);
-      const Q = getQualityRating(currentParticipation);
-      const V = getVerificationFactor(currentParticipation);
-      const L = getLocationMultiplier(participantUser.country || undefined);
-      const currentParticipationScore = (H * I * S * Q * V) * L;
-      totalScore += currentParticipationScore;
-
-      // Apply diminishing returns
-      const finalScore = Math.min(totalScore * 0.1, 1000);
-      const roundedScore = Math.round(finalScore * 10) / 10;
-
-      return roundedScore;
-    }
-
-    // Calculate projected score including current participation
+    // Calculate new score including the newly VERIFIED participation
     let newScore: number;
     try {
-      newScore = await calculateScoreWithPendingParticipation(participantId, participationWithVerification);
-      console.log(`[Grant Approval] Projected score: ${oldScore} -> ${newScore}`);
+      newScore = await calculateImpaktrScore(participantId);
+      console.log(`[Grant Approval] New score: ${oldScore} -> ${newScore}`);
       
       // Validate newScore is a valid finite number
       if (!Number.isFinite(newScore) || newScore < 0) {
@@ -409,7 +271,7 @@ export async function POST(
             eventTitle: event.title,
             eventDate: event.startDate,
             organizationName: event.organization?.name || 'Impaktr',
-            pendingConfirmation: true, // Flag to track if participant needs to confirm
+            pendingConfirmation: false, // No confirmation needed - admin approval is final
           }
         }
       });
@@ -456,7 +318,6 @@ export async function POST(
         const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
         // Use certificate page URL for better UX
         const certificateUrl = `${baseUrl}/profile/certificates/${participationId}`;
-        const confirmUrl = `${baseUrl}/api/participants/confirm-certificate/${certificate.id}`;
         
         console.log('[Grant Approval] Sending notification to participant');
         console.log('[Grant Approval] Notification data:', {
@@ -464,8 +325,7 @@ export async function POST(
           eventTitle: event.title,
           impactScore: newScore,
           scoreIncrease: newScore - oldScore,
-          requiresConfirmation: true,
-          confirmUrl: confirmUrl
+          requiresConfirmation: false
         });
         
         // Create an in-app notification with action buttons
@@ -475,8 +335,7 @@ export async function POST(
           certificateId: certificate.id,
           impactScore: newScore,
           scoreIncrease: newScore - oldScore,
-          requiresConfirmation: true,
-          confirmUrl: confirmUrl,
+          requiresConfirmation: false, // No confirmation needed
         };
         
         // Create in-app notification - ONLY CREATE ONCE
@@ -487,7 +346,7 @@ export async function POST(
               userId: participantId,
               type: 'CERTIFICATE_ISSUED' as NotificationType,
               title: '🎉 Certificate & Impact Score Received!',
-              message: `You've received a certificate for ${event.title} and your impact score has been updated! Please confirm to complete the process.`,
+              message: `You've received a certificate for ${event.title} and your impact score has been updated to ${newScore.toFixed(1)} points!`,
               isRead: false,
               data: notificationData
             }
@@ -516,7 +375,7 @@ export async function POST(
           const socketNotification = {
             type: 'certificate_issued',
             title: '🎉 Certificate & Impact Score Received!',
-            message: `You've received a certificate for ${event.title} and your impact score has been updated! Please confirm to complete the process.`,
+            message: `You've received a certificate for ${event.title} and your impact score has been updated to ${newScore.toFixed(1)} points!`,
             data: notificationData
           };
           console.log('[Grant Approval] Sending socket notification:', socketNotification);
@@ -547,7 +406,9 @@ export async function POST(
                 certificateUrl: certificateUrl,
                 linkedInShareUrl: `${baseUrl}/certificates/share/${certificate.id}`,
                 recipientName: participantUser.name || 'User',
-                recipientEmail: participantUser.email
+                recipientEmail: participantUser.email,
+                impactScore: newScore,
+                scoreIncrease: newScore - oldScore
               }
             });
             if (emailSent) {
@@ -578,7 +439,7 @@ export async function POST(
       participation: updatedParticipation,
       newImpactScore: newScore,
       certificateId: certificate?.id,
-      message: 'Approval granted! Participant will be notified to confirm receipt.'
+      message: 'Approval granted successfully! Participant has been notified and their status is now VERIFIED.'
     });
 
   } catch (error) {

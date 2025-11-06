@@ -94,14 +94,15 @@ export function SearchableSelect({
       const clickedContainer = containerRef.current?.contains(target);
       const clickedDropdown = dropdownRef.current?.contains(target);
       
-      if (!clickedContainer && !clickedDropdown) {
-        // Small delay to allow for click events to complete
-        setTimeout(() => {
+      // Use setTimeout with 0 delay to ensure this runs after button click handlers
+      // This prevents blocking button clicks while still closing the dropdown
+      setTimeout(() => {
+        if (!clickedContainer && !clickedDropdown) {
           setIsOpen(false);
           setSearchQuery("");
           setHighlightedIndex(-1);
-        }, 100);
-      }
+        }
+      }, 0);
     };
 
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -113,12 +114,14 @@ export function SearchableSelect({
     };
 
     if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
+      // Use click event instead of mousedown and set capture to false
+      // This allows button clicks to process first before closing the dropdown
+      document.addEventListener("click", handleClickOutside, { capture: false });
       document.addEventListener("keydown", handleEscapeKey);
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("click", handleClickOutside, { capture: false });
       document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [isOpen]);

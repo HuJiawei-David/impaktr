@@ -170,26 +170,37 @@ function EventsPageContent() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (showSDGDropdown && !target.closest('.sdg-dropdown-container')) {
-        setShowSDGDropdown(false);
-      }
-      if (showDistanceDropdown && !target.closest('.distance-dropdown-container')) {
-        setShowDistanceDropdown(false);
-      }
-      if (showSortDropdown && !target.closest('.sort-dropdown-container')) {
-        setShowSortDropdown(false);
-      }
-      if (showVirtualDropdown && !target.closest('.virtual-dropdown-container')) {
-        setShowVirtualDropdown(false);
-      }
-      if (showCountryDropdown && !target.closest('.country-dropdown-container')) {
-        setShowCountryDropdown(false);
-      }
+      // Use setTimeout to ensure this runs after button click handlers
+      // This prevents blocking button clicks
+      setTimeout(() => {
+        const target = event.target as Element;
+        // Check if clicking on a button or interactive element - if so, don't close dropdowns
+        if (target.closest('button, a, [role="button"]')) {
+          return;
+        }
+        
+        if (showSDGDropdown && !target.closest('.sdg-dropdown-container')) {
+          setShowSDGDropdown(false);
+        }
+        if (showDistanceDropdown && !target.closest('.distance-dropdown-container')) {
+          setShowDistanceDropdown(false);
+        }
+        if (showSortDropdown && !target.closest('.sort-dropdown-container')) {
+          setShowSortDropdown(false);
+        }
+        if (showVirtualDropdown && !target.closest('.virtual-dropdown-container')) {
+          setShowVirtualDropdown(false);
+        }
+        if (showCountryDropdown && !target.closest('.country-dropdown-container')) {
+          setShowCountryDropdown(false);
+        }
+      }, 0);
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    // Use click event instead of mousedown to avoid blocking button interactions
+    // Set capture to false to allow button clicks to process first
+    document.addEventListener('click', handleClickOutside, { capture: false });
+    return () => document.removeEventListener('click', handleClickOutside, { capture: false });
   }, [showSDGDropdown, showDistanceDropdown, showSortDropdown, showVirtualDropdown, showCountryDropdown]);
 
   const fetchEvents = async () => {

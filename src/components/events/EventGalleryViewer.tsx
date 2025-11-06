@@ -71,6 +71,30 @@ export function EventGalleryViewer({
     setCurrentIndex(initialIndex);
   }, [initialIndex]);
 
+  // Lock body scroll when gallery viewer is open
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    // Save original overflow style
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    
+    // Calculate scrollbar width to prevent layout shift
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    
+    return () => {
+      // Restore original styles when gallery closes
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [isOpen]);
+
   const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
     setIsZoomed(false);
@@ -132,31 +156,49 @@ export function EventGalleryViewer({
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-y-auto"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
+      onWheel={(e) => {
+        // Only prevent scroll if we're scrolling the backdrop, not the gallery content
+        const target = e.target as HTMLElement;
+        if (target === e.currentTarget || target.closest('.gallery-backdrop')) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+      onTouchMove={(e) => {
+        // Only prevent touch scroll if we're touching the backdrop
+        const target = e.target as HTMLElement;
+        if (target === e.currentTarget || target.closest('.gallery-backdrop')) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
     >
       <div 
-        className="relative w-[90vw] max-w-5xl rounded-xl shadow-2xl flex flex-col overflow-hidden"
+        className="relative w-[90vw] max-w-5xl rounded-xl shadow-2xl flex flex-col overflow-hidden my-auto max-h-[90vh]"
         style={{ backgroundColor: '#1a1a1a' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close Button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="absolute top-4 right-4 w-10 h-10 p-0 rounded-full z-50"
-          style={{ color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
-          title="Close"
-        >
-          <X className="w-5 h-5" />
-        </Button>
+        {/* Close Button - positioned outside transform context */}
+        <div className="absolute top-4 right-4 z-50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="w-10 h-10 p-0 rounded-full"
+            style={{ color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
 
         {/* Main Image Area */}
-        <div className="relative flex items-center justify-center" style={{ backgroundColor: '#000', minHeight: '500px', maxHeight: '70vh' }}>
+        <div className="relative flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#000', minHeight: '500px', maxHeight: '70vh' }}>
           <Image
             src={currentImage.url}
             alt={currentImage.caption || 'Event photo'}
@@ -172,53 +214,57 @@ export function EventGalleryViewer({
             unoptimized
           />
           
-          {/* Navigation Arrows */}
+          {/* Navigation Arrows - positioned with proper z-index */}
           {images.length > 1 && (
             <>
-              <Button
-                variant="ghost"
-                size="lg"
-                className="rounded-full w-12 h-12 p-0"
-                style={{ 
-                  color: 'white', 
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                  position: 'absolute',
-                  left: '16px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 100
+              <div 
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToPrevious();
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
-                onClick={goToPrevious}
               >
-                <ChevronLeft className="w-6 h-6" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                className="rounded-full w-12 h-12 p-0"
-                style={{ 
-                  color: 'white', 
-                  backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                  position: 'absolute',
-                  right: '16px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  zIndex: 100
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  className="rounded-full w-12 h-12 p-0"
+                  style={{ 
+                    color: 'white', 
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </Button>
+              </div>
+              <div 
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToNext();
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
-                onClick={goToNext}
               >
-                <ChevronRight className="w-6 h-6" />
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  className="rounded-full w-12 h-12 p-0"
+                  style={{ 
+                    color: 'white', 
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </Button>
+              </div>
             </>
           )}
         </div>
 
-        {/* Info Section */}
-        <div className="p-6 space-y-4" style={{ backgroundColor: '#1a1a1a' }}>
+        {/* Info Section - scrollable if content is long */}
+        <div className="p-6 space-y-4 overflow-y-auto flex-shrink-0" style={{ backgroundColor: '#1a1a1a', maxHeight: '30vh' }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium text-lg" style={{ color: 'white' }}>{currentImage.uploadedBy.name}</p>

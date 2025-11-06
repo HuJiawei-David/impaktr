@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { EventStatus } from '@/types/enums';
 import { OrganizationMember, Participation } from '@prisma/client';
 import { calculateImpaktrScore } from '@/lib/scoring';
+import { checkAndAwardBadges } from '@/lib/badges';
 
 // Types for notification data
 interface NotificationData {
@@ -135,8 +136,38 @@ export async function PUT(
 
     // Handle status-specific actions
     if (status === EventStatus.COMPLETED) {
-      // Auto-verify pending and confirmed participations when event is marked complete
-      // This ensures all approved participants appear in Post-Event Verification
+      // Check if there are participants who haven't been granted approval yet
+      // ATTENDED means they attended but haven't received grant approval
+      // Only ATTENDED participants need approval - PENDING and CONFIRMED haven't checked in yet
+      // We need all ATTENDED participants to be VERIFIED before truly completing the event
+      const pendingApprovalParticipants = await prisma.participation.findMany({
+        where: {
+          eventId: id,
+          status: 'ATTENDED'
+        }
+      });
+
+      // If there are participants who haven't been granted approval, return a special response
+      if (pendingApprovalParticipants.length > 0) {
+        // Revert the status change - don't mark as completed yet
+        await prisma.event.update({
+          where: { id },
+          data: {
+            status: event.status, // Keep original status
+          }
+        });
+
+        return NextResponse.json({
+          requiresApproval: true,
+          pendingParticipants: pendingApprovalParticipants.length,
+          totalParticipants: event.participations.length,
+          message: `Please grant approval to ${pendingApprovalParticipants.length} participant(s) before completing the event.`,
+          pendingParticipantIds: pendingApprovalParticipants.map(p => p.id)
+        }, { status: 200 }); // Return 200 but with requiresApproval flag
+      }
+
+      // All participants are VERIFIED, proceed with completion
+      // Auto-verify any remaining pending and confirmed participations (shouldn't happen but safety check)
       await prisma.participation.updateMany({
         where: {
           eventId: id,
@@ -160,42 +191,53 @@ export async function PUT(
         }
       });
 
+      // Process score updates for each participant with error handling
       for (const participation of verifiedParticipations) {
-        // Calculate new impact score using the proper scoring algorithm
-        const oldScore = participation.user.impactScore;
-        const newScore = await calculateImpaktrScore(participation.userId);
-        const scoreIncrease = newScore - oldScore;
-        
-        await prisma.user.update({
-          where: { id: participation.userId },
-          data: {
-            impactScore: newScore
-          }
-        });
+        try {
+          // Calculate new impact score using the proper scoring algorithm
+          const oldScore = participation.user.impactScore;
+          const newScore = await calculateImpaktrScore(participation.userId);
+          const scoreIncrease = newScore - oldScore;
+          
+          await prisma.user.update({
+            where: { id: participation.userId },
+            data: {
+              impactScore: newScore
+            }
+          });
 
-        // Create score history entry
-        await prisma.scoreHistory.create({
-          data: {
-            userId: participation.userId,
-            oldScore,
-            newScore,
-            change: scoreIncrease,
-            reason: 'event_completion',
-            hoursComponent: participation.hours || 0,
-            intensityComponent: 1.0, // Will be calculated in the scoring function
-            skillComponent: 1.0, // Will be calculated in the scoring function
-            qualityComponent: 1.0, // Will be calculated in the scoring function
-            verificationComponent: 1.0, // Will be calculated in the scoring function
-            locationComponent: 1.0, // Will be calculated in the scoring function
-            eventId: participation.eventId,
-            participationId: participation.id,
-          }
-        });
+          // Create score history entry
+          await prisma.scoreHistory.create({
+            data: {
+              userId: participation.userId,
+              oldScore,
+              newScore,
+              change: scoreIncrease,
+              reason: 'event_completion',
+              hoursComponent: participation.hours || 0,
+              intensityComponent: 1.0, // Will be calculated in the scoring function
+              skillComponent: 1.0, // Will be calculated in the scoring function
+              qualityComponent: 1.0, // Will be calculated in the scoring function
+              verificationComponent: 1.0, // Will be calculated in the scoring function
+              locationComponent: 1.0, // Will be calculated in the scoring function
+              eventId: participation.eventId,
+              participationId: participation.id,
+            }
+          });
+        } catch (scoreError) {
+          console.error(`Error updating score for participant ${participation.userId}:`, scoreError);
+          // Continue with other participants even if one fails
+        }
       }
 
-      // Check and award badges for participants
+      // Check and award badges for participants with error handling
       for (const participation of verifiedParticipations) {
-        await checkAndAwardBadges(participation.userId);
+        try {
+          await checkAndAwardBadges(participation.userId);
+        } catch (badgeError) {
+          console.error(`Error awarding badges for participant ${participation.userId}:`, badgeError);
+          // Continue with other participants even if one fails
+        }
       }
     }
 
@@ -230,8 +272,9 @@ export async function PUT(
     }
 
     console.error('Error updating event status:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', message: errorMessage },
       { status: 500 }
     );
   }
@@ -245,9 +288,9 @@ export async function GET(
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const { id } = await params;
-    }
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
@@ -256,8 +299,6 @@ export async function GET(
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
-    const { id } = await params;
 
     // Get event with status history
     const event = await prisma.event.findUnique({
@@ -342,10 +383,6 @@ export async function GET(
 }
 
 // Helper functions
-async function checkAndAwardBadges(userId: string): Promise<void> {
-  // Implement your badge checking logic here
-  // This should check user's total hours per SDG and award appropriate badges
-}
 
 async function queueParticipantNotifications(participations: Participation[], notificationData: NotificationData): Promise<void> {
   // Implement your notification queuing system here

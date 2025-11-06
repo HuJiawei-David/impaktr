@@ -32,7 +32,9 @@ import {
   Key,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  TrendingUp,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +45,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'react-hot-toast';
 import { getSDGById, getSDGColor } from '@/constants/sdgs';
 import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface Event {
   id: string;
@@ -137,7 +140,12 @@ export default function EventDetailPage() {
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [showAllRegistrations, setShowAllRegistrations] = useState(false);
   const [showAllVerifications, setShowAllVerifications] = useState(false);
-  
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [pendingApprovals, setPendingApprovals] = useState<Participation[]>([]);
+  const [approvingIds, setApprovingIds] = useState<Set<string>>(new Set());
+  const [eventImpactScore, setEventImpactScore] = useState<number | null>(null);
+  const [isGrantingAll, setIsGrantingAll] = useState(false);
+  const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
   
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
@@ -225,6 +233,19 @@ export default function EventDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, user, eventId]);
 
+  // Update pending approvals when event data changes and dialog is open
+  useEffect(() => {
+    if (showApprovalDialog && event) {
+      // Only show ATTENDED participants (attended but not yet granted approval)
+      // PENDING and CONFIRMED are not yet checked in, so they shouldn't appear here
+      // VERIFIED participants have already been granted approval, so they shouldn't appear here
+      const pendingParticipants = event.participations.filter(p => 
+        p.status === 'ATTENDED'
+      );
+      setPendingApprovals(pendingParticipants);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showApprovalDialog, event]);
 
   const fetchEventDetails = async () => {
     try {
@@ -258,6 +279,20 @@ export default function EventDetailPage() {
       }
       setEvent(data.event);
       setStats(data.stats || null);
+      
+      // Clean up selected participants - remove any that are no longer ATTENDED (they've been verified)
+      setSelectedParticipants(prev => {
+        const newSet = new Set<string>();
+        const attendedParticipants = data.event.participations
+          .filter((p: Participation) => p.status === 'ATTENDED')
+          .map((p: Participation) => p.id);
+        prev.forEach(id => {
+          if (attendedParticipants.includes(id)) {
+            newSet.add(id);
+          }
+        });
+        return newSet;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching event details:', err);
@@ -395,8 +430,33 @@ export default function EventDetailPage() {
         throw new Error('Failed to update event status');
       }
 
-      toast.success('Event status updated successfully');
-      fetchEventDetails(); // Refresh data
+      const data = await response.json();
+
+      // Check if approval is required
+      if (data.requiresApproval) {
+        // Redirect to complete page for manual approval
+        router.push(`/organization/events/${eventId}/complete`);
+        toast.success(data.message || 'Please grant approval to all participants');
+      } else {
+        // Event completed successfully
+        toast.success('Event completed successfully!');
+        
+        // Fetch impact score
+        try {
+          const scoreResponse = await fetch(`/api/organization/events/${eventId}/impact-score`);
+          if (scoreResponse.ok) {
+            const scoreData = await scoreResponse.json();
+            setEventImpactScore(scoreData.totalImpactScore);
+            toast.success(`Event Impact Score: ${scoreData.totalImpactScore.toFixed(1)} points!`, {
+              duration: 5000
+            });
+          }
+        } catch (scoreError) {
+          console.error('Error fetching impact score:', scoreError);
+        }
+        
+        fetchEventDetails(); // Refresh data
+      }
     } catch (error) {
       toast.error('Failed to update event status');
       console.error('Error updating event status:', error);
@@ -468,6 +528,223 @@ export default function EventDetailPage() {
       toast.error(errorMessage);
       console.error('Error approving participation:', error);
     }
+  };
+
+  const handleGrantApproval = async (participationId: string) => {
+    setApprovingIds(prev => new Set(prev).add(participationId));
+    try {
+      // Fetch certificate config first
+      const configResponse = await fetch(`/api/organization/events/${eventId}/certificate-config`);
+      let certName = event?.title || '';
+      let certContent = '';
+      if (configResponse.ok) {
+        const configData = await configResponse.json();
+        if (configData.certificateConfig) {
+          certName = configData.certificateConfig.certificateName || event?.title || '';
+          certContent = configData.certificateConfig.certificateContent || '';
+        }
+      }
+
+      const response = await fetch(`/api/organization/events/${eventId}/participants/${participationId}/grant-approval`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          certificateName: certName,
+          certificateContent: certContent,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorData: any = {};
+        try {
+          const responseText = await response.text();
+          if (responseText) {
+            try {
+              errorData = JSON.parse(responseText);
+            } catch {
+              errorData = { error: responseText };
+            }
+          }
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        console.error('Grant approval error:', errorData);
+        const errorMessage = errorData.error || errorData.details || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      toast.success(result.message || 'Certificate and impact score sent! Waiting for participant confirmation.');
+      
+      // Refresh event data
+      await fetchEventDetails();
+      
+      // Update pending approvals list and check if all are done
+      setPendingApprovals(prev => {
+        const updated = prev.filter(p => p.id !== participationId);
+        
+        // If all approvals are done, try to complete the event
+        if (updated.length === 0 && prev.length > 0) {
+          setTimeout(async () => {
+            await handleStatusChange('COMPLETED');
+          }, 1000);
+        }
+        
+        return updated;
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to grant approval';
+      toast.error(errorMessage);
+      console.error('Error granting approval:', error);
+    } finally {
+      setApprovingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(participationId);
+        return newSet;
+      });
+    }
+  };
+
+  // Toggle participant selection
+  const toggleParticipantSelection = (participationId: string) => {
+    setSelectedParticipants(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(participationId)) {
+        newSet.delete(participationId);
+      } else {
+        newSet.add(participationId);
+      }
+      return newSet;
+    });
+  };
+
+  // Select all pending participants
+  const handleSelectAll = () => {
+    if (!event?.participations) return;
+    const pendingParticipants = event.participations.filter(p => p.status === 'ATTENDED');
+    if (selectedParticipants.size === pendingParticipants.length) {
+      // Deselect all
+      setSelectedParticipants(new Set());
+    } else {
+      // Select all
+      setSelectedParticipants(new Set(pendingParticipants.map(p => p.id)));
+    }
+  };
+
+  const handleGrantApprovalSelected = async () => {
+    if (!event?.participations) return;
+    
+    // Get selected participants that need approval (status is ATTENDED, not VERIFIED)
+    const selectedPendingParticipants = event.participations.filter(
+      p => p.status === 'ATTENDED' && selectedParticipants.has(p.id)
+    );
+    
+    if (selectedPendingParticipants.length === 0) {
+      toast.error('Please select at least one participant to grant approval');
+      return;
+    }
+
+    showConfirm({
+      title: 'Grant Approval to Selected Participants',
+      message: `Are you sure you want to grant approval to ${selectedPendingParticipants.length} selected participant(s)? This will issue certificates and update their impact scores.`,
+      confirmText: 'Select to Grant',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        setIsGrantingAll(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        try {
+          // Fetch certificate config first (same for all)
+          const configResponse = await fetch(`/api/organization/events/${eventId}/certificate-config`);
+          let certName = event?.title || '';
+          let certContent = '';
+          if (configResponse.ok) {
+            const configData = await configResponse.json();
+            if (configData.certificateConfig) {
+              certName = configData.certificateConfig.certificateName || event?.title || '';
+              certContent = configData.certificateConfig.certificateContent || '';
+            }
+          }
+
+          // Process each selected participant
+          for (const participation of selectedPendingParticipants) {
+            try {
+              setApprovingIds(prev => new Set(prev).add(participation.id));
+
+              const response = await fetch(`/api/organization/events/${eventId}/participants/${participation.id}/grant-approval`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  certificateName: certName,
+                  certificateContent: certContent,
+                }),
+              });
+
+              if (!response.ok) {
+                let errorData: any = {};
+                try {
+                  const responseText = await response.text();
+                  if (responseText) {
+                    try {
+                      errorData = JSON.parse(responseText);
+                    } catch {
+                      errorData = { error: responseText };
+                    }
+                  }
+                } catch (parseError) {
+                  console.error('Failed to parse error response:', parseError);
+                  errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
+                }
+                throw new Error(errorData.error || errorData.details || errorData.message || 'Failed to grant approval');
+              }
+
+              await response.json();
+              successCount++;
+              
+              // Remove from selected set
+              setSelectedParticipants(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(participation.id);
+                return newSet;
+              });
+              
+              // Small delay between requests to avoid overwhelming the server
+              await new Promise(resolve => setTimeout(resolve, 300));
+            } catch (error) {
+              console.error(`Error granting approval to ${participation.id}:`, error);
+              failCount++;
+            } finally {
+              setApprovingIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(participation.id);
+                return newSet;
+              });
+            }
+          }
+
+          // Refresh event data after all approvals
+          await fetchEventDetails();
+
+          if (failCount === 0) {
+            toast.success(`Successfully granted approval to ${successCount} participant(s)!`);
+          } else {
+            toast.success(`Granted approval to ${successCount} participant(s). ${failCount} failed.`);
+          }
+        } catch (error) {
+          console.error('Error in batch grant approval:', error);
+          toast.error('An error occurred during batch approval');
+        } finally {
+          setIsGrantingAll(false);
+        }
+      }
+    });
   };
 
   const handleRejectParticipation = async (participationId: string) => {
@@ -1264,24 +1541,49 @@ export default function EventDetailPage() {
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-4">
                                   <h4 className="font-medium">{getParticipantName(participation)}</h4>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleCard(participation.id)}
-                                    className="text-gray-600 dark:text-gray-400"
-                                  >
-                                    {isExpanded ? (
+                                  <div className="flex items-center space-x-2">
+                                    {/* Approve and Reject buttons - visible even when collapsed */}
+                                    {(participation.status === 'PENDING' || participation.status === 'REGISTERED') && (
                                       <>
-                                        <ChevronUp className="w-4 h-4 mr-1" />
-                                        Collapse
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ChevronDown className="w-4 h-4 mr-1" />
-                                        Expand
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleApproveParticipation(participation.id)}
+                                          className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-100 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                        >
+                                          <CheckCircle className="w-4 h-4 mr-1" />
+                                          Approve
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleRejectParticipation(participation.id)}
+                                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-100 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        >
+                                          <XCircle className="w-4 h-4 mr-1" />
+                                          Reject
+                                        </Button>
                                       </>
                                     )}
-                                  </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleCard(participation.id)}
+                                      className="text-gray-600 dark:text-gray-400"
+                                    >
+                                      {isExpanded ? (
+                                        <>
+                                          <ChevronUp className="w-4 h-4 mr-1" />
+                                          Collapse
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ChevronDown className="w-4 h-4 mr-1" />
+                                          Expand
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
                                 </div>
                                 
                                 {isExpanded && (
@@ -1364,33 +1666,6 @@ export default function EventDetailPage() {
                                       )}
                                     </>
                                   )}
-
-                                  {/* Actions */}
-                                  {(participation.status === 'PENDING' || participation.status === 'REGISTERED') && (
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Actions</p>
-                                      <div className="flex items-center space-x-2">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => handleApproveParticipation(participation.id)}
-                                          className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-100 hover:bg-green-50 dark:hover:bg-green-900/20"
-                                        >
-                                          <CheckCircle className="w-4 h-4 mr-1" />
-                                          Approve
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => handleRejectParticipation(participation.id)}
-                                          className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-100 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                        >
-                                          <XCircle className="w-4 h-4 mr-1" />
-                                          Reject
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                               </CardContent>
@@ -1412,7 +1687,38 @@ export default function EventDetailPage() {
                     <>
                       {event.participations && event.participations.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length > 0 ? (
                         <>
-                          <div className="flex items-center justify-end mb-4">
+                          <div className="flex items-center justify-end gap-2 mb-4">
+                            {event.participations.filter(p => p.status === 'ATTENDED').length > 0 && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handleSelectAll}
+                                  className="text-gray-600 dark:text-gray-400"
+                                >
+                                  {selectedParticipants.size === event.participations.filter(p => p.status === 'ATTENDED').length ? 'Deselect All' : 'Select All'}
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={handleGrantApprovalSelected}
+                                  disabled={isGrantingAll || approvingIds.size > 0 || selectedParticipants.size === 0}
+                                  className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                                >
+                                  {isGrantingAll ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Granting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-4 h-4 mr-1" />
+                                      Select to Grant
+                                    </>
+                                  )}
+                                </Button>
+                              </>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1438,99 +1744,54 @@ export default function EventDetailPage() {
                               .slice(0, showAllVerifications ? undefined : 2)
                               .map((participation, index) => {
                             const isExpanded = expandedCards.has(participation.id);
+                            const isSelected = selectedParticipants.has(participation.id);
+                            const canSelect = participation.status === 'ATTENDED';
                             return (
-                            <Card key={participation.id}>
+                            <Card 
+                              key={participation.id}
+                              className={isSelected && canSelect ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/10" : ""}
+                            >
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-4">
-                                  <div className="flex-1">
-                                    <h4 className="font-medium">{getParticipantName(participation)}</h4>
-                                    {/* Progress Bar */}
-                                    <div className="mt-2 space-y-1">
-                                      <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400">
-                                        <span>Verification Progress</span>
-                                        <span className="font-medium">
-                                          {participation.status === 'VERIFIED' ? '100%' : participation.status === 'ATTENDED' ? '75%' : '0%'}
-                                        </span>
+                                  <div className="flex items-center gap-3 flex-1">
+                                    {canSelect && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleParticipantSelection(participation.id)}
+                                        className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${
+                                          isSelected 
+                                            ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' 
+                                            : 'border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400'
+                                        }`}
+                                      >
+                                        {isSelected && (
+                                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                    )}
+                                    {!canSelect && (
+                                      <div className="flex-shrink-0 w-5 h-5" />
+                                    )}
+                                    <div className="flex-1">
+                                      <h4 className="font-medium">{getParticipantName(participation)}</h4>
+                                      {/* Progress Bar */}
+                                      <div className="mt-2 space-y-1">
+                                        <div className="flex justify-between items-center text-xs text-gray-600 dark:text-gray-400">
+                                          <span>Verification Progress</span>
+                                          <span className="font-medium">
+                                            {participation.status === 'VERIFIED' ? '100%' : participation.status === 'ATTENDED' ? '75%' : '0%'}
+                                          </span>
+                                        </div>
+                                        <Progress 
+                                          value={participation.status === 'VERIFIED' ? 100 : participation.status === 'ATTENDED' ? 75 : 0} 
+                                          className="h-2" 
+                                        />
                                       </div>
-                                      <Progress 
-                                        value={participation.status === 'VERIFIED' ? 100 : participation.status === 'ATTENDED' ? 75 : 0} 
-                                        className="h-2" 
-                                      />
                                     </div>
                                   </div>
                                   <div className="flex items-center space-x-2 ml-4">
-                                    {participation.status !== 'VERIFIED' && (
-                                      <Button
-                                        variant="default"
-                                        size="sm"
-                                        onClick={() => {
-                                          showConfirm({
-                                            title: 'Grant Approval',
-                                            message: `Are you sure you want to grant approval to ${getParticipantName(participation)}? This will issue a certificate and update their impact score.`,
-                                            confirmText: 'Grant Approval',
-                                            cancelText: 'Cancel',
-                                            type: 'warning',
-                                            onConfirm: async () => {
-                                              try {
-                                                // Fetch certificate config first
-                                                const configResponse = await fetch(`/api/organization/events/${eventId}/certificate-config`);
-                                                let certName = event?.title || '';
-                                                let certContent = '';
-                                                if (configResponse.ok) {
-                                                  const configData = await configResponse.json();
-                                                  if (configData.certificateConfig) {
-                                                    certName = configData.certificateConfig.certificateName || event?.title || '';
-                                                    certContent = configData.certificateConfig.certificateContent || '';
-                                                  }
-                                                }
-                                                const response = await fetch(`/api/organization/events/${eventId}/participants/${participation.id}/grant-approval`, {
-                                                  method: 'POST',
-                                                  headers: {
-                                                    'Content-Type': 'application/json',
-                                                  },
-                                                  body: JSON.stringify({
-                                                    certificateName: certName,
-                                                    certificateContent: certContent,
-                                                  }),
-                                                });
-
-                                                if (!response.ok) {
-                                                  let errorData: any = {};
-                                                  try {
-                                                    const responseText = await response.text();
-                                                    if (responseText) {
-                                                      try {
-                                                        errorData = JSON.parse(responseText);
-                                                      } catch {
-                                                        errorData = { error: responseText };
-                                                      }
-                                                    }
-                                                  } catch (parseError) {
-                                                    console.error('Failed to parse error response:', parseError);
-                                                    errorData = { error: `HTTP ${response.status}: ${response.statusText}` };
-                                                  }
-                                                  console.error('Grant approval error:', errorData);
-                                                  const errorMessage = errorData.error || errorData.details || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
-                                                  throw new Error(errorMessage);
-                                                }
-
-                                                const result = await response.json();
-                                                toast.success(result.message || 'Certificate and impact score sent! Waiting for participant confirmation.');
-                                                fetchEventDetails();
-                                              } catch (error) {
-                                                const errorMessage = error instanceof Error ? error.message : 'Failed to grant approval';
-                                                toast.error(errorMessage);
-                                                console.error('Error granting approval:', error);
-                                              }
-                                            }
-                                          });
-                                        }}
-                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                      >
-                                        <CheckCircle className="w-4 h-4 mr-1" />
-                                        Grant Approval
-                                      </Button>
-                                    )}
                                     <Button
                                       variant="ghost"
                                       size="sm"
@@ -1797,6 +2058,133 @@ export default function EventDetailPage() {
 
       {/* Confirm Dialog */}
       <ConfirmDialog />
+
+      {/* Manual Approval Dialog */}
+      <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              Grant Approval to Participants
+            </DialogTitle>
+            <DialogDescription>
+              Please grant approval to all participants before completing the event. 
+              {pendingApprovals.length > 0 && (
+                <span className="font-semibold text-orange-600 dark:text-orange-400">
+                  {' '}{pendingApprovals.length} participant(s) pending approval.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {pendingApprovals.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                <p className="font-medium">All participants have been approved!</p>
+                <p className="text-sm mt-2">The event can now be completed.</p>
+              </div>
+            ) : (
+              pendingApprovals.map((participation) => {
+                const isApproving = approvingIds.has(participation.id);
+                const isVerified = participation.status === 'VERIFIED';
+                
+                return (
+                  <Card key={participation.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarImage src={participation.user.image} />
+                              <AvatarFallback>
+                                {getParticipantName(participation).charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h4 className="font-medium">{getParticipantName(participation)}</h4>
+                              <p className="text-sm text-muted-foreground">{participation.user.email}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Hours:</span>
+                              <span className="ml-2 font-medium">{participation.hours || 0}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Status:</span>
+                              <span className="ml-2 font-medium">{participation.status}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Impact Score:</span>
+                              <span className="ml-2 font-medium">{participation.user.impactScore.toFixed(1)}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Joined:</span>
+                              <span className="ml-2 font-medium">
+                                {new Date(participation.joinedAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          {isVerified ? (
+                            <Badge variant="default" className="bg-green-600">
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Verified
+                            </Badge>
+                          ) : (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleGrantApproval(participation.id)}
+                              disabled={isApproving}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              {isApproving ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Approving...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Grant Approval
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowApprovalDialog(false)}
+            >
+              Close
+            </Button>
+            {pendingApprovals.length === 0 && (
+              <Button
+                onClick={async () => {
+                  setShowApprovalDialog(false);
+                  await handleStatusChange('COMPLETED');
+                }}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Complete Event
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

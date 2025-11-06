@@ -25,6 +25,30 @@ export function SimpleConfirmDialog({
   cancelText = 'Cancel',
   type = 'warning'
 }: SimpleConfirmDialogProps) {
+  // Lock body scroll when dialog is open
+  React.useEffect(() => {
+    if (!isOpen) return;
+    
+    // Save original overflow style
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    
+    // Calculate scrollbar width to prevent layout shift
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    
+    // Lock body scroll
+    document.body.style.overflow = 'hidden';
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    
+    return () => {
+      // Restore original styles when dialog closes
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleConfirm = () => {
@@ -59,7 +83,23 @@ export function SimpleConfirmDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onClick={(e) => {
+        // Only close if clicking the backdrop (not the dialog content)
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onWheel={(e) => {
+        // Prevent scroll events from propagating when dialog is open
+        e.stopPropagation();
+      }}
+      onTouchMove={(e) => {
+        // Prevent touch scroll when dialog is open (mobile)
+        e.stopPropagation();
+      }}
+    >
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50"
@@ -67,7 +107,13 @@ export function SimpleConfirmDialog({
       />
       
       {/* Dialog */}
-      <div className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 animate-in fade-in-0 zoom-in-95 duration-200">
+      <div 
+        className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 animate-in fade-in-0 zoom-in-95 duration-200"
+        onClick={(e) => {
+          // Prevent clicks inside dialog from closing it
+          e.stopPropagation();
+        }}
+      >
         {/* Icon and Title */}
         <div className="flex items-center gap-3 mb-4">
           {getIcon()}

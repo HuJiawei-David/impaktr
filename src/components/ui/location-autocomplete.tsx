@@ -24,13 +24,19 @@ export function LocationAutocomplete({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      // Use setTimeout to ensure this runs after button click handlers
+      // This prevents blocking button clicks
+      setTimeout(() => {
+        if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+          setIsOpen(false);
+        }
+      }, 0);
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    // Use click event instead of mousedown and set capture to false
+    // This allows button clicks to process first
+    document.addEventListener('click', handleClickOutside, { capture: false });
+    return () => document.removeEventListener('click', handleClickOutside, { capture: false });
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

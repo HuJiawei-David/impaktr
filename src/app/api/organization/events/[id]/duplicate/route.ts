@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { prisma } from '@/lib/prisma';
+import { EventStatus } from '@/types/enums';
 
 export async function POST(
   request: NextRequest,
@@ -52,6 +53,26 @@ export async function POST(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
+    // Determine initial status based on dates
+    // If endDate has passed, set to ACTIVE so user can mark complete
+    // If startDate is in the future, set to UPCOMING
+    // Otherwise set to ACTIVE
+    const now = new Date();
+    const startDate = new Date(originalEvent.startDate);
+    const endDate = new Date(originalEvent.endDate);
+    
+    let initialStatus = EventStatus.DRAFT;
+    if (endDate < now) {
+      // Event has ended, set to ACTIVE so user can mark complete
+      initialStatus = EventStatus.ACTIVE;
+    } else if (startDate > now) {
+      // Event starts in the future
+      initialStatus = EventStatus.UPCOMING;
+    } else {
+      // Event is currently active (startDate <= now <= endDate)
+      initialStatus = EventStatus.ACTIVE;
+    }
+
     // Create a duplicate event
     const duplicatedEvent = await prisma.event.create({
       data: {
@@ -62,7 +83,7 @@ export async function POST(
         location: originalEvent.location,
         maxParticipants: originalEvent.maxParticipants,
         currentParticipants: 0, // Reset participants for new event
-        status: 'DRAFT', // Start as draft
+        status: initialStatus,
         sdg: originalEvent.sdg,
         type: originalEvent.type,
         isPublic: originalEvent.isPublic,

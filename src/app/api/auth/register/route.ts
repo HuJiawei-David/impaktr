@@ -45,12 +45,15 @@ export async function POST(request: NextRequest) {
 
     // Create user
     console.log('[Register] Creating user in database...');
+    // Only set required fields and fields without defaults - let Prisma handle defaults
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         userType: userType || 'INDIVIDUAL',
+        // Let Prisma use schema defaults for: impactScore, level, streak, longestStreak, 
+        // totalPoints, xp, isPublic, showEmail, showProgress, allowMessages, role, tier
       },
     });
     console.log('[Register] User created successfully:', user.id);

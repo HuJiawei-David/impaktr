@@ -8,6 +8,7 @@ import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SocketProvider } from '@/components/providers/SocketProvider';
 import { NextAuthProvider } from '@/components/providers/NextAuthProvider';
+import { ScrollLockProvider } from '@/components/providers/ScrollLockProvider';
 import { Navigation } from '@/components/layout/Navigation';
 
 const ubuntu = Ubuntu({ 
@@ -105,10 +106,12 @@ export default function RootLayout({
           >
             <QueryProvider>
               <SocketProvider>
-                <Navigation />
-                <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0" style={{ paddingTop: '64px' }}>
-                  {children}
-                </div>
+                <ScrollLockProvider>
+                  <Navigation />
+                  <div className="min-h-screen bg-background text-foreground pb-16 md:pb-0" style={{ paddingTop: '64px' }}>
+                    {children}
+                  </div>
+                </ScrollLockProvider>
                 <Toaster
                   position="top-right"
                   toastOptions={{

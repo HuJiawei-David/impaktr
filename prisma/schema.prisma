@@ -18,7 +18,7 @@ model User {
   password                 String?
   bio                      String?
   country                  String?
-  impactScore              Float                    @default(0)
+  impactScore              Float                    @default(0) @map("impact_score")
   lastActivityDate         DateTime?
   level                    Int                      @default(1)
   location                 String?
