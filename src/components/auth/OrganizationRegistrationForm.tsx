@@ -20,6 +20,7 @@ import { industries } from '@/constants/industries';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { toast } from 'react-hot-toast';
+import { SDGRecommendation } from '@/lib/sdg/sdg-recommendation-engine';
 
 interface OrganizationRegistrationData {
   organizationName: string;
@@ -100,6 +101,15 @@ const getFormTitle = (profileType: UserType) => {
   }
 };
 
+type EnrichedSDGRecommendation = SDGRecommendation & {
+  confidenceLevel: {
+    level: 'very-high' | 'high' | 'medium' | 'low';
+    label: string;
+    description: string;
+  };
+  isNew?: boolean;
+};
+
 export function OrganizationRegistrationForm({ profileType, isStepMode = false, onDataChange, validationErrors = [] }: OrganizationRegistrationFormProps) {
   const { data: session } = useSession();
   const user = session?.user;
@@ -111,7 +121,7 @@ export function OrganizationRegistrationForm({ profileType, isStepMode = false, 
   const [selectedSDGs, setSelectedSDGs] = useState<number[]>([]);
   
   // SDG Recommendations State
-  const [sdgRecommendations, setSdgRecommendations] = useState<any[]>([]);
+  const [sdgRecommendations, setSdgRecommendations] = useState<EnrichedSDGRecommendation[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [recommendationError, setRecommendationError] = useState<string | null>(null);

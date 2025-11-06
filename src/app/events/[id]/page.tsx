@@ -894,23 +894,76 @@ export default function EventDetailPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {event.sessions && event.sessions.length > 0 && (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <div className="font-medium">Schedule</div>
+                          <div className="font-semibold text-lg">Schedule</div>
                           <div className="text-sm text-muted-foreground">Total: {(event.totalHours || 0).toFixed(1)} hours</div>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                           {event.sessions.map((s, idx) => {
                             const hours = Math.max(0, ((new Date(s.endAt).getTime() - new Date(s.startAt).getTime()) / 36e5) - ((s.breakMin ?? 0) / 60));
+                            const startDate = new Date(s.startAt);
+                            const endDate = new Date(s.endAt);
+                            
+                            // Format date: "December 1, 2025"
+                            const dateStr = startDate.toLocaleDateString('en-US', { 
+                              month: 'long', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            });
+                            
+                            // Format time with AM/PM and timezone: "3:00 PM GMT+8"
+                            const startTimeStr = startDate.toLocaleTimeString('en-US', { 
+                              hour: 'numeric', 
+                              minute: '2-digit',
+                              hour12: true 
+                            });
+                            const endTimeStr = endDate.toLocaleTimeString('en-US', { 
+                              hour: 'numeric', 
+                              minute: '2-digit',
+                              hour12: true 
+                            });
+                            
+                            // Get timezone
+                            const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                            const timezoneAbbr = startDate.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
+                            
                             return (
-                              <div key={s.id || idx} className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                  <div className="text-muted-foreground">{s.label || `Session ${idx + 1}`}</div>
-                                </div>
-                                <div className="text-right">
-                                  <div>{new Date(s.startAt).toLocaleString()} – {new Date(s.endAt).toLocaleString()}</div>
-                                  <div className="text-xs text-muted-foreground">{hours.toFixed(1)} h{(s.breakMin ?? 0) > 0 ? ` (−${s.breakMin} min break)` : ''}</div>
+                              <div key={s.id || idx} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+                                <div className="font-semibold text-base mb-3">{s.label || `Session ${idx + 1}`}</div>
+                                <div className="grid md:grid-cols-2 gap-3">
+                                  {/* Date */}
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center flex-shrink-0">
+                                      <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs text-muted-foreground">Date</div>
+                                      <div className="text-sm font-medium">{dateStr}</div>
+                                    </div>
+                                  </div>
+
+                                  {/* Time */}
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                                      <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs text-muted-foreground">Time</div>
+                                      <div className="text-sm font-medium">{startTimeStr} – {endTimeStr} ({timezoneAbbr})</div>
+                                    </div>
+                                  </div>
+
+                                  {/* Duration */}
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center flex-shrink-0">
+                                      <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs text-muted-foreground">Duration</div>
+                                      <div className="text-sm font-medium">{hours.toFixed(1)} hours{(s.breakMin ?? 0) > 0 ? ` (${s.breakMin} min break)` : ''}</div>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -918,18 +971,21 @@ export default function EventDetailPage() {
                         </div>
                       </div>
                     )}
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                          <Clock className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium">Duration</div>
-                          <div className="text-sm text-muted-foreground">
-                            {typeof event.totalHours === 'number' ? `${event.totalHours.toFixed(1)} hours` : '—'}
+                    
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="font-semibold text-lg mb-4">Event Information</div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Total Duration</div>
+                            <div className="text-sm text-muted-foreground">
+                              {typeof event.totalHours === 'number' ? `${event.totalHours.toFixed(1)} hours` : '—'}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
@@ -967,8 +1023,9 @@ export default function EventDetailPage() {
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
                 {/* Gallery Preview */}
                 <Card>
@@ -1197,6 +1254,9 @@ export default function EventDetailPage() {
                           })}
                         </>
                       )}
+                      {' ('}
+                      {new Date(event.startDate).toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop()}
+                      {')'}
                     </div>
                   </div>
                 </div>
@@ -1441,7 +1501,7 @@ export default function EventDetailPage() {
                             </p>
                             <div className="mt-4 p-3 bg-yellow-100/50 dark:bg-yellow-900/20 rounded-lg">
                               <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                                💡 <strong>Tip:</strong> You will only be officially counted in the participant list after the administrator confirms your registration in "Registration Approval".
+                                💡 <strong>Tip:</strong> You will only be officially counted in the participant list after the administrator confirms your registration in &ldquo;Registration Approval&rdquo;.
                               </p>
                             </div>
                             <div className="mt-4 pt-4 border-t border-yellow-200 dark:border-yellow-800">
@@ -1608,7 +1668,7 @@ export default function EventDetailPage() {
                         </Button>
                       </Link>
                     </div>
-                  ) : canJoin ? (
+                  ) : canJoin && !event.isCreator ? (
                     <div className="space-y-4">
                       <Link href={`/events/${event.id}/register`}>
                         <Button 

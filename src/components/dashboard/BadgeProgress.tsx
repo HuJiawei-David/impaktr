@@ -356,7 +356,7 @@ export function BadgeProgress() {
               {/* Overall Progress */}
               <div>
                 <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Progress to {nextTier.name}</span>
+                  <span className="text-muted-foreground">In Progress &gt; {nextTier.name}</span>
                   <span className="font-medium">{Math.round(nextTier.progress.percentage)}%</span>
                 </div>
                 <Progress value={nextTier.progress.percentage} className="h-2" />

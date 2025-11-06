@@ -268,43 +268,107 @@ export async function GET(request: NextRequest) {
           members: {
             include: {
               user: {
-                include: {
+                select: {
+                  id: true,
+                  impactScore: true,
                   participations: {
-                    where: { status: ParticipationStatus.VERIFIED },
-                    include: { event: true }
+                    where: { 
+                      status: { in: [ParticipationStatus.VERIFIED, ParticipationStatus.ATTENDED] }
+                    },
+                    include: { 
+                      event: {
+                        select: {
+                          id: true,
+                          sdg: true,
+                          status: true,
+                          endDate: true
+                        }
+                      }
+                    }
                   }
                 }
               }
             }
           },
           badges: true,
-          events: true
+          events: {
+            select: {
+              id: true,
+              sdg: true,
+              status: true,
+              endDate: true,
+              participations: {
+                where: {
+                  status: { in: [ParticipationStatus.VERIFIED, ParticipationStatus.ATTENDED] }
+                },
+                select: {
+                  hours: true,
+                  status: true
+                }
+              }
+            }
+          }
         }
+      });
+
+      console.log(`[Badge Progress] Organization ${organizationId} fetched:`, {
+        memberCount: organization?.members.length || 0,
+        totalParticipations: organization?.members.reduce((sum, m) => sum + (m.user.participations?.length || 0), 0) || 0,
+        totalEvents: organization?.events.length || 0,
+        eventsWithParticipations: organization?.events.filter(e => e.participations.length > 0).length || 0
       });
 
       if (!organization) {
         return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
       }
 
-      // Calculate SDG progress for organization
-      const orgSDGProgress = await calculateOrgSDGProgress(organizationId, organization);
+      // Calculate SDG progress for organization - use ALL participations in organization events, not just members
+      let orgSDGProgress;
+      try {
+        orgSDGProgress = await calculateOrgSDGProgress(organizationId, organization);
+      } catch (error) {
+        console.error(`[Badge Progress] Error calculating org SDG progress:`, error);
+        console.error('Error details:', error instanceof Error ? error.message : String(error));
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
+        return NextResponse.json(
+          { 
+            error: 'Failed to calculate badge progress',
+            details: error instanceof Error ? error.message : String(error)
+          },
+          { status: 500 }
+        );
+      }
 
       const currentTierIndex = ORGANIZATION_TIER_BADGES.findIndex(b => b.tier === organization.tier);
       const nextTier = ORGANIZATION_TIER_BADGES[currentTierIndex + 1];
 
       const totalMembers = organization.members.length;
-      const activeMembers = organization.members.filter((m: OrganizationMember) => m.user.participations.length > 0).length;
+      const activeMembers = organization.members.filter((m: OrganizationMember) => {
+        return m.user?.participations && m.user.participations.length > 0;
+      }).length;
       const participationRate = totalMembers > 0 ? (activeMembers / totalMembers) * 100 : 0;
 
-      const totalScore = organization.members.reduce((sum: number, m: OrganizationMember) => sum + m.user.impactScore, 0);
+      const totalScore = organization.members.reduce((sum: number, m: OrganizationMember) => {
+        const score = m.user?.impactScore || 0;
+        return sum + (typeof score === 'number' ? score : 0);
+      }, 0);
       const avgScore = totalMembers > 0 ? totalScore / totalMembers : 0;
 
       const uniqueSDGs = new Set(
-        organization.members.flatMap((m: OrganizationMember) =>
-          m.user.participations
-            .filter(p => p.event.sdg)
-            .map(p => parseInt(p.event.sdg!))
-        )
+        organization.members.flatMap((m: OrganizationMember) => {
+          if (!m.user?.participations) return [];
+          return m.user.participations
+            .filter(p => p.event?.sdg)
+            .map(p => {
+              const sdg = p.event.sdg;
+              if (typeof sdg === 'string') {
+                const parsed = parseInt(sdg);
+                return isNaN(parsed) ? null : parsed;
+              }
+              return typeof sdg === 'number' ? sdg : null;
+            })
+            .filter((sdg): sdg is number => sdg !== null);
+        })
       );
 
       return NextResponse.json({
@@ -359,8 +423,14 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching badge data:', error);
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
@@ -495,28 +565,125 @@ async function calculateOrgSDGProgress(
       user: {
         participations: Array<{
           hours: number | null;
-          event: { sdg: string | null };
+          event: { 
+            sdg: string | number | number[] | null;
+            status?: string;
+            endDate?: Date;
+          };
         }>;
       };
     }>;
+    events: Array<{
+      id: string;
+      sdg: string | number | number[] | null;
+      status: string;
+      endDate: Date | null;
+      participations: Array<{
+        hours: number | null;
+        status: string;
+      }>;
+    }>;
   }
 ) {
-  const sdgStats: Record<number, { hours: number; activities: number }> = {};
+  try {
+    const sdgStats: Record<number, { hours: number; activities: number }> = {};
+    const now = new Date();
+    let totalParticipationsProcessed = 0;
+    let participationsFromPastEvents = 0;
 
-  organization.members.forEach(member => {
-    member.user.participations.forEach(p => {
-      if (p.event.sdg) {
-        const sdgNum = parseInt(p.event.sdg);
-        if (!sdgStats[sdgNum]) {
-          sdgStats[sdgNum] = { hours: 0, activities: 0 };
+    console.log(`[Badge Progress] Starting calculation for org ${organizationId}, ${organization.events.length} events`);
+
+    // Use ALL participations from organization events (not just members)
+    // This counts all volunteer hours and activities from events hosted by the organization
+    organization.events.forEach(event => {
+      // Filter to only include events that have ended
+      const eventHasEnded = event.status === 'COMPLETED' || 
+                           (event.endDate && new Date(event.endDate) < now);
+      if (!eventHasEnded) {
+        console.log(`[Badge Progress] Event ${event.id} has not ended (status: ${event.status}, endDate: ${event.endDate})`);
+        return;
+      }
+
+      console.log(`[Badge Progress] Processing event ${event.id} with ${event.participations.length} participations`);
+
+      // Count participations from this event
+      event.participations.forEach(p => {
+        totalParticipationsProcessed++;
+        participationsFromPastEvents++;
+        
+        if (event.sdg) {
+        let sdgNumbers: number[] = [];
+        
+        // Handle SDG in multiple formats: JSON string, array, or single number
+        if (typeof event.sdg === 'string') {
+          // Try to parse as JSON first
+          try {
+            const parsed = JSON.parse(event.sdg);
+            if (Array.isArray(parsed)) {
+              sdgNumbers = parsed.map((s: unknown) => {
+                if (typeof s === 'number') return s;
+                const n = parseInt(String(s));
+                return isNaN(n) ? 0 : n;
+              }).filter((n: number) => n > 0);
+            } else {
+              const num = parseInt(parsed.toString());
+              if (!isNaN(num)) {
+                sdgNumbers = [num];
+              }
+            }
+          } catch {
+            // If JSON parse fails, try direct parseInt
+            const num = parseInt(event.sdg);
+            if (!isNaN(num)) {
+              sdgNumbers = [num];
+            }
+          }
+        } else if (Array.isArray(event.sdg)) {
+          sdgNumbers = event.sdg.map((s: unknown) => {
+            if (typeof s === 'number') return s;
+            const n = parseInt(String(s));
+            return isNaN(n) ? 0 : n;
+          }).filter((n: number) => n > 0);
+        } else if (typeof event.sdg === 'number') {
+          sdgNumbers = [event.sdg];
         }
-        sdgStats[sdgNum].hours += p.hours || 0;
-        sdgStats[sdgNum].activities += 1;
+
+        // Count each SDG from this participation
+        sdgNumbers.forEach((sdgNum: number) => {
+          if (sdgNum >= 1 && sdgNum <= 17) {
+            if (!sdgStats[sdgNum]) {
+              sdgStats[sdgNum] = { hours: 0, activities: 0 };
+            }
+            sdgStats[sdgNum].hours += p.hours || 0;
+            sdgStats[sdgNum].activities += 1;
+          }
+        });
       }
     });
   });
 
-  return SDG_BADGE_CONFIGS.map(sdg => {
+    console.log(`[Badge Progress] Organization ${organizationId}: Processed ${totalParticipationsProcessed} participations, ${participationsFromPastEvents} from past events`);
+    console.log(`[Badge Progress] SDG Stats:`, JSON.stringify(sdgStats));
+  
+  // Debug: Log first few SDG badge progress entries
+  const sampleBadgeProgress = SDG_BADGE_CONFIGS.slice(0, 3).map(sdg => {
+    const stats = sdgStats[sdg.sdgNumber] || { hours: 0, activities: 0 };
+    const supporterTier = sdg.tiers['SUPPORTER' as keyof typeof sdg.tiers];
+    return {
+      sdgNumber: sdg.sdgNumber,
+      stats,
+      firstTier: {
+        tier: 'SUPPORTER',
+        hours: stats.hours,
+        activities: stats.activities,
+        minHours: supporterTier?.organization.minHours || 0,
+        minActivities: supporterTier?.organization.minActivities || 0
+      }
+    };
+  });
+  console.log(`[Badge Progress] Sample badge progress:`, JSON.stringify(sampleBadgeProgress, null, 2));
+
+  const badgeProgress = SDG_BADGE_CONFIGS.map(sdg => {
     const stats = sdgStats[sdg.sdgNumber] || { hours: 0, activities: 0 };
     
     const tiers = Object.entries(sdg.tiers).map(([tierKey, tierConfig]) => {
@@ -553,6 +720,16 @@ async function calculateOrgSDGProgress(
       tiers
     };
   });
+
+    console.log(`[Badge Progress] Organization ${organizationId}: Returning ${badgeProgress.length} SDG badges`);
+    return badgeProgress;
+  } catch (error) {
+    console.error(`[Badge Progress] Error in calculateOrgSDGProgress:`, error);
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    throw error; // Re-throw to be caught by caller
+  }
 }
 
 // Helper to get badges close to earning (>= 70% progress)

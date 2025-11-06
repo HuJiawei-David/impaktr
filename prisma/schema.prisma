@@ -124,6 +124,7 @@ model Organization {
   averageImpactScore   Float                      @default(0)
   carbonFootprint      Float?                     @default(0)
   city                 String?
+  state                String?
   companySize          String?
   country              String?
   currentPeriodEnd     DateTime?

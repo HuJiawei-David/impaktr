@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -127,29 +127,103 @@ interface UnifiedFeedProps {
   isOrganizationAdmin?: boolean; // Only show create post if user is admin
 }
 
+interface OrganizationPostResponse {
+  id: string;
+  content: string | null;
+  type: string;
+  visibility: string;
+  tags: string[] | null;
+  location: string | null;
+  sdg: string | null;
+  mediaUrls: string[] | null;
+  imageUrl: string | null;
+  isPinned: boolean;
+  createdAt: string;
+  author: {
+    id: string;
+    name: string;
+    avatar: string | null;
+    type: string;
+    tier: string | null;
+  };
+  stats: {
+    likes: number;
+    comments: number;
+    shares: number;
+  };
+  isLiked: boolean;
+}
+
 export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, organizationId, isOrganizationAdmin = false }: UnifiedFeedProps) {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const offsetRef = useRef(0);
   const [userReactions, setUserReactions] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    fetchFeed();
-  }, [type]);
-
-  const fetchFeed = async (loadMore = false) => {
+  const fetchFeed = useCallback(async (loadMore = false) => {
     try {
       setLoading(true);
-      const currentOffset = loadMore ? offset : 0;
+      const currentOffset = loadMore ? offsetRef.current : 0;
       
-      const response = await fetch(`/api/feed/unified?type=${type}&limit=${limit}&offset=${currentOffset}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch feed');
+      let response;
+      let data;
+      
+      // If organizationId is provided and type is organizations, use the organization posts endpoint
+      if (organizationId && type === 'organizations') {
+        response = await fetch(`/api/organization/posts?organizationId=${organizationId}&limit=${limit}&offset=${currentOffset}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch organization posts');
+        }
+        
+        const orgData = await response.json();
+        // Transform organization posts format to UnifiedFeed format
+        const transformedItems = orgData.posts.map((post: OrganizationPostResponse) => ({
+          id: post.id,
+          content: post.content,
+          type: post.type,
+          visibility: post.visibility,
+          mediaUrls: post.mediaUrls,
+          imageUrl: post.imageUrl,
+          tags: post.tags,
+          location: post.location,
+          sdg: post.sdg,
+          isPinned: post.isPinned,
+          createdAt: post.createdAt,
+          updatedAt: post.createdAt,
+          feedType: 'organization_post',
+          timestamp: post.createdAt,
+          organization: {
+            id: post.author.id,
+            name: post.author.name,
+            logo: post.author.avatar,
+            tier: post.author.tier,
+            type: post.author.type
+          },
+          interactions: {
+            likes: post.stats.likes,
+            comments: post.stats.comments,
+            shares: post.stats.shares || 0,
+            userHasLiked: post.isLiked
+          }
+        }));
+        
+        data = {
+          items: transformedItems,
+          hasMore: orgData.posts.length === limit,
+          total: transformedItems.length
+        };
+      } else {
+        // Use unified feed for other cases
+        response = await fetch(`/api/feed/unified?type=${type}&limit=${limit}&offset=${currentOffset}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch feed');
+        }
+        
+        data = await response.json();
       }
-      
-      const data = await response.json();
       
       if (loadMore) {
         setFeedItems(prev => [...prev, ...data.items]);
@@ -158,14 +232,22 @@ export function UnifiedFeed({ type = 'all', limit = 20, showCreatePost = false, 
       }
       
       setHasMore(data.hasMore);
-      setOffset(currentOffset + data.items.length);
+      const newOffset = currentOffset + data.items.length;
+      setOffset(newOffset);
+      offsetRef.current = newOffset;
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch feed');
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit, type, organizationId]);
+
+  useEffect(() => {
+    setOffset(0); // Reset offset when type or organizationId changes
+    offsetRef.current = 0;
+    fetchFeed();
+  }, [type, organizationId, fetchFeed]);
 
   const handleLoadMore = () => {
     fetchFeed(true);

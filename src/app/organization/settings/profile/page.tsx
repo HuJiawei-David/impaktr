@@ -2,10 +2,11 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
+import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { 
   Building2, 
@@ -25,8 +26,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { SDGSelector } from '@/components/ui/sdg-selector';
 import { industries, companySizes } from '@/constants/industries';
 import { countries } from '@/constants/countries';
+import { Target } from 'lucide-react';
 
 interface OrganizationProfile {
   name: string;
@@ -38,8 +41,10 @@ interface OrganizationProfile {
   country: string;
   address?: string;
   city?: string;
+  state?: string;
   phone?: string;
   logo?: string;
+  sdgFocusAreas?: number[];
 }
 
 interface OrganizationData {
@@ -53,8 +58,10 @@ interface OrganizationData {
   country: string;
   address?: string;
   city?: string;
+  state?: string;
   phone?: string;
   logo?: string;
+  sdgFocusAreas?: number[];
 }
 
 export default function OrganizationProfileSettingsPage() {
@@ -67,29 +74,27 @@ export default function OrganizationProfileSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSDGs, setSelectedSDGs] = useState<number[]>([]);
 
   const {
     register,
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors, isDirty }
   } = useForm<OrganizationProfile>();
 
   const watchedValues = watch();
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/signin');
-      return;
-    }
+  // Track if form has changes (including SDG changes)
+  const sdgHasChanged = organizationData?.sdgFocusAreas 
+    ? JSON.stringify([...selectedSDGs].sort()) !== JSON.stringify([...(organizationData.sdgFocusAreas || [])].sort())
+    : selectedSDGs.length > 0;
+  
+  const hasChanges = isDirty || sdgHasChanged;
 
-    if (user) {
-      fetchOrganizationData();
-    }
-  }, [isLoading, user, router]);
-
-  const fetchOrganizationData = async () => {
+  const fetchOrganizationData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/organizations/dashboard');
@@ -108,47 +113,126 @@ export default function OrganizationProfileSettingsPage() {
         throw new Error('Failed to fetch organization data');
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
+      const data = responseData.organization || responseData; // Handle both nested and flat responses
+      
+      console.log('[Settings] Fetched organization data:', data);
+      console.log('[Settings] SDG Focus Areas from API:', data.sdgFocusAreas, 'Type:', typeof data.sdgFocusAreas, 'Is Array:', Array.isArray(data.sdgFocusAreas));
+      
       setOrganizationData(data);
       
-      // Populate form
-      setValue('name', data.name);
-      setValue('email', data.email);
-      setValue('website', data.website || '');
-      setValue('description', data.description || '');
-      setValue('industry', data.industry);
-      setValue('companySize', data.companySize);
-      setValue('country', data.country);
-      setValue('address', data.address || '');
-      setValue('city', data.city || '');
-      setValue('phone', data.phone || '');
+      // Populate form with existing values
+      const formValues = {
+        name: data.name || '',
+        email: data.email || '',
+        website: data.website || '',
+        description: data.description || '',
+        industry: data.industry || '',
+        companySize: data.companySize || '',
+        country: data.country || '',
+        address: data.address || '',
+        city: data.city || '',
+        state: data.state || '',
+        phone: data.phone || '',
+      };
+      
+      console.log('[Settings] Populating form with values:', formValues);
+      
+      // Set all form values
+      Object.entries(formValues).forEach(([key, value]) => {
+        setValue(key as keyof OrganizationProfile, value as string);
+      });
+      
+      // Set SDG Focus Areas - ensure they are numbers
+      if (data.sdgFocusAreas && Array.isArray(data.sdgFocusAreas) && data.sdgFocusAreas.length > 0) {
+        // Convert to numbers in case they come as strings from the database
+        const sdgNumbers = data.sdgFocusAreas
+          .map((sdg: number | string) => typeof sdg === 'string' ? parseInt(sdg, 10) : sdg)
+          .filter((sdg: number) => !isNaN(sdg) && sdg >= 1 && sdg <= 17) as number[];
+        console.log('[Settings] Setting SDG Focus Areas:', sdgNumbers, 'from original:', data.sdgFocusAreas);
+        setSelectedSDGs(sdgNumbers);
+        setValue('sdgFocusAreas', sdgNumbers);
+      } else {
+        console.log('[Settings] No SDG Focus Areas found, setting empty array');
+        setSelectedSDGs([]);
+        setValue('sdgFocusAreas', []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       console.error('Error fetching organization data:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [router, setValue]);
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/signin');
+      return;
+    }
+
+    if (user) {
+      fetchOrganizationData();
+    }
+  }, [isLoading, user, router, fetchOrganizationData]);
 
   const onSubmit = async (data: OrganizationProfile) => {
     setSaving(true);
+    setError(null);
+    
     try {
+      const submitData = {
+        ...data,
+        sdgFocusAreas: selectedSDGs,
+      };
+      
+      console.log('[Settings] Submitting data:', submitData);
+      
       const response = await fetch('/api/organizations/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(submitData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update organization profile');
+        // Try to get error details from response
+        const text = await response.text();
+        console.error('[Settings] Profile update API error:', response.status);
+        console.error('[Settings] Response text:', text);
+        
+        try {
+          const errorData = JSON.parse(text);
+          console.error('[Settings] Error data:', errorData);
+          throw new Error(errorData.error || errorData.details || `Failed to update profile: ${response.status}`);
+        } catch (e) {
+          console.error('[Settings] Could not parse error response as JSON');
+          throw new Error(`Failed to update profile: ${response.status} - ${text.substring(0, 100)}`);
+        }
       }
 
-      toast.success('Organization profile updated successfully!');
-      fetchOrganizationData(); // Refresh data
+      const result = await response.json();
+      console.log('[Settings] Profile updated successfully:', result);
+      
+      // Update selectedSDGs to match saved data
+      if (result.organization?.sdgFocusAreas) {
+        setSelectedSDGs(result.organization.sdgFocusAreas);
+      }
+      
+      // Reset form dirty state with the saved data
+      reset(submitData);
+      
+      // Show success message
+      toast.success('Organization profile updated successfully! Your changes have been saved.');
+      
+      // Refresh data to ensure everything is synced
+      await fetchOrganizationData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update profile');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update profile';
+      console.error('[Settings] Error updating profile:', err);
+      setError(errorMessage);
+      toast.error(`Failed to update profile: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -211,9 +295,10 @@ export default function OrganizationProfileSettingsPage() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => router.back()}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
@@ -221,9 +306,20 @@ export default function OrganizationProfileSettingsPage() {
             <div>
               <h1 className="text-3xl font-bold">Organization Profile</h1>
               <p className="text-muted-foreground">
-                Update your organization's profile information
+                Update your organization&apos;s profile information
               </p>
             </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button 
+              onClick={handleSubmit(onSubmit)}
+              disabled={saving || !hasChanges}
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
           </div>
         </div>
 
@@ -241,9 +337,11 @@ export default function OrganizationProfileSettingsPage() {
               <div className="flex items-center space-x-6">
                 <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
                   {organizationData.logo ? (
-                    <img
+                    <Image
                       src={organizationData.logo}
                       alt="Organization logo"
+                      width={80}
+                      height={80}
                       className="w-full h-full object-cover rounded-lg"
                     />
                   ) : (
@@ -332,7 +430,7 @@ export default function OrganizationProfileSettingsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label htmlFor="industry">Industry *</Label>
                   <SearchableSelect
@@ -358,6 +456,37 @@ export default function OrganizationProfileSettingsPage() {
                     onValueChange={(value) => setValue('companySize', value)}
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Location */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <MapPin className="w-6 h-6 mr-2" />
+                Location
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    {...register('city')}
+                    placeholder="City name"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="state">State/Province</Label>
+                  <Input
+                    id="state"
+                    {...register('state')}
+                    placeholder="State or Province"
+                  />
+                </div>
 
                 <div>
                   <Label htmlFor="country">Country *</Label>
@@ -376,34 +505,27 @@ export default function OrganizationProfileSettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Location */}
+          {/* SDG Focus Areas */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
-                <MapPin className="w-6 h-6 mr-2" />
-                Location
+                <Target className="w-6 h-6 mr-2" />
+                SDG Focus Areas
               </CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                Select the UN Sustainable Development Goals that align with your organization&apos;s mission and activities
+              </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    {...register('address')}
-                    placeholder="Street address"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    {...register('city')}
-                    placeholder="City name"
-                  />
-                </div>
-              </div>
+            <CardContent>
+              <SDGSelector
+                selectedSDGs={selectedSDGs}
+                onSelectionChange={(sdgs) => {
+                  setSelectedSDGs(sdgs);
+                  setValue('sdgFocusAreas', sdgs, { shouldDirty: true });
+                }}
+                maxSelection={17}
+                showSelectAll={true}
+              />
             </CardContent>
           </Card>
 
@@ -416,7 +538,11 @@ export default function OrganizationProfileSettingsPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !isDirty} className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white">
+            <Button 
+              type="submit" 
+              disabled={saving || !hasChanges} 
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>

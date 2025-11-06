@@ -336,9 +336,9 @@ export default function OrganizationOpportunitiesPage() {
 
   return (
     <div className="min-h-screen bg-background pt-[10px]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-[22px] pb-8">
         {/* Header */}
-        <div className="pt-2 pb-6">
+        <div className="pb-6">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">

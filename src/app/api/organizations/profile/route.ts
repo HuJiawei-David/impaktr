@@ -179,6 +179,35 @@ export async function GET(request: NextRequest) {
         .filter((sdg): sdg is number => sdg !== null && !isNaN(sdg))
     )];
 
+    // Calculate SDG participation (count events per SDG from all events, not just upcoming)
+    const allEvents = await prisma.event.findMany({
+      where: {
+        organizationId: organizationId
+      },
+      select: {
+        sdg: true
+      }
+    });
+
+    // Count events per SDG
+    const sdgParticipationMap = new Map<number, number>();
+    allEvents.forEach(event => {
+      if (event.sdg) {
+        const sdgNumber = typeof event.sdg === 'string' ? parseInt(event.sdg) : event.sdg;
+        if (!isNaN(sdgNumber) && sdgNumber >= 1 && sdgNumber <= 17) {
+          sdgParticipationMap.set(sdgNumber, (sdgParticipationMap.get(sdgNumber) || 0) + 1);
+        }
+      }
+    });
+
+    // Convert to array format matching individual profile
+    const sdgParticipations = Array.from(sdgParticipationMap.entries())
+      .map(([sdgNumber, eventCount]) => ({
+        sdgNumber,
+        eventCount
+      }))
+      .sort((a, b) => b.eventCount - a.eventCount); // Sort by event count descending
+
     // Get follower count
     const followerCount = await prisma.follow.count({
       where: {
@@ -240,6 +269,7 @@ export async function GET(request: NextRequest) {
       description: organization.description,
       type: organization.type,
       city: organization.city,
+      state: organization.state,
       country: organization.country,
       website: organization.website,
       email: organization.email,
@@ -268,7 +298,9 @@ export async function GET(request: NextRequest) {
       totalHours: totalHours._sum.hours || 0,
       isFollowing: organization.followers.length > 0,
       followerCount: followerCount,
-      sdgs: sdgs,
+      sdgs: organization.sdgFocusAreas && organization.sdgFocusAreas.length > 0 ? organization.sdgFocusAreas : sdgs, // Use sdgFocusAreas from registration if available, otherwise derive from events
+      sdgFocusAreas: organization.sdgFocusAreas || [],
+      sdgParticipations: sdgParticipations,
       badges: organization.corporateBadges.map(cb => ({
         id: cb.badgeId,
         name: cb.badge.name,
@@ -390,6 +422,103 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching organization profile:', error);
     return NextResponse.json(
       { error: 'Failed to fetch organization profile' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get the user's organization
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      include: {
+        organizationMemberships: {
+          include: {
+            organization: true
+          }
+        }
+      }
+    });
+
+    if (!user || !user.organizationMemberships || user.organizationMemberships.length === 0) {
+      return NextResponse.json({ error: 'Not part of any organization' }, { status: 404 });
+    }
+
+    const organizationId = user.organizationMemberships[0].organizationId;
+    const membership = user.organizationMemberships[0];
+
+    // Check if user is admin or owner
+    if (membership.role !== 'admin' && membership.role !== 'owner') {
+      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    console.log('[API] Received update request:', { organizationId, body });
+    
+    const {
+      name,
+      email,
+      website,
+      description,
+      industry,
+      companySize,
+      country,
+      address,
+      city,
+      state,
+      phone,
+      sdgFocusAreas
+    } = body;
+
+    // Build update data object - only include defined fields
+    const updateData: Record<string, unknown> = {};
+    
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (website !== undefined) updateData.website = website || null; // Allow empty string to clear
+    if (description !== undefined) updateData.description = description || null;
+    if (industry !== undefined) updateData.industry = industry || null;
+    if (companySize !== undefined) updateData.companySize = companySize || null;
+    if (country !== undefined) updateData.country = country || null;
+    if (address !== undefined) updateData.address = address || null;
+    if (city !== undefined) updateData.city = city || null;
+    if (state !== undefined) updateData.state = state || null;
+    if (phone !== undefined) updateData.phone = phone || null;
+    if (sdgFocusAreas !== undefined) {
+      updateData.sdgFocusAreas = Array.isArray(sdgFocusAreas) ? sdgFocusAreas : [];
+    }
+
+    console.log('[API] Update data:', updateData);
+
+    // Update organization
+    const updatedOrganization = await prisma.organization.update({
+      where: { id: organizationId },
+      data: updateData
+    });
+
+    console.log('[API] Organization updated successfully');
+
+    return NextResponse.json({ 
+      message: 'Organization profile updated successfully',
+      organization: updatedOrganization
+    });
+  } catch (error) {
+    console.error('[API] Error updating organization profile:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('[API] Error details:', errorDetails);
+    
+    return NextResponse.json(
+      { 
+        error: 'Failed to update organization profile',
+        details: errorMessage
+      },
       { status: 500 }
     );
   }

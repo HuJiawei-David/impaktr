@@ -327,6 +327,35 @@ export async function GET(
           .filter(badge => badge.sdgNumber !== null)
           .map(badge => badge.sdgNumber) || [];
 
+    // Calculate SDG participation (count events per SDG from all events)
+    const allEventsForSDG = await prisma.event.findMany({
+      where: {
+        organizationId: id
+      },
+      select: {
+        sdg: true
+      }
+    });
+
+    // Count events per SDG
+    const sdgParticipationMap = new Map<number, number>();
+    allEventsForSDG.forEach(event => {
+      if (event.sdg) {
+        const sdgNumber = typeof event.sdg === 'string' ? parseInt(event.sdg) : event.sdg;
+        if (!isNaN(sdgNumber) && sdgNumber >= 1 && sdgNumber <= 17) {
+          sdgParticipationMap.set(sdgNumber, (sdgParticipationMap.get(sdgNumber) || 0) + 1);
+        }
+      }
+    });
+
+    // Convert to array format matching individual profile
+    const sdgParticipations = Array.from(sdgParticipationMap.entries())
+      .map(([sdgNumber, eventCount]) => ({
+        sdgNumber,
+        eventCount
+      }))
+      .sort((a, b) => b.eventCount - a.eventCount); // Sort by event count descending
+
     // Calculate additional stats
     const memberCount = organization._count.members;
     const eventCount = organization._count.events;
@@ -362,6 +391,7 @@ export async function GET(
       pastEvents,
       badges: organization.corporateBadges?.map(cb => cb.badge) || [],
       sdgs: sdgFocusAreas, // Use actual SDG focus areas from registration or earned badges
+      sdgParticipations: sdgParticipations,
       isFollowing,
       esgData // Add real ESG data
     };

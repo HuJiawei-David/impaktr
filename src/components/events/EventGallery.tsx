@@ -206,7 +206,7 @@ export function EventGallery({
           {canUpload && (
             <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Photos
                 </Button>
@@ -279,7 +279,11 @@ export function EventGallery({
                         >
                           Clear
                         </Button>
-                        <Button onClick={handleUpload} disabled={isUploading}>
+                        <Button 
+                          onClick={handleUpload} 
+                          disabled={isUploading}
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                        >
                           {isUploading ? 'Uploading...' : 'Upload Photos'}
                         </Button>
                       </div>
@@ -342,7 +346,10 @@ export function EventGallery({
                 }
               </p>
               {canUpload && (
-                <Button onClick={() => setShowUploadDialog(true)}>
+                <Button 
+                  onClick={() => setShowUploadDialog(true)}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Add First Photo
                 </Button>

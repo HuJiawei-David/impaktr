@@ -32,8 +32,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getSDGById } from '@/constants/sdgs';
-import { getSDGColor } from '@/lib/utils';
+import { getSDGById, getSDGColor } from '@/constants/sdgs';
 import { 
   getSDGBadgeImage,
   getRankBadgeImage
@@ -1185,53 +1184,62 @@ function ProfilePageContent() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="relative space-y-6">
-                  {/* Current Rank - Large Display */}
-                  <div className="text-center py-6 px-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4 shadow-lg">
-                      <Award className="w-10 h-10 text-white" />
+                  {/* Line 1: Current Rank on Left, Stats on Right */}
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Left: Current Rank */}
+                    <div className="text-center py-6 px-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
+                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4 shadow-lg">
+                        <Award className="w-10 h-10 text-white" />
+                      </div>
+                      <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                        {profile.currentRank}
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        Current Rank
+                      </p>
                     </div>
-                    <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                      {profile.currentRank}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                      Current Rank
-                    </p>
+
+                    {/* Right: Stats Stacked (3 cards) */}
+                    <div className="space-y-3">
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                          <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Impact Score</div>
+                          <div className="text-xl font-bold text-gray-900 dark:text-white">
+                            {profile.impaktrScore.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
+                          <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Hours</div>
+                          <div className="text-xl font-bold text-gray-900 dark:text-white">
+                            {profile.stats?.totalHours || 0}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                          <Calendar className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Events</div>
+                          <div className="text-xl font-bold text-gray-900 dark:text-white">
+                            {profile.stats?.eventsJoined || 0}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 text-center">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-2">
-                        <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                        {profile.impaktrScore.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Impact Score</div>
-                    </div>
-                    
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 text-center">
-                      <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mx-auto mb-2">
-                        <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                        {profile.stats?.totalHours || 0}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Hours</div>
-                    </div>
-                    
-                    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 text-center">
-                      <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-2">
-                        <Calendar className="w-5 h-5 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                        {profile.stats?.eventsJoined || 0}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Events</div>
-                    </div>
-                  </div>
-
-                  {/* Next Rank Progress */}
+                  {/* Line 2: Next Rank on Left, Circular Progress and Stats on Right */}
                   {badgeProgressLoading ? (
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
                       <div className="animate-pulse space-y-4">
@@ -1241,42 +1249,86 @@ function ProfilePageContent() {
                     </div>
                   ) : badgeProgressData?.rankProgress?.nextRank ? (
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
-                      <div className="flex items-center justify-between mb-4">
-                      <div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Next Rank</p>
-                          <Badge className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold">
-                            {badgeProgressData.rankProgress.nextRank.name}
-                            </Badge>
+                      <div className="grid grid-cols-2 gap-8">
+                        {/* Left: Next Rank */}
+                        <div className="flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 mb-4 shadow-lg">
+                              <TrendingUp className="w-10 h-10 text-white" />
+                            </div>
+                            <h4 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                              {badgeProgressData.rankProgress.nextRank.name}
+                            </h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                              Next Rank
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                            {Math.round((badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100)}%
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">Complete</p>
-                      </div>
-                  </div>
-                      <Progress 
-                        value={(badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100} 
-                        className="h-3 mb-4" 
-                      />
-                      <div className="grid grid-cols-3 gap-3 text-xs">
-                        <div className="text-center">
-                          <p className="font-semibold text-gray-900 dark:text-white">
-                            {badgeProgressData.rankProgress.currentProgress.score}/{badgeProgressData.rankProgress.nextRank.requirements.minScore}
-                          </p>
-                          <p className="text-gray-600 dark:text-gray-400">Score</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-semibold text-gray-900 dark:text-white">
-                            {badgeProgressData.rankProgress.currentProgress.hours}/{badgeProgressData.rankProgress.nextRank.requirements.minHours}
-                          </p>
-                          <p className="text-gray-600 dark:text-gray-400">Hours</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-semibold text-gray-900 dark:text-white">
-                            {badgeProgressData.rankProgress.currentProgress.badges}/{badgeProgressData.rankProgress.nextRank.requirements.minBadges}
-                          </p>
-                          <p className="text-gray-600 dark:text-gray-400">Badges</p>
+
+                        {/* Right: Circular Progress and Stats */}
+                        <div className="flex flex-col items-center space-y-6">
+                          {/* Circular Progress */}
+                          <div className="relative w-40 h-40">
+                            <svg className="w-full h-full transform -rotate-90">
+                              <circle
+                                cx="80"
+                                cy="80"
+                                r="70"
+                                stroke="currentColor"
+                                strokeWidth="10"
+                                fill="none"
+                                className="text-gray-200 dark:text-gray-700"
+                              />
+                              <circle
+                                cx="80"
+                                cy="80"
+                                r="70"
+                                stroke="url(#gradient-profile)"
+                                strokeWidth="10"
+                                fill="none"
+                                strokeDasharray={`${2 * Math.PI * 70}`}
+                                strokeDashoffset={`${2 * Math.PI * 70 * (1 - ((badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore)))}`}
+                                strokeLinecap="round"
+                                className="transition-all duration-500"
+                              />
+                              <defs>
+                                <linearGradient id="gradient-profile" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#8B5CF6" />
+                                  <stop offset="100%" stopColor="#3B82F6" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="text-center">
+                                <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                                  {Math.round((badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100)}%
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">Complete</div>
+                              </div>
+                            </div>
+                          </div>
+
+                            {/* Stats Grid - 3 stats */}
+                            <div className="grid grid-cols-3 gap-3 w-full">
+                              <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Score</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {badgeProgressData.rankProgress.currentProgress.score}/{badgeProgressData.rankProgress.nextRank.requirements.minScore}
+                                </p>
+                              </div>
+                              <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Hours</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {badgeProgressData.rankProgress.currentProgress.hours}/{badgeProgressData.rankProgress.nextRank.requirements.minHours}
+                                </p>
+                              </div>
+                              <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Badges</p>
+                                <p className="text-sm font-bold text-gray-900 dark:text-white">
+                                  {badgeProgressData.rankProgress.currentProgress.badges}/{badgeProgressData.rankProgress.nextRank.requirements.minBadges}
+                                </p>
+                              </div>
+                            </div>
                         </div>
                       </div>
                     </div>
@@ -1429,6 +1481,14 @@ function ProfilePageContent() {
                             return tierInfo[tier as keyof typeof tierInfo] || tierInfo.SUPPORTER;
                           };
 
+                          const getTierBadgeColorClass = (tier: string) => {
+                            if (tier === 'SUPPORTER') return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+                            if (tier === 'BUILDER') return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+                            if (tier === 'CHAMPION') return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+                            if (tier === 'GUARDIAN') return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
+                            return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+                          };
+
                           return (
                             <Card key={sdgBadge.sdgNumber} className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg ${
                               currentTier ? 'ring-2 ring-primary/20 bg-primary/5' : 
@@ -1452,92 +1512,116 @@ function ProfilePageContent() {
                               <CardContent className="p-6">
                                 {/* Header: SDG Badge Centered */}
                                 <div className="text-center mb-4">
-                                  <div className="flex flex-col justify-center items-center gap-2 mb-4">
-                                    <Badge 
-                                      variant="outline" 
-                                      className="px-3 py-1 text-sm inline-flex items-center gap-1.5 whitespace-nowrap"
-                                      style={{ borderColor: sdgInfo?.color || '#000' }}
-                                    >
-                                      {sdgInfo && (
-                                        <Image 
-                                          src={sdgInfo.image || ''} 
-                                          alt={`SDG ${sdgBadge.sdgNumber}`}
-                                          width={16}
-                                          height={16}
-                                          className="w-4 h-4 flex-shrink-0"
-                                          onError={(e) => {
-                                            const target = e.target as HTMLImageElement;
-                                            target.style.display = 'none';
-                                          }}
-                                        />
-                                      )}
-                                      <span className="font-semibold">SDG {sdgBadge.sdgNumber}</span>
-                                    </Badge>
-                                    <Badge 
-                                      variant="outline" 
-                                      className="px-3 py-1 text-sm"
-                                      style={{ 
-                                        borderColor: sdgInfo?.color || '#000',
-                                        backgroundColor: sdgInfo?.color ? `${sdgInfo.color}20` : 'transparent'
-                                      }}
-                                    >
-                                      <span className="text-gray-600 dark:text-gray-400">{sdgBadge.sdgName}</span>
-                                    </Badge>
-                                  </div>
-                                  <div className="flex justify-center my-4">
-                                    <div className="relative w-20 h-20">
+                                  {/* Line 1: Left - Rank badge, Right - SDG number and name */}
+                                  <div className="flex items-center gap-4 mb-4">
+                                    {/* Left: SDG rank badge */}
+                                    <div className="relative w-16 h-16 rounded-2xl flex-shrink-0 overflow-hidden shadow-lg ring-2 ring-white dark:ring-gray-800 group-hover:ring-purple-200 dark:group-hover:ring-purple-800 transition-all">
                                       {currentTier ? (
                                         <Image
                                           src={getSDGBadgeImage(sdgBadge.sdgNumber, currentTier.tier as 'SUPPORTER' | 'BUILDER' | 'CHAMPION' | 'GUARDIAN')}
                                           alt={`${currentTier.name} - SDG ${sdgBadge.sdgNumber}`}
-                                          width={80}
-                                          height={80}
-                                          className="w-full h-full object-contain"
+                                          width={64}
+                                          height={64}
+                                          className="w-full h-full object-cover"
                                         />
                                       ) : nextTier ? (
-                                        <Image 
+                                        <Image
                                           src={getSDGBadgeImage(sdgBadge.sdgNumber, nextTier.tier as 'SUPPORTER' | 'BUILDER' | 'CHAMPION' | 'GUARDIAN')}
                                           alt={`${nextTier.name} - SDG ${sdgBadge.sdgNumber}`}
-                                          width={80}
-                                          height={80}
-                                          className="w-full h-full object-contain opacity-50"
+                                          width={64}
+                                          height={64}
+                                          className="w-full h-full object-cover opacity-50"
+                                        />
+                                      ) : sdgInfo ? (
+                                        <Image 
+                                          src={sdgInfo.image} 
+                                          alt={`SDG ${sdgBadge.sdgNumber}`}
+                                          width={64}
+                                          height={64}
+                                          className="w-full h-full object-cover opacity-50 grayscale group-hover:grayscale-0 transition-all"
                                         />
                                       ) : (
-                                        <div className="w-full h-full bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center">
+                                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
                                           <Award className="w-8 h-8 text-gray-400" />
                                         </div>
                                       )}
+                                      {earnedTiers.length > 0 && (
+                                        <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                                          <Star className="w-4 h-4 text-white fill-white" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Right: SDG number (smaller) with colored badge + SDG name (bigger, bold, colored) */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Badge 
+                                          className="text-xs px-2 py-0.5 font-medium"
+                                          style={{ 
+                                            backgroundColor: sdgInfo?.color || '#666',
+                                            color: 'white',
+                                            border: 'none'
+                                          }}
+                                        >
+                                          SDG {sdgBadge.sdgNumber}
+                                        </Badge>
+                                      </div>
+                                      <h4 
+                                        className="font-bold text-lg text-gray-900 dark:text-white"
+                                        style={{ color: sdgInfo?.color || undefined }}
+                                      >
+                                        {sdgBadge.sdgName}
+                                      </h4>
                                     </div>
                                   </div>
-                                  
-                                  {/* Badge Name and Tier */}
-                                  <div className="mb-4 space-y-2">
-                                    {(currentTier || nextTier) && (() => {
-                                      const tier = (currentTier || nextTier)!;
-                                      const tierData = getTierInfo(tier.tier);
-                                      return (
-                                        <>
-                                          <div className="font-bold text-xl text-gray-900 dark:text-white">
-                                            {tier.name}
-                                          </div>
-                                          <div>
-                                            <Badge className={`text-xs ${tierData.color}`}>
-                                              {tier.tier}
-                                            </Badge>
-                                          </div>
-                                        </>
-                                      );
-                                    })()}
-                                  </div>
+
+                                  {/* Line 2: Divider */}
+                                  <div className="border-t border-gray-200 dark:border-gray-700 mb-4"></div>
+
+                                  {/* Line 3: In Progress badge (centered) */}
+                                  {totalHours > 0 || totalActivities > 0 ? (
+                                    <div className="flex justify-center mb-4">
+                                      <Badge className="text-xs px-3 py-1 font-semibold bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-900 dark:from-yellow-900/50 dark:to-orange-900/50 dark:text-yellow-200 border-0">
+                                        In Progress
+                                      </Badge>
+                                    </div>
+                                  ) : currentTier ? (
+                                    <div className="flex justify-center mb-4">
+                                      <Badge className={`text-xs px-3 py-1 font-semibold ${getTierBadgeColorClass(currentTier.tier)}`}>
+                                        {currentTier.name}
+                                      </Badge>
+                                    </div>
+                                  ) : (
+                                    <div className="flex justify-center mb-4">
+                                      <Badge className="text-xs px-3 py-1 bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 border-0">
+                                        Not Started
+                                      </Badge>
+                                    </div>
+                                  )}
+
+                                  {/* Line 4: Rank name in bigger and bold black font */}
+                                  {nextTier && (
+                                    <div className="mb-2">
+                                      <h5 className="text-xl font-bold text-gray-900 dark:text-white text-center">
+                                        {nextTier.name}
+                                      </h5>
+                                    </div>
+                                  )}
+                                  {currentTier && !nextTier && (
+                                    <div className="mb-2">
+                                      <h5 className="text-xl font-bold text-gray-900 dark:text-white text-center">
+                                        {currentTier.name}
+                                      </h5>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Progress Section */}
                                 {!currentTier && nextTier && (
-                                  <div className="space-y-3 mb-4">
+                                  <div className="space-y-2 mb-4">
                                     {/* Overall Progress */}
                                     <div>
-                                      <div className="flex items-center justify-between text-sm mb-1">
-                                        <span className="text-muted-foreground">Progress to {nextTier.name}</span>
+                                      <div className="flex items-center justify-end text-sm mb-1">
                                         <span className="font-medium">{Math.round(nextTier.progress.percentage)}%</span>
                                       </div>
                                       <Progress value={nextTier.progress.percentage} className="h-2" />
@@ -1589,7 +1673,35 @@ function ProfilePageContent() {
                     </div>
                   </CardContent>
                 </Card>
-              ) : null}
+              ) : (
+                <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="w-5 h-5 text-purple-600" />
+                      SDG Badge Progress
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 flex items-center justify-center">
+                        <Target className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        No Badges in Progress
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                        Start creating an impact by participating in events to earn SDG badges and track your progress!
+                      </p>
+                      <Link href="/events">
+                        <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0">
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Explore Events
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Achievement Summary */}
               <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30">
@@ -1913,17 +2025,64 @@ function ProfilePageContent() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="relative">
-                {/* Current Rank - Large Display */}
-                <div className="text-center py-6 px-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-4 shadow-lg">
-                    <Award className="w-10 h-10 text-white" />
+                {/* Current Rank and Next Rank - Side by Side */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                  {/* Current Rank Card */}
+                  <div className="text-center py-4 px-3 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-3 shadow-lg">
+                      <Award className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+                      {profile.currentRank}
+                    </h3>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                      Current
+                    </p>
                   </div>
-                  <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                    {profile.currentRank}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                    Current Rank
-                  </p>
+
+                  {/* Next Rank Card */}
+                  {badgeProgressLoading ? (
+                    <div className="text-center py-4 px-3 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
+                      <div className="animate-pulse space-y-3">
+                        <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 mx-auto"></div>
+                        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mx-auto"></div>
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto"></div>
+                      </div>
+                    </div>
+                  ) : badgeProgressData?.rankProgress?.nextRank ? (
+                    <div className="text-center py-4 px-3 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-100 dark:border-gray-700 shadow-sm">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 mb-3 shadow-lg">
+                        <TrendingUp className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
+                        {badgeProgressData.rankProgress.nextRank.name}
+                      </h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-2">
+                        Next
+                      </p>
+                      <div className="space-y-1.5">
+                        <div className="text-sm font-bold text-gray-900 dark:text-white">
+                          {Math.round((badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100)}%
+                        </div>
+                        <Progress 
+                          value={(badgeProgressData.rankProgress.currentProgress.score / badgeProgressData.rankProgress.nextRank.requirements.minScore) * 100} 
+                          className="h-1.5" 
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 px-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-xl border-2 border-yellow-200 dark:border-yellow-800 shadow-sm">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 mb-3 shadow-lg">
+                        <Star className="w-8 h-8 text-white fill-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-yellow-900 dark:text-yellow-200 mb-1">
+                        Max
+                      </h3>
+                      <p className="text-xs text-yellow-800 dark:text-yellow-300 font-medium">
+                        Highest Rank
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <Link href="/profile/badges" className="block mt-4">
                   <Button 
