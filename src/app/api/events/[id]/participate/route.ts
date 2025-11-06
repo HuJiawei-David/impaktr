@@ -11,6 +11,11 @@ const participateSchema = z.object({
   notes: z.string().optional(),
   motivation: z.string().optional(),
   skills: z.string().optional(),
+  emergencyContact: z.object({
+    name: z.string().optional(),
+    phone: z.string().optional(),
+    relationship: z.string().optional(),
+  }).optional(),
 });
 
 const updateParticipationSchema = z.object({
@@ -32,7 +37,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { hoursCommitted, notes, motivation, skills } = participateSchema.parse(body);
+    const { hoursCommitted, notes, motivation, skills, emergencyContact } = participateSchema.parse(body);
     
     // Store registration info as structured JSON in feedback field
     // This allows us to parse it later for display in admin approval section
@@ -41,12 +46,18 @@ export async function POST(
       skills?: string;
       notes?: string;
       hoursCommitted?: number;
+      emergencyContact?: {
+        name?: string;
+        phone?: string;
+        relationship?: string;
+      };
     } = {};
     
     if (motivation) registrationInfo.motivation = motivation;
     if (skills) registrationInfo.skills = skills;
     if (notes) registrationInfo.notes = notes;
     if (hoursCommitted) registrationInfo.hoursCommitted = hoursCommitted;
+    if (emergencyContact) registrationInfo.emergencyContact = emergencyContact;
     
     // Store as JSON string for structured parsing, fallback to old format for backward compatibility
     const feedback = Object.keys(registrationInfo).length > 0 

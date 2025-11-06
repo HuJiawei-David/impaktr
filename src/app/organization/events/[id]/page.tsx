@@ -100,6 +100,11 @@ interface Participation {
     skills?: string;
     notes?: string;
     hoursCommitted?: number;
+    emergencyContact?: {
+      name?: string;
+      phone?: string;
+      relationship?: string;
+    };
   };
   user: {
     id: string;
@@ -1687,6 +1692,28 @@ export default function EventDetailPage() {
                                           </p>
                                         </div>
                                       )}
+                                      {participation.registrationInfo.emergencyContact && (
+                                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Emergency Contact:</p>
+                                          <div className="space-y-1 ml-4">
+                                            {participation.registrationInfo.emergencyContact.name && (
+                                              <p className="text-sm text-gray-900 dark:text-white">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400">Name:</span> {participation.registrationInfo.emergencyContact.name}
+                                              </p>
+                                            )}
+                                            {participation.registrationInfo.emergencyContact.phone && (
+                                              <p className="text-sm text-gray-900 dark:text-white">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400">Phone:</span> {participation.registrationInfo.emergencyContact.phone}
+                                              </p>
+                                            )}
+                                            {participation.registrationInfo.emergencyContact.relationship && (
+                                              <p className="text-sm text-gray-900 dark:text-white">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400">Relationship:</span> {participation.registrationInfo.emergencyContact.relationship}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                     </>
                                   )}
                                 </div>
@@ -2054,6 +2081,30 @@ export default function EventDetailPage() {
                                           })}
                                         </p>
                                       </div>
+
+                                      {/* Emergency Contact */}
+                                      {participation.registrationInfo?.emergencyContact && (
+                                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Emergency Contact:</p>
+                                          <div className="space-y-1 ml-4">
+                                            {participation.registrationInfo.emergencyContact.name && (
+                                              <p className="text-sm text-gray-900 dark:text-white">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400">Name:</span> {participation.registrationInfo.emergencyContact.name}
+                                              </p>
+                                            )}
+                                            {participation.registrationInfo.emergencyContact.phone && (
+                                              <p className="text-sm text-gray-900 dark:text-white">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400">Phone:</span> {participation.registrationInfo.emergencyContact.phone}
+                                              </p>
+                                            )}
+                                            {participation.registrationInfo.emergencyContact.relationship && (
+                                              <p className="text-sm text-gray-900 dark:text-white">
+                                                <span className="font-medium text-gray-600 dark:text-gray-400">Relationship:</span> {participation.registrationInfo.emergencyContact.relationship}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                     )}
                                   </CardContent>

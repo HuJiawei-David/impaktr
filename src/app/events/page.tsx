@@ -65,6 +65,7 @@ interface Event {
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   isFavorited?: boolean;
   isAttending?: boolean;
+  isPending?: boolean;
   distance?: number;
   trending?: boolean;
   featured?: boolean;
@@ -119,7 +120,8 @@ function EventsPageContent() {
     nearYou: 0,
     forYou: 0,
     favorites: 0,
-    attending: 0
+    attending: 0,
+    pending: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('near-you');
@@ -321,6 +323,7 @@ function EventsPageContent() {
           isFavorited: false,
           isBookmarked: event.isBookmarked || false,
           isAttending: event.isAttending || false, // Use the isAttending field from API
+          isPending: event.isPending || false, // Use the isPending field from API
           trending: false,
           featured: false
         };
@@ -368,6 +371,9 @@ function EventsPageContent() {
         break;
       case 'attending':
         filtered = eventList.filter(event => event.isAttending);
+        break;
+      case 'pending':
+        filtered = eventList.filter(event => event.isPending);
         break;
       case 'favorites':
         console.log('Filtering favorites from', eventList.length, 'events');
@@ -423,11 +429,15 @@ function EventsPageContent() {
     // Attending count
     const attendingCount = eventList.filter(event => event.isAttending).length;
 
+    // Pending count
+    const pendingCount = eventList.filter(event => event.isPending).length;
+
     setTabCounts({
       nearYou: nearYouCount,
       forYou: forYouCount,
       favorites: favoritesCount,
-      attending: attendingCount
+      attending: attendingCount,
+      pending: pendingCount
     });
   };
 
@@ -778,6 +788,17 @@ function EventsPageContent() {
                   >
                     <Users className="w-4 h-4 mr-2" />
                     Attending
+                  </button>
+                  <button
+                    onClick={() => handleTabChange('pending')}
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-200 px-5 py-2.5 ${
+                      activeTab === 'pending' 
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white' 
+                        : 'bg-transparent border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gradient-to-r hover:from-yellow-500 hover:to-orange-600 hover:text-white hover:border-transparent'
+                    }`}
+                  >
+                    <Clock className="w-4 h-4 mr-2" />
+                    Pending ({tabCounts.pending})
                   </button>
                   <button
                     onClick={() => handleTabChange('favorites')}

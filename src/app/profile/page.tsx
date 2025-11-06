@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -247,6 +247,7 @@ function ProfilePageContent() {
   const [leaderboardTotal, setLeaderboardTotal] = useState<number | null>(null);
   const [participations, setParticipations] = useState<any[]>([]);
   const [isLoadingParticipations, setIsLoadingParticipations] = useState(false);
+  const editParamProcessed = useRef(false);
 
   // Initialize and update activeTab from URL query parameter
   useEffect(() => {
@@ -256,6 +257,18 @@ function ProfilePageContent() {
     }
     // If no tab parameter, keep the current activeTab (default is 'about')
   }, [searchParams]);
+
+  // Check for edit query parameter to automatically enter edit mode
+  useEffect(() => {
+    const editFromUrl = searchParams?.get('edit');
+    if (editFromUrl === 'true' && !isEditing && !editParamProcessed.current) {
+      setIsEditing(true);
+      editParamProcessed.current = true;
+    } else if (editFromUrl !== 'true') {
+      // Reset the flag when edit param is removed
+      editParamProcessed.current = false;
+    }
+  }, [searchParams, isEditing]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -590,7 +603,15 @@ function ProfilePageContent() {
           await fetchProfile();
           // Keep user in edit mode after saving
         }}
-        onCancel={() => setIsEditing(false)}
+        onCancel={() => {
+          setIsEditing(false);
+          // Remove edit parameter from URL
+          const currentParams = new URLSearchParams(searchParams?.toString() || '');
+          currentParams.delete('edit');
+          const newSearch = currentParams.toString();
+          const newUrl = newSearch ? `/profile?${newSearch}` : '/profile';
+          router.replace(newUrl);
+        }}
       />
     );
   }

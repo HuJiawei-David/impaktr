@@ -1599,7 +1599,7 @@ export default function EventDetailPage() {
                           Please update your profile with these skills to register for this event.
                         </div>
                       </div>
-                      <Link href="/profile/edit">
+                      <Link href="/profile?edit=true">
                         <Button 
                           className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white border-0" 
                           size="lg"

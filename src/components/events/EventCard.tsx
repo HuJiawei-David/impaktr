@@ -97,6 +97,7 @@ interface Event {
   isBookmarked?: boolean;
   isFavorite?: boolean;
   isAttending?: boolean;
+  isPending?: boolean;
   distance?: number;
   sdgTags?: number[];
 }
@@ -295,7 +296,12 @@ export const EventCard = ({
               <span>{event.status === 'COMPLETED' ? 'participated' : 'participating'}</span>
             </div>
             
-            {event.isAttending && (
+            {event.isPending && (
+              <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
+                Pending
+              </Badge>
+            )}
+            {event.isAttending && !event.isPending && (
               <Badge variant="secondary" className="text-xs">
                 Attending
               </Badge>

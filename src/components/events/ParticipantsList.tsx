@@ -64,6 +64,17 @@ interface Participant {
   hoursActual?: number;
   status: 'PENDING' | 'REGISTERED' | 'CONFIRMED' | 'ATTENDED' | 'VERIFIED' | 'REJECTED' | 'CANCELLED';
   notes?: string;
+  registrationInfo?: {
+    motivation?: string;
+    skills?: string;
+    notes?: string;
+    hoursCommitted?: number;
+    emergencyContact?: {
+      name?: string;
+      phone?: string;
+      relationship?: string;
+    };
+  };
   proofImages: string[];
   qualityRating?: number;
   skillMultiplier: number;
@@ -674,6 +685,30 @@ export function ParticipantsList({
                         <p className="text-sm text-muted-foreground">
                           <strong>Notes:</strong> {participant.notes}
                         </p>
+                      </div>
+                    )}
+
+                    {/* Emergency Contact */}
+                    {participant.registrationInfo?.emergencyContact && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Emergency Contact:</p>
+                        <div className="space-y-1 ml-4">
+                          {participant.registrationInfo.emergencyContact.name && (
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              <span className="font-medium text-gray-600 dark:text-gray-400">Name:</span> {participant.registrationInfo.emergencyContact.name}
+                            </p>
+                          )}
+                          {participant.registrationInfo.emergencyContact.phone && (
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              <span className="font-medium text-gray-600 dark:text-gray-400">Phone:</span> {participant.registrationInfo.emergencyContact.phone}
+                            </p>
+                          )}
+                          {participant.registrationInfo.emergencyContact.relationship && (
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              <span className="font-medium text-gray-600 dark:text-gray-400">Relationship:</span> {participant.registrationInfo.emergencyContact.relationship}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </CardContent>

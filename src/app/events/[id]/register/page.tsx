@@ -19,6 +19,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'react-hot-toast';
 import { formatDate } from '@/lib/utils';
 import Link from 'next/link';
@@ -57,6 +64,9 @@ export default function EventRegisterPage() {
   const [hoursCommitted, setHoursCommitted] = useState<number>(2);
   const [motivation, setMotivation] = useState('');
   const [skills, setSkills] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [emergencyContactRelationship, setEmergencyContactRelationship] = useState('');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -118,6 +128,12 @@ export default function EventRegisterPage() {
       return;
     }
 
+    // Validate emergency contact fields
+    if (!emergencyContactName.trim() || !emergencyContactPhone.trim() || !emergencyContactRelationship) {
+      toast.error('Please fill in all emergency contact fields');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch(`/api/events/${event.id}/participate`, {
@@ -126,7 +142,12 @@ export default function EventRegisterPage() {
         body: JSON.stringify({
           hoursCommitted,
           motivation: motivation.trim() || undefined,
-          skills: skills.trim() || undefined
+          skills: skills.trim() || undefined,
+          emergencyContact: {
+            name: emergencyContactName.trim(),
+            phone: emergencyContactPhone.trim(),
+            relationship: emergencyContactRelationship
+          }
         })
       });
 
@@ -237,6 +258,66 @@ export default function EventRegisterPage() {
                       onChange={(e) => setSkills(e.target.value)}
                       placeholder="List any relevant skills or experience..."
                     />
+                  </div>
+
+                  {/* Emergency Contact Section */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <div>
+                      <Label className="text-base font-semibold">Emergency Contact</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Please provide an emergency contact person
+                      </p>
+                    </div>
+
+                    {/* Emergency Contact Name */}
+                    <div>
+                      <Label htmlFor="emergencyContactName">Contact Name *</Label>
+                      <Input
+                        id="emergencyContactName"
+                        type="text"
+                        value={emergencyContactName}
+                        onChange={(e) => setEmergencyContactName(e.target.value)}
+                        placeholder="Enter emergency contact name"
+                        required
+                      />
+                    </div>
+
+                    {/* Emergency Contact Phone */}
+                    <div>
+                      <Label htmlFor="emergencyContactPhone">Contact Phone *</Label>
+                      <Input
+                        id="emergencyContactPhone"
+                        type="tel"
+                        value={emergencyContactPhone}
+                        onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                        placeholder="Enter emergency contact phone number"
+                        required
+                      />
+                    </div>
+
+                    {/* Emergency Contact Relationship */}
+                    <div>
+                      <Label htmlFor="emergencyContactRelationship">Relationship *</Label>
+                      <Select
+                        value={emergencyContactRelationship}
+                        onValueChange={setEmergencyContactRelationship}
+                        required
+                      >
+                        <SelectTrigger id="emergencyContactRelationship">
+                          <SelectValue placeholder="Select relationship" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="friend">Friend</SelectItem>
+                          <SelectItem value="mother">Mother</SelectItem>
+                          <SelectItem value="father">Father</SelectItem>
+                          <SelectItem value="spouse">Spouse</SelectItem>
+                          <SelectItem value="sibling">Sibling</SelectItem>
+                          <SelectItem value="relative">Relative</SelectItem>
+                          <SelectItem value="colleague">Colleague</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   {/* Submit Button */}

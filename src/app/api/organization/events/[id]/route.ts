@@ -165,6 +165,11 @@ export async function GET(
             skills?: string;
             notes?: string;
             hoursCommitted?: number;
+            emergencyContact?: {
+              name?: string;
+              phone?: string;
+              relationship?: string;
+            };
           } | null = null;
           
           if (p.feedback) {

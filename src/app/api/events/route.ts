@@ -72,6 +72,8 @@ export async function GET(request: NextRequest) {
 
     // Get user's participations if logged in
     let userParticipations: string[] = [];
+    let userPendingParticipations: string[] = [];
+    let userAttendingParticipations: string[] = [];
     if (userId) {
       try {
         const participations = await prisma.participation.findMany({
@@ -81,12 +83,25 @@ export async function GET(request: NextRequest) {
               notIn: ['CANCELLED', 'REJECTED'] // Exclude cancelled and rejected participations
             }
           },
-          select: { eventId: true }
+          select: { eventId: true, status: true }
         });
         userParticipations = participations.map((p: { eventId: string }) => p.eventId);
+        // Separate pending (PENDING, REGISTERED) and attending (CONFIRMED, ATTENDED, VERIFIED) participations
+        userPendingParticipations = participations
+          .filter((p: { eventId: string; status: string }) => 
+            p.status === 'PENDING' || p.status === 'REGISTERED'
+          )
+          .map((p: { eventId: string }) => p.eventId);
+        userAttendingParticipations = participations
+          .filter((p: { eventId: string; status: string }) => 
+            p.status === 'CONFIRMED' || p.status === 'ATTENDED' || p.status === 'VERIFIED'
+          )
+          .map((p: { eventId: string }) => p.eventId);
       } catch (error) {
         // Participation query failed - default to empty array
         userParticipations = [];
+        userPendingParticipations = [];
+        userAttendingParticipations = [];
       }
     }
 
@@ -247,7 +262,8 @@ export async function GET(request: NextRequest) {
     const eventsWithBookmarks = events.map((event: { id: string; _count: { participations: number } }) => ({
       ...event,
       isBookmarked: userBookmarks.includes(event.id),
-      isAttending: userParticipations.includes(event.id), // Mark if user is a participant
+      isPending: userPendingParticipations.includes(event.id), // Mark if user has pending/registered participation
+      isAttending: userAttendingParticipations.includes(event.id), // Mark if user has confirmed/attended/verified participation
       currentParticipants: event._count.participations // Use the count of VERIFIED participations
     }));
 
