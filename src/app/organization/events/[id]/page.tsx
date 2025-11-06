@@ -221,6 +221,27 @@ export default function EventDetailPage() {
     return '-';
   };
 
+  // Helper function to check if event has ended
+  const eventHasEnded = (): boolean => {
+    if (!event) return false;
+    if (event.status === 'COMPLETED') return true;
+    if (event.endDate) {
+      const now = new Date();
+      const endDate = new Date(event.endDate);
+      return endDate < now;
+    }
+    return false;
+  };
+
+  // Helper function to get post-event verification participants
+  // Only show ATTENDED and VERIFIED participants (who have checked in)
+  // Participants who didn't check in (CONFIRMED) should not appear here
+  const getPostEventVerificationParticipants = (): Participation[] => {
+    if (!event?.participations) return [];
+    // Only show participants who have checked in (ATTENDED or VERIFIED)
+    return event.participations.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED');
+  };
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/signin');
@@ -624,7 +645,9 @@ export default function EventDetailPage() {
   // Select all pending participants
   const handleSelectAll = () => {
     if (!event?.participations) return;
-    const pendingParticipants = event.participations.filter(p => p.status === 'ATTENDED');
+    // In Post-Event Verification, only select ATTENDED participants (not CONFIRMED or VERIFIED)
+    // CONFIRMED participants haven't checked in yet, VERIFIED participants are already approved
+    const pendingParticipants = getPostEventVerificationParticipants().filter(p => p.status === 'ATTENDED');
     if (selectedParticipants.size === pendingParticipants.length) {
       // Deselect all
       setSelectedParticipants(new Set());
@@ -1501,7 +1524,7 @@ export default function EventDetailPage() {
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                       }`}
                     >
-                      Post-Event Verification ({event.participations?.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length || 0})
+                      Post-Event Verification ({getPostEventVerificationParticipants().length || 0})
                     </button>
                   </div>
 
@@ -1685,10 +1708,10 @@ export default function EventDetailPage() {
 
                   {activeTab === 'post-event-verification' && (
                     <>
-                      {event.participations && event.participations.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length > 0 ? (
+                      {getPostEventVerificationParticipants().length > 0 ? (
                         <>
                           <div className="flex items-center justify-end gap-2 mb-4">
-                            {event.participations.filter(p => p.status === 'ATTENDED').length > 0 && (
+                            {getPostEventVerificationParticipants().filter(p => p.status === 'ATTENDED').length > 0 && (
                               <>
                                 <Button
                                   variant="outline"
@@ -1696,7 +1719,7 @@ export default function EventDetailPage() {
                                   onClick={handleSelectAll}
                                   className="text-gray-600 dark:text-gray-400"
                                 >
-                                  {selectedParticipants.size === event.participations.filter(p => p.status === 'ATTENDED').length ? 'Deselect All' : 'Select All'}
+                                  {selectedParticipants.size === getPostEventVerificationParticipants().filter(p => p.status === 'ATTENDED').length ? 'Deselect All' : 'Select All'}
                                 </Button>
                                 <Button
                                   variant="default"
@@ -1739,8 +1762,7 @@ export default function EventDetailPage() {
                             </Button>
                           </div>
                           <div className="space-y-4">
-                            {event.participations
-                              .filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED')
+                            {getPostEventVerificationParticipants()
                               .slice(0, showAllVerifications ? undefined : 2)
                               .map((participation, index) => {
                             const isExpanded = expandedCards.has(participation.id);

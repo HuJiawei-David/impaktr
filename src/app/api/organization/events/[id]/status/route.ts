@@ -167,17 +167,9 @@ export async function PUT(
       }
 
       // All participants are VERIFIED, proceed with completion
-      // Auto-verify any remaining pending and confirmed participations (shouldn't happen but safety check)
-      await prisma.participation.updateMany({
-        where: {
-          eventId: id,
-          status: { in: ['PENDING', 'CONFIRMED'] }
-        },
-        data: {
-          status: 'VERIFIED',
-          verifiedAt: new Date()
-        }
-      });
+      // Note: PENDING and CONFIRMED participants who didn't check in should NOT be auto-verified
+      // They should remain in their current state (CONFIRMED means they didn't attend)
+      // Only participants who checked in (ATTENDED) can be verified (VERIFIED)
 
       // Create score history entries for all verified participants
       const verifiedParticipations = await prisma.participation.findMany({

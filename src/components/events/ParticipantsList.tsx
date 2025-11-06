@@ -100,6 +100,7 @@ export function ParticipantsList({
   const [filteredParticipants, setFilteredParticipants] = useState<Participant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [eventInfo, setEventInfo] = useState<{ endDate?: string | null; status?: string } | null>(null);
   
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
@@ -116,6 +117,9 @@ export function ParticipantsList({
       if (response.ok) {
         const data = await response.json();
         setParticipants(data.participants);
+        if (data.event) {
+          setEventInfo(data.event);
+        }
       }
     } catch (error) {
       console.error('Error fetching participants:', error);
@@ -128,6 +132,18 @@ export function ParticipantsList({
   const filterAndSortParticipants = useCallback(() => {
     let filtered = [...participants];
 
+    // Check if event has ended
+    const eventHasEnded = () => {
+      if (!eventInfo) return false;
+      if (eventInfo.status === 'COMPLETED') return true;
+      if (eventInfo.endDate) {
+        const now = new Date();
+        const endDate = new Date(eventInfo.endDate);
+        return endDate < now;
+      }
+      return false;
+    };
+
     // Filter by tab - New structure: Registration Approval vs Post-Event Verification vs Participant Management
     switch (activeTab) {
       case 'registration-approval':
@@ -136,7 +152,8 @@ export function ParticipantsList({
         filtered = filtered.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED');
         break;
       case 'post-event-verification':
-        // Show only ATTENDED and VERIFIED (post-event participation verification)
+        // Only show ATTENDED and VERIFIED participants (who have checked in)
+        // Participants who didn't check in (CONFIRMED) should not appear here
         // Admin needs to verify participation before granting VERIFIED status
         filtered = filtered.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED');
         break;
@@ -184,7 +201,7 @@ export function ParticipantsList({
     });
 
     setFilteredParticipants(filtered);
-  }, [participants, searchTerm, sortBy, activeTab]);
+  }, [participants, searchTerm, sortBy, activeTab, eventInfo]);
 
   useEffect(() => {
     fetchParticipants();
@@ -326,10 +343,25 @@ export function ParticipantsList({
   };
 
   const getStatusCounts = () => {
+    // Check if event has ended
+    const eventHasEnded = () => {
+      if (!eventInfo) return false;
+      if (eventInfo.status === 'COMPLETED') return true;
+      if (eventInfo.endDate) {
+        const now = new Date();
+        const endDate = new Date(eventInfo.endDate);
+        return endDate < now;
+      }
+      return false;
+    };
+
+    // For Post-Event Verification, only count ATTENDED and VERIFIED participants (who have checked in)
+    const postEventVerificationCount = participants.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length;
+
     return {
       registrationApproval: participants.filter(p => p.status === 'PENDING' || p.status === 'REGISTERED').length,
       participantManagement: participants.filter(p => p.status !== 'REJECTED' && p.status !== 'CANCELLED').length,
-      postEventVerification: participants.filter(p => p.status === 'ATTENDED' || p.status === 'VERIFIED').length,
+      postEventVerification: postEventVerificationCount,
       rejected: participants.filter(p => p.status === 'REJECTED').length,
     };
   };

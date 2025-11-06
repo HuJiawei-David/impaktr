@@ -142,23 +142,6 @@ export default function ParticipantCertificatePage() {
     }
   };
 
-  // Helper function to calculate age from date of birth
-  const calculateAge = (dateOfBirth: string | null | undefined): string => {
-    if (!dateOfBirth) return '';
-    try {
-      const birthDate = new Date(dateOfBirth);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      return age.toString();
-    } catch (e) {
-      return '';
-    }
-  };
-
   // Helper function to get first name from participation
   const getParticipantFirstName = (participation: any): string => {
     if (participation?.user?.firstName) {
@@ -308,10 +291,10 @@ export default function ParticipantCertificatePage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                        Age
+                        Issued by
                       </p>
                       <p className="text-base font-semibold text-gray-900 dark:text-white">
-                        {calculateAge(participation?.user?.dateOfBirth) || '-'}
+                        {participation?.event?.organization?.name || participation?.event?.organizer?.name || 'Impaktr Platform'}
                       </p>
                     </div>
                     <div>

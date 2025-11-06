@@ -85,7 +85,13 @@ export async function checkAndAwardBadges(userId: string): Promise<void> {
 
     // Check each SDG for badge eligibility
     for (const [sdgNumber, sdgEvents] of Object.entries(sdgParticipations)) {
-      await checkSDGBadges(userId, parseInt(sdgNumber), sdgEvents);
+      const parsedSdgNumber = parseInt(sdgNumber, 10);
+      // Skip invalid SDG numbers
+      if (isNaN(parsedSdgNumber) || parsedSdgNumber < 1 || parsedSdgNumber > 17) {
+        console.warn(`Skipping invalid SDG number: ${sdgNumber}`);
+        continue;
+      }
+      await checkSDGBadges(userId, parsedSdgNumber, sdgEvents);
     }
 
     // Update user rank based on badges and score
@@ -182,6 +188,17 @@ function calculateSDGStats(participations: Array<{ hours: number | null; created
  * Award an SDG badge to a user
  */
 async function awardSDGBadge(userId: string, sdgNumber: number, tier: BadgeTier, stats: { totalHours: number; totalActivities: number; averageQuality: number; uniqueSkills: number; verificationTypes: Record<string, number> }): Promise<void> {
+  // Validate inputs
+  if (typeof sdgNumber !== 'number' || isNaN(sdgNumber) || sdgNumber < 1 || sdgNumber > 17) {
+    console.error(`awardSDGBadge: Invalid sdgNumber ${sdgNumber} for user ${userId}`);
+    return;
+  }
+  
+  if (!tier) {
+    console.error(`awardSDGBadge: Invalid tier ${tier} for user ${userId}`);
+    return;
+  }
+
   // Find or create the badge
   let badge = await prisma.badge.findUnique({
     where: {
@@ -263,6 +280,17 @@ async function updateBadgeProgress(
   stats: { totalHours: number; totalActivities: number; averageQuality: number; uniqueSkills: number; verificationTypes: Record<string, number> }, 
   requirements: BadgeRequirements
 ): Promise<void> {
+  // Validate inputs
+  if (typeof sdgNumber !== 'number' || isNaN(sdgNumber) || sdgNumber < 1 || sdgNumber > 17) {
+    console.error(`updateBadgeProgress: Invalid sdgNumber ${sdgNumber} for user ${userId}`);
+    return;
+  }
+  
+  if (!tier) {
+    console.error(`updateBadgeProgress: Invalid tier ${tier} for user ${userId}`);
+    return;
+  }
+
   // Calculate progress percentage
   const hoursProgress = Math.min((stats.totalHours / requirements.minHours) * 100, 100);
   const activitiesProgress = Math.min((stats.totalActivities / requirements.minActivities) * 100, 100);

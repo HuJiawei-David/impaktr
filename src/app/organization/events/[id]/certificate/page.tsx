@@ -352,10 +352,10 @@ export default function CertificateConfigurationPage() {
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                          Age
+                          Issued by
                         </p>
                         <p className="text-base font-semibold text-gray-400 dark:text-gray-500 italic">
-                          [Age]
+                          [Organization Name]
                         </p>
                       </div>
                       <div>

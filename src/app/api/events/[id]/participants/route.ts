@@ -10,10 +10,14 @@ export async function GET(
     const session = await getServerSession();
     const { id: eventId } = await params;
 
-    // Fetch the event to check if the current user is the creator
+    // Fetch the event to check if the current user is the creator and get event info
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      select: { organizationId: true }
+      select: { 
+        organizationId: true,
+        endDate: true,
+        status: true
+      }
     });
 
     if (!event) {
@@ -94,7 +98,11 @@ export async function GET(
 
     return NextResponse.json({
       participants,
-      total: participants.length
+      total: participants.length,
+      event: {
+        endDate: event.endDate,
+        status: event.status
+      }
     });
   } catch (error) {
     console.error('Error fetching event participants:', error);

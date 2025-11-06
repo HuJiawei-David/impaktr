@@ -152,20 +152,8 @@ export async function POST(request: NextRequest) {
           return '-';
         };
 
-        const calculateAge = (): string => {
-          if (!participation.user.dateOfBirth) return '';
-          try {
-            const birthDate = new Date(participation.user.dateOfBirth);
-            const today = new Date();
-            let age = today.getFullYear() - birthDate.getFullYear();
-            const monthDiff = today.getMonth() - birthDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-              age--;
-            }
-            return age.toString();
-          } catch (e) {
-            return '';
-          }
+        const getIssuedBy = (): string => {
+          return participation.event.organization?.name || 'Impaktr Platform';
         };
 
         // Use same title/description logic as preview page - matches page.tsx exactly
@@ -210,7 +198,7 @@ export async function POST(request: NextRequest) {
           certificateContent: certificateContent,
           firstName: getFirstName(),
           lastName: getLastName(),
-          age: calculateAge(),
+          issuedBy: getIssuedBy(),
           hours: participation.hours || 0,
           impactScore: participation.user.impactScore || 0,
           joinDate: participation.joinedAt || participation.createdAt,

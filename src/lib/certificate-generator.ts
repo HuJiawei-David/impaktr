@@ -491,7 +491,7 @@ export interface ParticipantCertificateData {
   certificateContent?: string;
   firstName: string;
   lastName: string;
-  age: string;
+  issuedBy: string;
   hours: number;
   impactScore: number;
   joinDate: Date | string;
@@ -794,8 +794,8 @@ function generateParticipantCertificateHTML(data: ParticipantCertificateData): s
               <div class="info-value">${data.lastName}</div>
             </div>
             <div class="info-item">
-              <div class="info-label">Age</div>
-              <div class="info-value">${data.age || '-'}</div>
+              <div class="info-label">Issued by</div>
+              <div class="info-value">${data.issuedBy || '-'}</div>
             </div>
             <div class="info-item">
               <div class="info-label">Hours</div>
