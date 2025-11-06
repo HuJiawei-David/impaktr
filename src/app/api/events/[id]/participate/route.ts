@@ -111,6 +111,28 @@ export async function POST(
       );
     }
 
+    // Check if user has required skills (if event has skills requirements)
+    if (event.skills && event.skills.length > 0) {
+      const volunteerProfile = await prisma.volunteerProfile.findUnique({
+        where: { userId: user.id },
+        select: { skills: true },
+      });
+
+      const userSkills = volunteerProfile?.skills || [];
+      const missingSkills = event.skills.filter((skill: string) => !userSkills.includes(skill));
+
+      if (missingSkills.length > 0) {
+        return NextResponse.json(
+          { 
+            error: 'Missing required skills',
+            message: `This event requires the following skills: ${missingSkills.join(', ')}. Please update your profile with these skills to register.`,
+            missingSkills 
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Determine skill multiplier based on event skills and user skills
     // This would normally check against user's verified skills
     const skillMultiplier = 1.0; // Default for now

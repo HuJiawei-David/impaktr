@@ -126,6 +126,7 @@ interface UserProfile {
   website: string;
   phone?: string;
   languages: string[];
+  skills?: string[];
   occupation: string;
   organization: string;
   impaktrScore: number;
@@ -400,6 +401,7 @@ function ProfilePageContent() {
           website: user.profile?.website || '',
           phone: user.profile?.phone || user.phone || '',
           languages: user.profile?.languages || user.languages || [],
+          skills: user.profile?.skills || [],
           occupation: user.profile?.occupation || user.occupation || '',
           organization: user.profile?.organization || user.organization || '',
           impaktrScore: user.impactScore || 0,
@@ -570,6 +572,7 @@ function ProfilePageContent() {
           website: profile.website,
           phone: profile.phone,
           languages: profile.languages,
+          skills: profile.skills,
           occupation: profile.occupation,
           organization: profile.organization,
           impaktrScore: profile.impaktrScore,

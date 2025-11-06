@@ -39,6 +39,14 @@ const registrationSchema = z.object({
       return [];
     }
   }).pipe(z.array(z.number())),
+  skills: z.string().optional().transform((str) => {
+    if (!str) return [];
+    try {
+      return JSON.parse(str);
+    } catch {
+      return [];
+    }
+  }).pipe(z.array(z.string())),
 });
 
 export async function POST(request: NextRequest) {
@@ -131,6 +139,18 @@ export async function POST(request: NextRequest) {
         userType: 'INDIVIDUAL',
         
         updatedAt: new Date(),
+      },
+    });
+
+    // Create or update VolunteerProfile with skills
+    await prisma.volunteerProfile.upsert({
+      where: { userId: updatedUser.id },
+      create: {
+        userId: updatedUser.id,
+        skills: validatedData.skills || [],
+      },
+      update: {
+        skills: validatedData.skills || [],
       },
     });
 

@@ -11,6 +11,9 @@ import { IndividualRegistrationForm } from './IndividualRegistrationForm';
 import { OrganizationRegistrationForm } from './OrganizationRegistrationForm';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { getSDGColor } from '@/lib/utils';
+import { Sparkles, Check, X, Loader2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface FormData {
   // Individual fields
@@ -101,6 +104,84 @@ const PreferencesStep = React.memo(function PreferencesStep({
     sdgInterests: [] as number[], // Changed to store SDG IDs
   });
 
+  // SDG AI Recommendations State for individuals
+  const [concernText, setConcernText] = useState('');
+  const [sdgRecommendations, setSdgRecommendations] = useState<any[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+
+  // Fetch SDG recommendations based on user's concerns
+  const fetchSDGRecommendations = useCallback(async (text: string) => {
+    if (!text || text.trim().length < 3) return;
+
+    setIsLoadingRecommendations(true);
+    setRecommendationError(null);
+
+    try {
+      const response = await fetch('/api/sdg/recommendations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: text.trim(),
+          description: text.trim(),
+          contextSDGs: preferences.sdgInterests,
+          mode: 'quick', // Use quick mode for faster response
+          minConfidence: 0.5, // Higher threshold for more accurate recommendations
+          maxRecommendations: 8 // Limit to top 8 most relevant SDGs
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.recommendations.length > 0) {
+          setSdgRecommendations(data.recommendations);
+          setShowRecommendations(true);
+        } else {
+          setSdgRecommendations([]);
+          setShowRecommendations(false);
+        }
+      } else {
+        const errorData = await response.json();
+        setRecommendationError(errorData.error || 'Failed to get recommendations');
+      }
+    } catch (error) {
+      console.error('Error fetching SDG recommendations:', error);
+      setRecommendationError('Network error occurred');
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  }, [preferences.sdgInterests]);
+
+  // Apply a single SDG recommendation
+  const applySDGRecommendation = (sdgNumber: number) => {
+    if (!preferences.sdgInterests.includes(sdgNumber)) {
+      if (preferences.sdgInterests.length < 17) {
+        setPreferences(prev => ({
+          ...prev,
+          sdgInterests: [...prev.sdgInterests, sdgNumber]
+        }));
+      }
+    }
+  };
+
+  // Apply all recommendations
+  const applyAllRecommendations = () => {
+    const newSDGs = sdgRecommendations
+      .filter(rec => !preferences.sdgInterests.includes(rec.sdgNumber))
+      .map(rec => rec.sdgNumber)
+      .slice(0, 17 - preferences.sdgInterests.length);
+
+    if (newSDGs.length > 0) {
+      setPreferences(prev => ({
+        ...prev,
+        sdgInterests: [...prev.sdgInterests, ...newSDGs]
+      }));
+      setShowRecommendations(false);
+    }
+  };
 
   // Call onDataChange when preferences change
   useEffect(() => {
@@ -209,6 +290,153 @@ const PreferencesStep = React.memo(function PreferencesStep({
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             Select the SDGs you&apos;re most passionate about (optional)
           </p>
+          
+          {/* Optional AI Matching Input */}
+          <div className="mb-6">
+            <Label htmlFor="concern-text" className="text-sm text-gray-700 dark:text-gray-300 mb-2 block">
+              Your Current Concerns (Optional)
+            </Label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Describe your concerns or interests, and AI will help match relevant SDGs
+            </p>
+            <div className="w-full">
+              <Textarea
+                id="concern-text"
+                value={concernText}
+                onChange={(e) => setConcernText(e.target.value)}
+                placeholder="e.g., I'm concerned about climate change, education access, and gender equality..."
+                rows={3}
+                className="w-full"
+              />
+              {concernText && concernText.trim().length >= 3 && !isLoadingRecommendations && (
+                <div className="mt-2 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchSDGRecommendations(concernText)}
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    Get AI Suggestions
+                  </Button>
+                </div>
+              )}
+            </div>
+            {concernText && concernText.trim().length >= 3 && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-center">
+                <Sparkles className="w-3 h-3 mr-1" />
+                AI will suggest relevant SDGs based on your concerns
+              </p>
+            )}
+
+            {/* SDG AI Recommendations */}
+            {showRecommendations && sdgRecommendations.length > 0 && (
+              <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mt-4">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="w-5 h-5 text-blue-600" />
+                      <CardTitle className="text-base">AI SDG Recommendations</CardTitle>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowRecommendations(false)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Based on your concerns, we recommend these SDGs:
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {sdgRecommendations.map((rec) => (
+                    <div
+                      key={rec.sdgNumber}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        preferences.sdgInterests.includes(rec.sdgNumber)
+                          ? 'bg-green-50 border-green-200 dark:bg-green-950/20'
+                          : 'bg-white border-gray-200 dark:bg-gray-900'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: rec.color }}
+                          />
+                          <span className="font-medium text-sm">
+                            SDG {rec.sdgNumber}: {rec.sdgName}
+                          </span>
+                          {preferences.sdgInterests.includes(rec.sdgNumber) && (
+                            <Check className="w-4 h-4 text-green-600" />
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Confidence: {(rec.confidence * 100).toFixed(0)}% 
+                          <span className={`ml-2 px-1.5 py-0.5 rounded text-xs font-medium ${
+                            rec.confidenceLevel?.level === 'very-high' ? 'bg-green-100 text-green-800' :
+                            rec.confidenceLevel?.level === 'high' ? 'bg-blue-100 text-blue-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {rec.confidenceLevel?.label || 'Medium'}
+                          </span>
+                        </div>
+                        {rec.reasoning && rec.reasoning.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            {rec.reasoning[0]}
+                          </p>
+                        )}
+                        {rec.keywords && rec.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {rec.keywords.slice(0, 3).map((keyword: string, idx: number) => (
+                              <span key={idx} className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {!preferences.sdgInterests.includes(rec.sdgNumber) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => applySDGRecommendation(rec.sdgNumber)}
+                          className="ml-2"
+                        >
+                          Add
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={applyAllRecommendations}
+                      disabled={sdgRecommendations.every(rec => preferences.sdgInterests.includes(rec.sdgNumber))}
+                    >
+                      Apply All Recommendations
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {isLoadingRecommendations && (
+              <div className="flex items-center justify-center py-4 mt-4">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
+                <span className="text-sm text-muted-foreground">Analyzing your concerns...</span>
+              </div>
+            )}
+
+            {recommendationError && (
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">{recommendationError}</p>
+              </div>
+            )}
+          </div>
+
           <SDGSelector
             selectedSDGs={preferences.sdgInterests}
             onSelectionChange={(sdgs) => {

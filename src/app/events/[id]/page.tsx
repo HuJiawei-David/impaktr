@@ -171,6 +171,8 @@ export default function EventDetailPage() {
   const [commentCount, setCommentCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
+  const [userSkills, setUserSkills] = useState<string[]>([]);
+  const [missingSkills, setMissingSkills] = useState<string[]>([]);
   
   // Confirm dialog for canceling registration
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
@@ -332,6 +334,36 @@ export default function EventDetailPage() {
       fetchCommentCount(params.id as string);
     }
   }, [params?.id, fetchEvent]);
+
+  // Fetch user skills and check against event requirements
+  useEffect(() => {
+    const fetchUserSkills = async () => {
+      if (!user?.id || !event) return;
+      
+      try {
+        const response = await fetch('/api/users/profile');
+        if (response.ok) {
+          const data = await response.json();
+          const skills = data.user?.profile?.skills || [];
+          setUserSkills(skills);
+          
+          // Check if event has required skills
+          if (event.skills && event.skills.length > 0) {
+            const missing = event.skills.filter((skill: string) => !skills.includes(skill));
+            setMissingSkills(missing);
+          } else {
+            setMissingSkills([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user skills:', error);
+      }
+    };
+
+    if (user && event) {
+      fetchUserSkills();
+    }
+  }, [user, event]);
 
   const fetchCommentCount = async (eventId: string) => {
     try {
@@ -584,7 +616,9 @@ export default function EventDetailPage() {
   const isRegistrationClosed = event?.registrationDeadline && new Date(event.registrationDeadline) < new Date();
   const isEventCompleted = event?.status === 'COMPLETED' || (event?.endDate && new Date(event.endDate) < new Date());
   const isEventUpcoming = event?.status === 'UPCOMING';
-  const canJoin = user && event && !event.userParticipation && !isEventFull && !isRegistrationClosed && !isEventCompleted && (event.status === 'ACTIVE' || isEventUpcoming);
+  // Check if user has required skills (if event has skills requirements)
+  const hasRequiredSkills = !event?.skills || event.skills.length === 0 || missingSkills.length === 0;
+  const canJoin = user && event && !event.userParticipation && !isEventFull && !isRegistrationClosed && !isEventCompleted && hasRequiredSkills && (event.status === 'ACTIVE' || isEventUpcoming);
   const eventStatus = getEventStatus();
   const intensityInfo = event ? getIntensityInfo(event.intensity) : null;
 
@@ -1545,6 +1579,34 @@ export default function EventDetailPage() {
                       <div className="text-sm text-yellow-600 dark:text-yellow-400">
                         This event has reached capacity
                       </div>
+                    </div>
+                  ) : !hasRequiredSkills && event.skills && event.skills.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border-2 border-orange-200 dark:border-orange-800">
+                        <AlertCircle className="w-8 h-8 mx-auto mb-2 text-orange-600 dark:text-orange-400" />
+                        <div className="font-medium text-orange-700 dark:text-orange-300 mb-2">Missing Required Skills</div>
+                        <div className="text-sm text-orange-600 dark:text-orange-400 mb-3">
+                          This event requires the following skills:
+                        </div>
+                        <div className="flex flex-wrap gap-2 justify-center mb-3">
+                          {missingSkills.map((skill) => (
+                            <Badge key={skill} variant="outline" className="bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="text-xs text-orange-600 dark:text-orange-400">
+                          Please update your profile with these skills to register for this event.
+                        </div>
+                      </div>
+                      <Link href="/profile/edit">
+                        <Button 
+                          className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white border-0" 
+                          size="lg"
+                        >
+                          Update Profile Skills
+                        </Button>
+                      </Link>
                     </div>
                   ) : canJoin ? (
                     <div className="space-y-4">

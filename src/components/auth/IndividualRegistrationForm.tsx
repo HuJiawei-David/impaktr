@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import Image from 'next/image';
-import { CalendarDays, Upload, MapPin, Languages, Building } from 'lucide-react';
+import { CalendarDays, Upload, MapPin, Languages, Building, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ interface IndividualRegistrationData {
   occupation?: string;
   bio?: string;
   languages: string[];
+  skills?: string[];
   website?: string;
   phone?: string;
   showEmail: boolean;
@@ -52,8 +53,17 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
   const [isLoading, setIsLoading] = useState(false);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [dbFirstName, setDbFirstName] = useState<string>('');
   const [dbLastName, setDbLastName] = useState<string>('');
+
+  // Skills options - same as in organization/events/create
+  const skillOptions = [
+    'Teaching', 'Coding', 'Design', 'Marketing', 'Photography', 'Writing',
+    'Translation', 'Medical', 'Construction', 'Gardening', 'Cooking',
+    'Event Planning', 'Fundraising', 'Public Speaking', 'Social Media',
+    'Data Analysis', 'Project Management', 'Research', 'Sales', 'Customer Service'
+  ];
 
   // Helper function to parse firstName from name
   // First name is all parts except the last one (e.g., "Li Yuan" from "Li Yuan Peng")
@@ -89,7 +99,8 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
       lastName: '',
       showEmail: false,
       isPublic: true,
-      languages: []
+      languages: [],
+      skills: []
     }
   });
 
@@ -179,6 +190,14 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
     setValue('languages', newLanguages);
   };
 
+  const handleSkillToggle = (skill: string) => {
+    const newSkills = selectedSkills.includes(skill)
+      ? selectedSkills.filter(s => s !== skill)
+      : [...selectedSkills, skill];
+    setSelectedSkills(newSkills);
+    setValue('skills', newSkills);
+  };
+
   // Watch form data and update parent component in real-time
   const watchedData = watch();
   
@@ -224,6 +243,13 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
           formData.append(key, value.toString());
         }
       });
+
+      // Ensure skills are included
+      if (selectedSkills.length > 0) {
+        formData.append('skills', JSON.stringify(selectedSkills));
+      } else {
+        formData.append('skills', JSON.stringify([]));
+      }
 
       console.log('Form data being sent:', data);
       console.log('FormData entries:', Array.from(formData.entries()));
@@ -513,6 +539,56 @@ export function IndividualRegistrationForm({ isStepMode = false, onDataChange, v
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Skills */}
+          <Card className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl border border-gray-200 dark:border-gray-700">
+            <CardHeader>
+              <CardTitle className="flex items-center text-gray-900 dark:text-white">
+                <Award className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
+                Skills (Optional)
+              </CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                Select your skills to help match you with relevant events
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Select Your Skills</Label>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Choose skills that you have or are interested in
+                </p>
+                
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+                  {skillOptions.map((skill) => (
+                    <label key={skill} className="flex items-center space-x-2 cursor-pointer p-2 rounded border hover:bg-accent">
+                      <input
+                        type="checkbox"
+                        checked={selectedSkills.includes(skill)}
+                        onChange={() => handleSkillToggle(skill)}
+                        className="rounded"
+                      />
+                      <span className="text-sm">{skill}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {selectedSkills.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {selectedSkills.map((skill) => (
+                      <Badge
+                        key={skill}
+                        variant="secondary"
+                        className="cursor-pointer"
+                        onClick={() => handleSkillToggle(skill)}
+                      >
+                        {skill} ×
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 

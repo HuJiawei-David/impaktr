@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { 
   Save, 
@@ -15,7 +15,10 @@ import {
   Languages,
   Settings,
   Eye,
-  EyeOff
+  EyeOff,
+  Award,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +55,7 @@ interface UserProfile {
   website: string;
   phone?: string;
   languages: string[];
+  skills?: string[];
   occupation: string;
   organization: string;
   impaktrScore: number;
@@ -91,6 +95,7 @@ interface ProfileFormData {
   state: string;
   country: string;
   languages: string[];
+  skills: string[];
   sdgFocus: number[];
   isPublic: boolean;
   showEmail: boolean;
@@ -104,7 +109,23 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
   const [avatar, setAvatar] = useState<File | null>(null);
   const [banner, setBanner] = useState<File | null>(null);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(profile.languages || []);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(profile.skills || []);
   const [selectedSDGs, setSelectedSDGs] = useState<number[]>(profile.sdgFocus || []);
+  
+  // SDG AI Recommendations State
+  const [concernText, setConcernText] = useState('');
+  const [sdgRecommendations, setSdgRecommendations] = useState<any[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+
+  // Skills options - same as in IndividualRegistrationForm
+  const skillOptions = [
+    'Teaching', 'Coding', 'Design', 'Marketing', 'Photography', 'Writing',
+    'Translation', 'Medical', 'Construction', 'Gardening', 'Cooking',
+    'Event Planning', 'Fundraising', 'Public Speaking', 'Social Media',
+    'Data Analysis', 'Project Management', 'Research', 'Sales', 'Customer Service'
+  ];
 
   const { 
     register, 
@@ -144,6 +165,7 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
       state: profile.location?.state || '',
       country: profile.location?.country || '',
       languages: profile.languages || [],
+      skills: profile.skills || [],
       sdgFocus: profile.sdgFocus || [],
       isPublic: profile.isPublic !== undefined ? profile.isPublic : true,
       showEmail: profile.showEmail !== undefined ? profile.showEmail : false,
@@ -169,9 +191,87 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
     setValue('languages', newLanguages, { shouldDirty: true });
   };
 
+  const handleSkillToggle = (skill: string) => {
+    const newSkills = selectedSkills.includes(skill)
+      ? selectedSkills.filter(s => s !== skill)
+      : [...selectedSkills, skill];
+    setSelectedSkills(newSkills);
+    setValue('skills', newSkills, { shouldDirty: true });
+  };
+
   const handleSDGChange = (sdgs: number[]) => {
     setSelectedSDGs(sdgs);
     setValue('sdgFocus', sdgs, { shouldDirty: true });
+  };
+
+  // Fetch SDG recommendations based on user's concerns
+  const fetchSDGRecommendations = useCallback(async (text: string) => {
+    if (!text || text.trim().length < 3) return;
+
+    setIsLoadingRecommendations(true);
+    setRecommendationError(null);
+
+    try {
+      const response = await fetch('/api/sdg/recommendations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: text.trim(),
+          description: text.trim(),
+          contextSDGs: selectedSDGs,
+          mode: 'quick', // Use quick mode for faster response
+          minConfidence: 0.5, // Higher threshold for more accurate recommendations
+          maxRecommendations: 8 // Limit to top 8 most relevant SDGs
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.recommendations.length > 0) {
+          setSdgRecommendations(data.recommendations);
+          setShowRecommendations(true);
+        } else {
+          setSdgRecommendations([]);
+          setShowRecommendations(false);
+        }
+      } else {
+        const errorData = await response.json();
+        setRecommendationError(errorData.error || 'Failed to get recommendations');
+      }
+    } catch (error) {
+      console.error('Error fetching SDG recommendations:', error);
+      setRecommendationError('Network error occurred');
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  }, [selectedSDGs]);
+
+  // Apply a single SDG recommendation
+  const applySDGRecommendation = (sdgNumber: number) => {
+    if (!selectedSDGs.includes(sdgNumber)) {
+      if (selectedSDGs.length < 17) {
+        const newSDGs = [...selectedSDGs, sdgNumber];
+        setSelectedSDGs(newSDGs);
+        setValue('sdgFocus', newSDGs, { shouldDirty: true });
+      }
+    }
+  };
+
+  // Apply all recommendations
+  const applyAllRecommendations = () => {
+    const newSDGs = sdgRecommendations
+      .filter(rec => !selectedSDGs.includes(rec.sdgNumber))
+      .map(rec => rec.sdgNumber)
+      .slice(0, 17 - selectedSDGs.length);
+
+    if (newSDGs.length > 0) {
+      const updatedSDGs = [...selectedSDGs, ...newSDGs];
+      setSelectedSDGs(updatedSDGs);
+      setValue('sdgFocus', updatedSDGs, { shouldDirty: true });
+      setShowRecommendations(false);
+    }
   };
 
   const onSubmit = async (data: ProfileFormData) => {
@@ -200,6 +300,13 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
           }
         }
       });
+
+      // Ensure skills are included
+      if (selectedSkills.length > 0) {
+        formData.append('skills', JSON.stringify(selectedSkills));
+      } else {
+        formData.append('skills', JSON.stringify([]));
+      }
 
       // Avatar and banner files
       if (avatar) formData.append('avatar', avatar);
@@ -623,6 +730,56 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Skills */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Award className="w-5 h-5 mr-2" />
+                    Skills
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Select your skills to help match you with relevant events
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>Select Your Skills</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Choose skills that you have or are interested in
+                    </p>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+                      {skillOptions.map((skill) => (
+                        <label key={skill} className="flex items-center space-x-2 cursor-pointer p-2 rounded border hover:bg-accent">
+                          <input
+                            type="checkbox"
+                            checked={selectedSkills.includes(skill)}
+                            onChange={() => handleSkillToggle(skill)}
+                            className="rounded"
+                          />
+                          <span className="text-sm">{skill}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {selectedSkills.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedSkills.map((skill) => (
+                          <Badge
+                            key={skill}
+                            variant="secondary"
+                            className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white border border-gray-300 dark:border-gray-600"
+                            onClick={() => handleSkillToggle(skill)}
+                          >
+                            {skill} ×
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Interests & SDGs Tab */}
@@ -634,7 +791,159 @@ export function ProfileEditor({ profile, onSave, onCancel }: ProfileEditorProps)
                     Select the UN Sustainable Development Goals that align with your interests and activities (optional)
                   </p>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {/* Optional AI Matching Input */}
+                  <div>
+                    <Label htmlFor="concern-text" className="text-sm text-gray-700 dark:text-gray-300 mb-2 block">
+                      Your Current Concerns (Optional)
+                    </Label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      Describe your concerns or interests, and AI will help match relevant SDGs
+                    </p>
+                    <div className="w-full">
+                      <Textarea
+                        id="concern-text"
+                        value={concernText}
+                        onChange={(e) => setConcernText(e.target.value)}
+                        placeholder="e.g., I'm concerned about climate change, education access, and gender equality..."
+                        rows={3}
+                        className="w-full"
+                      />
+                      {concernText && concernText.trim().length >= 3 && !isLoadingRecommendations && (
+                        <div className="mt-2 flex justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fetchSDGRecommendations(concernText)}
+                          >
+                            <Sparkles className="w-4 h-4 mr-1" />
+                            Get AI Suggestions
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    {concernText && concernText.trim().length >= 3 && (
+                      <p className="text-xs text-muted-foreground mt-2 flex items-center">
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        AI will suggest relevant SDGs based on your concerns
+                      </p>
+                    )}
+
+                    {/* SDG AI Recommendations */}
+                    {showRecommendations && sdgRecommendations.length > 0 && (
+                      <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mt-4">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Sparkles className="w-5 h-5 text-blue-600" />
+                              <CardTitle className="text-base">AI SDG Recommendations</CardTitle>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowRecommendations(false)}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Based on your concerns, we recommend these SDGs:
+                          </p>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {sdgRecommendations.map((rec) => (
+                            <div
+                              key={rec.sdgNumber}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${
+                                selectedSDGs.includes(rec.sdgNumber)
+                                  ? 'bg-green-50 border-green-200 dark:bg-green-950/20'
+                                  : 'bg-white border-gray-200 dark:bg-gray-900'
+                              }`}
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: rec.color }}
+                                  />
+                                  <span className="font-medium text-sm">
+                                    SDG {rec.sdgNumber}: {rec.sdgName}
+                                  </span>
+                                  {selectedSDGs.includes(rec.sdgNumber) && (
+                                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <div className="text-xs text-muted-foreground mb-1">
+                                  Confidence: {(rec.confidence * 100).toFixed(0)}% 
+                                  <span className={`ml-2 px-1.5 py-0.5 rounded text-xs font-medium ${
+                                    rec.confidenceLevel?.level === 'very-high' ? 'bg-green-100 text-green-800' :
+                                    rec.confidenceLevel?.level === 'high' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {rec.confidenceLevel?.label || 'Medium'}
+                                  </span>
+                                </div>
+                                {rec.reasoning && rec.reasoning.length > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {rec.reasoning[0]}
+                                  </p>
+                                )}
+                                {rec.keywords && rec.keywords.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {rec.keywords.slice(0, 3).map((keyword: string, idx: number) => (
+                                      <span key={idx} className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">
+                                        {keyword}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {!selectedSDGs.includes(rec.sdgNumber) && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => applySDGRecommendation(rec.sdgNumber)}
+                                  className="ml-2"
+                                >
+                                  Add
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <div className="flex justify-end pt-2">
+                            <Button
+                              type="button"
+                              variant="default"
+                              size="sm"
+                              onClick={applyAllRecommendations}
+                              disabled={sdgRecommendations.every(rec => selectedSDGs.includes(rec.sdgNumber))}
+                            >
+                              Apply All Recommendations
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {isLoadingRecommendations && (
+                      <div className="flex items-center justify-center py-4 mt-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mr-2" />
+                        <span className="text-sm text-muted-foreground">Analyzing your concerns...</span>
+                      </div>
+                    )}
+
+                    {recommendationError && (
+                      <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <p className="text-sm text-red-600 dark:text-red-400">{recommendationError}</p>
+                      </div>
+                    )}
+                  </div>
+
                   <SDGSelector
                     selectedSDGs={selectedSDGs}
                     onSelectionChange={handleSDGChange}

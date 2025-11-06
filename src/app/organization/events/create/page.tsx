@@ -1578,7 +1578,7 @@ export default function CreateEventPage() {
                 <div>
                   <Label htmlFor="intensity">Intensity Level *</Label>
                   <Select 
-                    value={watch('intensity')?.toString()} 
+                    value={watch('intensity') !== undefined ? watch('intensity')?.toFixed(1) : ''} 
                     onValueChange={(value) => {
                       setValue('intensity', parseFloat(value));
                       clearStepValidationErrors(3);
