@@ -41,6 +41,7 @@ import { SDGSelector } from '@/components/ui/sdg-selector';
 import { toast } from 'react-hot-toast';
 import { EventPreview } from '@/components/events/EventPreview';
 import { useEventNotificationStore } from '@/store/eventNotificationStore';
+import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 
 interface EventFormData {
   title: string;
@@ -108,6 +109,7 @@ export default function CreateEventPage() {
   const [eventImages, setEventImages] = useState<File[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const [customFields, setCustomFields] = useState<EventFormData['customFields']>([]);
+  const [isDragging, setIsDragging] = useState(false);
   
   // SDG Recommendations State
   const [sdgRecommendations, setSdgRecommendations] = useState<any[]>([]);
@@ -124,6 +126,9 @@ export default function CreateEventPage() {
   
   // Event notification store
   const { incrementCount } = useEventNotificationStore();
+  
+  // Confirm dialog for image upload errors
+  const { showConfirm, ConfirmDialog } = useConfirmDialog();
 
   const {
     register,
@@ -135,7 +140,7 @@ export default function CreateEventPage() {
     control
   } = useForm<EventFormData>({
     defaultValues: {
-      intensity: 1.0,
+      intensity: undefined as any,
       verificationType: 'ORGANIZER',
       location: { isVirtual: false, city: '' },
       requiresApproval: false,
@@ -253,7 +258,7 @@ export default function CreateEventPage() {
       setValue('registrationDeadline', formatDateForInput(event.registrationDeadline));
       setValue('location', location);
       setValue('maxParticipants', event.maxParticipants || undefined);
-      setValue('intensity', event.intensity || 1.0);
+      setValue('intensity', event.intensity !== undefined && event.intensity !== null ? event.intensity : undefined);
       setValue('verificationType', event.verificationType || 'ORGANIZER');
       setValue('eventInstructions', event.eventInstructions || '');
       setValue('materialsNeeded', event.materialsNeeded || []);
@@ -359,7 +364,7 @@ export default function CreateEventPage() {
 
   const applyAllRecommendations = () => {
     const newSDGs = sdgRecommendations
-      .filter(rec => rec.isNew)
+      .filter(rec => !selectedSDGs.includes(rec.sdgNumber))
       .map(rec => rec.sdgNumber)
       .slice(0, 5 - selectedSDGs.length);
 
@@ -427,7 +432,12 @@ export default function CreateEventPage() {
 
   const validateStep3 = (): string[] => {
     const errors: string[] = [];
-    // Step 3 has no required fields, all are optional
+    const formData = getValues();
+    
+    if (!formData.intensity || formData.intensity === undefined || formData.intensity === null) {
+      errors.push('Intensity level is required');
+    }
+    
     return errors;
   };
 
@@ -578,45 +588,139 @@ export default function CreateEventPage() {
     setCustomFields(updated);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    
+  // Common validation function for both file input and drag & drop
+  const validateAndProcessFiles = (files: File[]) => {
     // Validate image types (jpeg, png, gif, webp)
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     const maxSize = 5 * 1024 * 1024; // 5MB
     
     const validFiles: File[] = [];
     const invalidFiles: string[] = [];
     
     files.forEach((file) => {
-      // Check file type
-      if (!allowedTypes.includes(file.type.toLowerCase())) {
-        invalidFiles.push(`${file.name} (unsupported format)`);
+      const fileType = file.type.toLowerCase();
+      const fileName = file.name.toLowerCase();
+      const fileExtension = fileName.substring(fileName.lastIndexOf('.'));
+      
+      // Check file type by MIME type first
+      let isValidType = allowedMimeTypes.includes(fileType);
+      
+      // If MIME type is missing or not recognized, check file extension as fallback
+      if (!isValidType && (!fileType || fileType === '' || fileType === 'application/octet-stream')) {
+        isValidType = allowedExtensions.includes(fileExtension);
+      }
+      
+      // If still not valid, check if it's a known unsupported format
+      if (!isValidType) {
+        const unsupportedFormats = ['.bmp', '.tiff', '.tif', '.svg', '.ico', '.heic', '.heif'];
+        if (unsupportedFormats.includes(fileExtension)) {
+          invalidFiles.push(`${file.name} (Unsupported format: ${fileExtension.toUpperCase()} format)`);
+        } else {
+          invalidFiles.push(`${file.name} (Unsupported format: ${fileType || fileExtension || 'Unknown format'})`);
+        }
         return;
       }
       
       // Check file size
       if (file.size > maxSize) {
-        invalidFiles.push(`${file.name} (file too large, max 5MB)`);
+        invalidFiles.push(`${file.name} (File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB, maximum 5MB)`);
         return;
       }
       
       validFiles.push(file);
     });
     
-    // Show errors for invalid files
+    // Show dialog if invalid files are detected
     if (invalidFiles.length > 0) {
-      toast.error(`Invalid files:\n${invalidFiles.join('\n')}\n\nSupported formats: JPEG, PNG, GIF, WebP (max 5MB each)`);
+      const errorMessage = `The following images cannot be uploaded:\n\n${invalidFiles.join('\n')}\n\nSupported formats: JPEG, PNG, GIF, WebP (max 5MB per file)`;
+      showConfirm({
+        title: 'Image Format Error',
+        message: errorMessage,
+        confirmText: 'OK',
+        type: 'warning',
+        showCancel: false,
+        onConfirm: () => {
+          // Dialog closed
+        }
+      });
+      return { validFiles: [], shouldAdd: false };
     }
     
     // Check total count limit
     if (validFiles.length + eventImages.length > 5) {
-      toast.error('Maximum 5 images allowed');
+      showConfirm({
+        title: 'Image Limit Exceeded',
+        message: 'Maximum 5 images allowed',
+        confirmText: 'OK',
+        type: 'warning',
+        showCancel: false,
+        onConfirm: () => {
+          // Dialog closed
+        }
+      });
+      return { validFiles: [], shouldAdd: false };
+    }
+    
+    return { validFiles, shouldAdd: validFiles.length > 0 };
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const result = validateAndProcessFiles(files);
+    
+    if (result.shouldAdd && result.validFiles.length > 0) {
+      setEventImages([...eventImages, ...result.validFiles]);
+    }
+    
+    // Clear the file input after processing
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (eventImages.length < 5) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragging to false if we're leaving the drop zone
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    if (eventImages.length >= 5) {
+      showConfirm({
+        title: 'Image Limit Exceeded',
+        message: 'Maximum 5 images allowed',
+        confirmText: 'OK',
+        type: 'warning',
+        showCancel: false,
+        onConfirm: () => {
+          // Dialog closed
+        }
+      });
       return;
     }
     
-    if (validFiles.length > 0) {
-      setEventImages([...eventImages, ...validFiles]);
+    const files = Array.from(e.dataTransfer.files || []);
+    const result = validateAndProcessFiles(files);
+    
+    if (result.shouldAdd && result.validFiles.length > 0) {
+      setEventImages([...eventImages, ...result.validFiles]);
     }
   };
 
@@ -670,6 +774,14 @@ export default function CreateEventPage() {
       // Validate SDG selection
       if (selectedSDGs.length === 0) {
         toast.error('Please select at least one SDG');
+        setIsSubmitting(false);
+        setIsDraft(false);
+        return;
+      }
+
+      // Validate intensity level
+      if (!data.intensity || data.intensity === undefined || data.intensity === null) {
+        toast.error('Intensity level is required');
         setIsSubmitting(false);
         setIsDraft(false);
         return;
@@ -1034,18 +1146,36 @@ export default function CreateEventPage() {
                   Event Images
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`transition-colors border-2 border-dashed rounded-lg ${
+                  isDragging && eventImages.length < 5
+                    ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20'
+                    : 'border-transparent'
+                }`}
+              >
                 <div className="space-y-4">
                   <div>
                     <Input
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                       multiple
-                      onChange={handleImageUpload}
+                      onChange={(e) => {
+                        try {
+                          handleImageUpload(e);
+                        } catch (error) {
+                          // Error is already handled in handleImageUpload with toast
+                          // Log to console for debugging
+                          console.error('Image upload error:', error);
+                        }
+                      }}
                       disabled={eventImages.length >= 5}
                     />
                     <p className="text-sm text-muted-foreground mt-1">
                       Upload up to 5 images (JPEG, PNG, GIF, WebP - max 5MB each). First image will be the cover photo.
+                      {eventImages.length < 5 && <span className="block mt-1 text-xs">or drag images here</span>}
                     </p>
                   </div>
 
@@ -1446,13 +1576,16 @@ export default function CreateEventPage() {
 
                 {/* Intensity Level */}
                 <div>
-                  <Label htmlFor="intensity">Intensity Level</Label>
+                  <Label htmlFor="intensity">Intensity Level *</Label>
                   <Select 
                     value={watch('intensity')?.toString()} 
-                    onValueChange={(value) => setValue('intensity', parseFloat(value))}
+                    onValueChange={(value) => {
+                      setValue('intensity', parseFloat(value));
+                      clearStepValidationErrors(3);
+                    }}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select intensity level" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="0.8">Light (0.8x) - Suitable for beginners</SelectItem>
@@ -1460,6 +1593,9 @@ export default function CreateEventPage() {
                       <SelectItem value="1.2">High (1.2x) - Physically or mentally demanding</SelectItem>
                     </SelectContent>
                   </Select>
+                  {stepValidationErrors[3]?.some(err => err.includes('Intensity level')) && (
+                    <p className="text-xs text-red-500 mt-1">Intensity level is required</p>
+                  )}
                 </div>
 
                 {/* Verification Method */}
@@ -1806,6 +1942,9 @@ export default function CreateEventPage() {
             showActions={false}
           />
         )}
+        
+        {/* Image Upload Error Dialog */}
+        <ConfirmDialog />
       </div>
     </div>
   );

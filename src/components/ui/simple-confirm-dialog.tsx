@@ -13,6 +13,7 @@ interface SimpleConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   type?: 'delete' | 'remove' | 'warning';
+  showCancel?: boolean;
 }
 
 export function SimpleConfirmDialog({
@@ -23,7 +24,8 @@ export function SimpleConfirmDialog({
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  type = 'warning'
+  type = 'warning',
+  showCancel = true
 }: SimpleConfirmDialogProps) {
   // Lock body scroll when dialog is open
   React.useEffect(() => {
@@ -123,19 +125,21 @@ export function SimpleConfirmDialog({
         </div>
         
         {/* Message */}
-        <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed">
+        <p className="text-gray-600 dark:text-gray-300 mb-6 leading-relaxed whitespace-pre-line">
           {message}
         </p>
         
         {/* Actions */}
         <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="px-4 py-2"
-          >
-            {cancelText}
-          </Button>
+          {showCancel && (
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="px-4 py-2"
+            >
+              {cancelText}
+            </Button>
+          )}
           <Button
             onClick={handleConfirm}
             className={`px-4 py-2 ${getConfirmButtonStyle()}`}
@@ -157,6 +161,7 @@ export function useConfirmDialog() {
     confirmText?: string;
     cancelText?: string;
     type?: 'delete' | 'remove' | 'warning';
+    showCancel?: boolean;
     onConfirm?: () => void;
   }>({
     title: '',
@@ -190,6 +195,7 @@ export function useConfirmDialog() {
       confirmText={config.confirmText}
       cancelText={config.cancelText}
       type={config.type}
+      showCancel={config.showCancel}
     />
   );
 
