@@ -64,7 +64,10 @@ function calculateKeywordScore(
 ): number {
   const exactMatch = phrase === keyword;
   const containsMatch = phrase.includes(keyword) || keyword.includes(phrase);
-  const wordsMatch = phrase.split(' ').some(word => keyword.split(' ').includes(word));
+  // Only match if the word is at least 4 characters to avoid too many false positives
+  const wordsMatch = phrase.split(' ').some(word => 
+    word.length >= 4 && keyword.split(' ').includes(word)
+  );
 
   let baseScore = 0;
   if (exactMatch) {
@@ -72,7 +75,8 @@ function calculateKeywordScore(
   } else if (containsMatch) {
     baseScore = 0.7;
   } else if (wordsMatch) {
-    baseScore = 0.4;
+    // Reduce score for word matches to make them less influential
+    baseScore = 0.3;
   }
 
   // Weight by keyword type
@@ -424,7 +428,9 @@ export function analyzeEventTitle(title: string, description?: string): SDGMatch
   
   for (const [sdgNumber, data] of sdgScores.entries()) {
     // Calculate confidence (0-1 scale)
-    const normalizedScore = Math.min(data.score / 3, 1); // Normalize to 0-1
+    // Use a more conservative normalization: require at least 1.5 score for 0.5 confidence
+    // This ensures only strong matches get recommended
+    const normalizedScore = Math.min(data.score / 2.5, 1); // Normalize to 0-1, requires higher score
     const confidence = normalizedScore;
 
     // Generate reasoning
