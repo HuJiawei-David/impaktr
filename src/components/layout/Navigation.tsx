@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signIn, signOut } from 'next-auth/react';
@@ -63,6 +63,7 @@ const navigationItems = [
 const organizationNavItems = [
   { href: '/organization/dashboard', label: 'Overview', icon: Home },
   { href: '/organization/opportunities', label: 'Opportunities', icon: Briefcase },
+  { href: '/organization/messages', label: 'Messages', icon: MessageCircle },
   { href: '/organization/members', label: 'Team', icon: Users },
   { href: '/organization/events', label: 'Events', icon: Calendar },
   { href: '/organization/leaderboard', label: 'Leaderboards', icon: Trophy },
@@ -97,6 +98,7 @@ export function Navigation() {
   
   // State for certificate confirmation notifications
   const [certificateNotificationCount, setCertificateNotificationCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
   // Determine if user is an organization
   // Only show org navbar for /organization/* routes, NOT /organizations/[id] (public profile view)
@@ -173,6 +175,56 @@ export function Navigation() {
     // Return undefined if condition not met to satisfy TypeScript
     return undefined;
   }, [isOrganization, user]);
+
+  const fetchUnreadMessages = useCallback(async () => {
+    if (!user) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/messages');
+      if (!response.ok) {
+        if (response.status === 401) {
+          setUnreadMessagesCount(0);
+          return;
+        }
+        throw new Error('Failed to fetch messages');
+      }
+
+      const data = await response.json();
+      const totalUnread = Array.isArray(data.conversations)
+        ? data.conversations.reduce(
+            (count: number, conversation: { unreadCount?: number }) =>
+              count + (conversation.unreadCount || 0),
+            0
+          )
+        : 0;
+
+      setUnreadMessagesCount(totalUnread);
+    } catch (error) {
+      console.error('Error fetching unread messages:', error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchUnreadMessages();
+
+    const handleMessagesUpdated = () => fetchUnreadMessages();
+    window.addEventListener('messages-updated', handleMessagesUpdated);
+
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (user) {
+      interval = setInterval(fetchUnreadMessages, 30000);
+    }
+
+    return () => {
+      window.removeEventListener('messages-updated', handleMessagesUpdated);
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [fetchUnreadMessages, user]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -258,8 +310,10 @@ export function Navigation() {
                   const isActive = pathname.startsWith(item.href);
                   const isEventsButton = item.label === 'Events';
                   const isNotificationsButton = item.label === 'Notifications';
+                  const isMessagesButton = item.label === 'Messages';
                   const showEventBadge = isEventsButton && newEventCount > 0;
                   const showCertificateBadge = isNotificationsButton && certificateNotificationCount > 0;
+                  const showMessageBadge = isMessagesButton && unreadMessagesCount > 0;
 
                   return (
                     <Link
@@ -268,6 +322,9 @@ export function Navigation() {
                       onClick={() => {
                         if (isEventsButton && newEventCount > 0) {
                           clearCount();
+                        }
+                        if (isMessagesButton && unreadMessagesCount > 0) {
+                          setUnreadMessagesCount(0);
                         }
                         // Note: We don't clear certificate count here because it should reflect actual unread notifications
                         // The count will be updated when notifications are fetched
@@ -290,6 +347,14 @@ export function Navigation() {
                           className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
                         >
                           {newEventCount > 9 ? '9+' : newEventCount}
+                        </Badge>
+                      )}
+                      {showMessageBadge && !showEventBadge && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                        >
+                          {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                         </Badge>
                       )}
                       {showCertificateBadge && (
@@ -640,8 +705,10 @@ export function Navigation() {
                   const isActive = pathname.startsWith(item.href);
                   const isEventsButton = item.label === 'Events';
                   const isNotificationsButton = item.label === 'Notifications';
+                  const isMessagesButton = item.label === 'Messages';
                   const showEventBadge = isEventsButton && newEventCount > 0;
                   const showCertificateBadge = isNotificationsButton && certificateNotificationCount > 0;
+                  const showMessageBadge = isMessagesButton && unreadMessagesCount > 0;
 
                   return (
                     <Link
@@ -658,6 +725,9 @@ export function Navigation() {
                         if (isEventsButton && newEventCount > 0) {
                           clearCount();
                         }
+                        if (isMessagesButton && unreadMessagesCount > 0) {
+                          setUnreadMessagesCount(0);
+                        }
                         if (isNotificationsButton && certificateNotificationCount > 0) {
                           setCertificateNotificationCount(0);
                         }
@@ -671,6 +741,14 @@ export function Navigation() {
                           className="absolute top-1 right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
                         >
                           {newEventCount > 9 ? '9+' : newEventCount}
+                        </Badge>
+                      )}
+                      {showMessageBadge && !showEventBadge && (
+                        <Badge
+                          variant="destructive"
+                          className="absolute top-1 right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                        >
+                          {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                         </Badge>
                       )}
                       {showCertificateBadge && (
@@ -880,6 +958,8 @@ export function Navigation() {
             const isNotificationsButton = item.label === 'Notifications';
             const showEventBadge = isEventsButton && newEventCount > 0;
             const showCertificateBadge = isNotificationsButton && certificateNotificationCount > 0;
+            const isMessagesButton = item.label === 'Messages';
+            const showMessageBadge = isMessagesButton && unreadMessagesCount > 0;
 
             return (
               <Link
@@ -888,6 +968,9 @@ export function Navigation() {
                 onClick={() => {
                   if (isEventsButton && newEventCount > 0) {
                     clearCount();
+                  }
+                  if (isMessagesButton && unreadMessagesCount > 0) {
+                    setUnreadMessagesCount(0);
                   }
                   if (isNotificationsButton && certificateNotificationCount > 0) {
                     setCertificateNotificationCount(0);
@@ -911,6 +994,14 @@ export function Navigation() {
                     className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
                   >
                     {newEventCount > 9 ? '9+' : newEventCount}
+                  </Badge>
+                )}
+                {showMessageBadge && !showEventBadge && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1 -right-1 h-4 w-4 p-0 text-[10px] flex items-center justify-center bg-red-500 hover:bg-red-500"
+                  >
+                    {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
                   </Badge>
                 )}
                 {showCertificateBadge && (

@@ -34,7 +34,8 @@ import {
   ChevronDown,
   ChevronUp,
   TrendingUp,
-  Loader2
+  Loader2,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,6 +47,7 @@ import { toast } from 'react-hot-toast';
 import { getSDGById, getSDGColor } from '@/constants/sdgs';
 import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ParticipantMessageDialog } from '@/components/messages/ParticipantMessageDialog';
 
 interface Event {
   id: string;
@@ -151,6 +153,8 @@ export default function EventDetailPage() {
   const [eventImpactScore, setEventImpactScore] = useState<number | null>(null);
   const [isGrantingAll, setIsGrantingAll] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [messageParticipant, setMessageParticipant] = useState<Participation | null>(null);
   
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
@@ -166,6 +170,23 @@ export default function EventDetailPage() {
       }
       return newSet;
     });
+  };
+  
+  const openMessageDialog = (participant: Participation) => {
+    if (!participant?.user?.id) {
+      toast.error('Unable to open conversation. Participant profile is missing.');
+      return;
+    }
+
+    setMessageParticipant(participant);
+    setIsMessageDialogOpen(true);
+  };
+
+  const handleMessageDialogChange = (open: boolean) => {
+    setIsMessageDialogOpen(open);
+    if (!open) {
+      setMessageParticipant(null);
+    }
   };
   
   // Helper function to calculate age from date of birth
@@ -1993,6 +2014,15 @@ export default function EventDetailPage() {
                                             </>
                                           )}
                                         </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => openMessageDialog(participation)}
+                                          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                                        >
+                                          <MessageCircle className="w-4 h-4 mr-1" />
+                                          Message
+                                        </Button>
                                         {participation.status !== 'VERIFIED' && (
                                           <Button
                                             variant="ghost"
@@ -2131,6 +2161,23 @@ export default function EventDetailPage() {
 
       {/* Confirm Dialog */}
       <ConfirmDialog />
+
+      <ParticipantMessageDialog
+        key={messageParticipant?.user?.id ?? 'no-participant'}
+        participant={
+          messageParticipant?.user?.id
+            ? {
+                id: messageParticipant.user.id,
+                name: getParticipantName(messageParticipant),
+                email: messageParticipant.user.email,
+                image: messageParticipant.user.image,
+              }
+            : null
+        }
+        open={Boolean(isMessageDialogOpen && messageParticipant?.user?.id)}
+        onOpenChange={handleMessageDialogChange}
+        currentUserId={user?.id}
+      />
 
       {/* Manual Approval Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>

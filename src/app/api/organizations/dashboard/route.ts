@@ -134,6 +134,11 @@ export async function GET(request: NextRequest) {
       status: m.status,
     }));
 
+    const organizationState =
+      typeof organization === 'object' && organization !== null && 'state' in organization
+        ? (organization as { state: string | null }).state
+        : null;
+
     return NextResponse.json({
       organization: {
         id: organization.id,
@@ -158,7 +163,7 @@ export async function GET(request: NextRequest) {
         phone: organization.phone,
         country: organization.country,
         city: organization.city,
-        state: organization.state,
+        state: organizationState,
         address: organization.address,
         sdgFocusAreas: organization.sdgFocusAreas || [],
         _count: {
