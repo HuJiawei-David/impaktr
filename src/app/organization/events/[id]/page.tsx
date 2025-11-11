@@ -868,6 +868,37 @@ export default function EventDetailPage() {
     }
   };
 
+  const handleDeleteParticipation = (participation: Participation) => {
+    const participantName = getParticipantName(participation);
+
+    showConfirm({
+      title: 'Delete Participant',
+      message: `Are you sure you want to remove ${participantName} from this event? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/events/${eventId}/participants/${participation.id}`, {
+            method: 'DELETE',
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Failed to delete participant' }));
+            throw new Error(errorData.error || errorData.details || 'Failed to delete participant');
+          }
+
+          toast.success('Participant removed successfully');
+          fetchEventDetails();
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to delete participant';
+          toast.error(errorMessage);
+          console.error('Error deleting participant:', error);
+        }
+      },
+    });
+  };
+
   if (isLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -1636,109 +1667,91 @@ export default function EventDetailPage() {
                                 </div>
                                 
                                 {isExpanded && (
-                                <div className="space-y-3">
-                                  {/* First Name */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">First Name:</span> {getParticipantFirstName(participation)}
-                                    </p>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">First Name</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{getParticipantFirstName(participation)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Name</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{getParticipantLastName(participation)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Age</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{calculateAge(participation.user.dateOfBirth) || '-'}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Email</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white break-words">{participation.user.email}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Impact Score</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{participation.user.impactScore.toFixed(1)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Joined Date</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                                        {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                          year: 'numeric',
+                                          month: 'short',
+                                          day: 'numeric'
+                                        })}
+                                      </p>
+                                    </div>
                                   </div>
 
-                                  {/* Last Name */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Last Name:</span> {getParticipantLastName(participation)}
-                                    </p>
-                                  </div>
-
-                                  {/* Age */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Age:</span> {calculateAge(participation.user.dateOfBirth) || '-'}
-                                    </p>
-                                  </div>
-
-                                  {/* Email */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Email:</span> {participation.user.email}
-                                    </p>
-                                  </div>
-
-                                  {/* Impact Score */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Impact Score:</span> {participation.user.impactScore.toFixed(1)}
-                                    </p>
-                                  </div>
-
-                                  {/* Joined Date */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Joined Date:</span> {new Date(participation.joinedAt).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })}
-                                    </p>
-                                  </div>
-
-                                  {/* Registration Information */}
                                   {participation.registrationInfo && (
-                                    <>
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                       {participation.registrationInfo.hoursCommitted && (
                                         <div>
-                                          <p className="text-sm text-gray-900 dark:text-white">
-                                            <span className="font-medium text-gray-600 dark:text-gray-400">Hours Committed:</span> {participation.registrationInfo.hoursCommitted} hours
-                                          </p>
-                                        </div>
-                                      )}
-                                      {participation.registrationInfo.motivation && (
-                                        <div>
-                                          <p className="text-sm text-gray-900 dark:text-white">
-                                            <span className="font-medium text-gray-600 dark:text-gray-400">Motivation:</span>
-                                          </p>
-                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-4">
-                                            {participation.registrationInfo.motivation}
-                                          </p>
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Hours Committed</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">{participation.registrationInfo.hoursCommitted} hours</p>
                                         </div>
                                       )}
                                       {participation.registrationInfo.skills && (
                                         <div>
-                                          <p className="text-sm text-gray-900 dark:text-white">
-                                            <span className="font-medium text-gray-600 dark:text-gray-400">Relevant Skills:</span>
-                                          </p>
-                                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed ml-4">
-                                            {participation.registrationInfo.skills}
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Relevant Skills</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">{participation.registrationInfo.skills}</p>
+                                        </div>
+                                      )}
+                                      {participation.registrationInfo.motivation && (
+                                        <div className="sm:col-span-3">
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Motivation</p>
+                                          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                                            {participation.registrationInfo.motivation}
                                           </p>
                                         </div>
                                       )}
                                       {participation.registrationInfo.emergencyContact && (
-                                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Emergency Contact:</p>
-                                          <div className="space-y-1 ml-4">
+                                        <div className="sm:col-span-3">
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Emergency Contact</p>
+                                          <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-3">
                                             {participation.registrationInfo.emergencyContact.name && (
-                                              <p className="text-sm text-gray-900 dark:text-white">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400">Name:</span> {participation.registrationInfo.emergencyContact.name}
-                                              </p>
+                                              <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+                                                <p className="text-sm text-gray-900 dark:text-white">{participation.registrationInfo.emergencyContact.name}</p>
+                                              </div>
                                             )}
                                             {participation.registrationInfo.emergencyContact.phone && (
-                                              <p className="text-sm text-gray-900 dark:text-white">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400">Phone:</span> {participation.registrationInfo.emergencyContact.phone}
-                                              </p>
+                                              <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
+                                                <p className="text-sm text-gray-900 dark:text-white">{participation.registrationInfo.emergencyContact.phone}</p>
+                                              </div>
                                             )}
                                             {participation.registrationInfo.emergencyContact.relationship && (
-                                              <p className="text-sm text-gray-900 dark:text-white">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400">Relationship:</span> {participation.registrationInfo.emergencyContact.relationship}
-                                              </p>
+                                              <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Relationship</p>
+                                                <p className="text-sm text-gray-900 dark:text-white">{participation.registrationInfo.emergencyContact.relationship}</p>
+                                              </div>
                                             )}
                                           </div>
                                         </div>
                                       )}
-                                    </>
+                                    </div>
                                   )}
                                 </div>
-                              )}
+                                )}
                               </CardContent>
                             </Card>
                             );
@@ -1823,12 +1836,12 @@ export default function EventDetailPage() {
                             >
                               <CardContent className="p-4">
                                 <div className="flex items-center justify-between mb-4">
-                                  <div className="flex items-center gap-3 flex-1">
+                                  <div className="flex items-start flex-1">
                                     {canSelect && (
                                       <button
                                         type="button"
                                         onClick={() => toggleParticipantSelection(participation.id)}
-                                        className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${
+                                        className={`flex-shrink-0 w-4 h-4 -ml-[1.125rem] mr-[0.125rem] rounded border-2 flex items-center justify-center transition-colors cursor-pointer ${
                                           isSelected 
                                             ? 'bg-blue-600 border-blue-600 dark:bg-blue-500 dark:border-blue-500' 
                                             : 'border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400'
@@ -1840,9 +1853,6 @@ export default function EventDetailPage() {
                                           </svg>
                                         )}
                                       </button>
-                                    )}
-                                    {!canSelect && (
-                                      <div className="flex-shrink-0 w-5 h-5" />
                                     )}
                                     <div className="flex-1">
                                       <h4 className="font-medium">{getParticipantName(participation)}</h4>
@@ -1884,64 +1894,52 @@ export default function EventDetailPage() {
                                 </div>
                                 
                                 {isExpanded && (
-                                <div className="space-y-3">
-                                  {/* First Name */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">First Name:</span> {getParticipantFirstName(participation)}
-                                    </p>
-                                  </div>
-
-                                  {/* Last Name */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Last Name:</span> {getParticipantLastName(participation)}
-                                    </p>
-                                  </div>
-
-                                  {/* Age */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Age:</span> {calculateAge(participation.user.dateOfBirth) || '-'}
-                                    </p>
-                                  </div>
-
-                                  {/* Hours */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Hours:</span> {participation.hours || 0}
-                                    </p>
-                                  </div>
-
-                                  {/* Impact Score */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Impact Score:</span> {participation.user.impactScore.toFixed(1)}
-                                    </p>
-                                  </div>
-
-                                  {/* Check-In Time */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Check-In Time:</span> {participation.verifiedAt ? new Date(participation.verifiedAt).toLocaleString('en-US', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                      }) : '-'}
-                                    </p>
-                                  </div>
-
-                                  {/* Joined Date */}
-                                  <div>
-                                    <p className="text-sm text-gray-900 dark:text-white">
-                                      <span className="font-medium text-gray-600 dark:text-gray-400">Joined Date:</span> {new Date(participation.joinedAt).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric'
-                                      })}
-                                    </p>
+                                <div className="space-y-4">
+                                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">First Name</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{getParticipantFirstName(participation)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Name</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{getParticipantLastName(participation)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Age</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{calculateAge(participation.user.dateOfBirth) || '-'}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Hours</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{participation.hours || 0}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Impact Score</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">{participation.user.impactScore.toFixed(1)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Check-In Time</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                                        {participation.verifiedAt
+                                          ? new Date(participation.verifiedAt).toLocaleString('en-US', {
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })
+                                          : '-'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Joined Date</p>
+                                      <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                                        {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                          year: 'numeric',
+                                          month: 'short',
+                                          day: 'numeric'
+                                        })}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
                                 )}
@@ -2023,114 +2021,75 @@ export default function EventDetailPage() {
                                           <MessageCircle className="w-4 h-4 mr-1" />
                                           Message
                                         </Button>
-                                        {participation.status !== 'VERIFIED' && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => {
-                                              showConfirm({
-                                                title: 'Delete Participant',
-                                                message: `Are you sure you want to remove ${participation.user.name} from this event? This action cannot be undone.`,
-                                                confirmText: 'Delete',
-                                                cancelText: 'Cancel',
-                                                type: 'warning',
-                                                onConfirm: async () => {
-                                                  try {
-                                                    const response = await fetch(`/api/events/${eventId}/participants/${participation.id}`, {
-                                                      method: 'DELETE',
-                                                    });
-
-                                                    if (!response.ok) {
-                                                      const errorData = await response.json().catch(() => ({ error: 'Failed to delete participant' }));
-                                                      throw new Error(errorData.error || 'Failed to delete participant');
-                                                    }
-
-                                                    toast.success('Participant removed successfully');
-                                                    fetchEventDetails();
-                                                  } catch (error) {
-                                                    const errorMessage = error instanceof Error ? error.message : 'Failed to delete participant';
-                                                    toast.error(errorMessage);
-                                                    console.error('Error deleting participant:', error);
-                                                  }
-                                                }
-                                              });
-                                            }}
-                                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                                            title="Delete Participant"
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleDeleteParticipation(participation)}
+                                          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                                          title="Delete Participant"
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-1" />
+                                          Delete
+                                        </Button>
                                       </div>
                                     </div>
                                     
                                     {isExpanded && (
-                                    <div className="space-y-3">
-                                      {/* First Name */}
-                                      <div>
-                                        <p className="text-sm text-gray-900 dark:text-white">
-                                          <span className="font-medium text-gray-600 dark:text-gray-400">First Name:</span> {getParticipantFirstName(participation)}
-                                        </p>
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">First Name</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">{getParticipantFirstName(participation)}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Last Name</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">{getParticipantLastName(participation)}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Age</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">{calculateAge(participation.user.dateOfBirth) || '-'}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Hours</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">{participation.hours || 0}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Impact Score</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">{participation.user.impactScore.toFixed(1)}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Joined Date</p>
+                                          <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                                            {new Date(participation.joinedAt).toLocaleDateString('en-US', {
+                                              year: 'numeric',
+                                              month: 'short',
+                                              day: 'numeric'
+                                            })}
+                                          </p>
+                                        </div>
                                       </div>
 
-                                      {/* Last Name */}
-                                      <div>
-                                        <p className="text-sm text-gray-900 dark:text-white">
-                                          <span className="font-medium text-gray-600 dark:text-gray-400">Last Name:</span> {getParticipantLastName(participation)}
-                                        </p>
-                                      </div>
-
-                                      {/* Age */}
-                                      <div>
-                                        <p className="text-sm text-gray-900 dark:text-white">
-                                          <span className="font-medium text-gray-600 dark:text-gray-400">Age:</span> {calculateAge(participation.user.dateOfBirth) || '-'}
-                                        </p>
-                                      </div>
-
-                                      {/* Hours */}
-                                      <div>
-                                        <p className="text-sm text-gray-900 dark:text-white">
-                                          <span className="font-medium text-gray-600 dark:text-gray-400">Hours:</span> {participation.hours || 0}
-                                        </p>
-                                      </div>
-
-                                      {/* Impact Score */}
-                                      <div>
-                                        <p className="text-sm text-gray-900 dark:text-white">
-                                          <span className="font-medium text-gray-600 dark:text-gray-400">Impact Score:</span> {participation.user.impactScore.toFixed(1)}
-                                        </p>
-                                      </div>
-
-                                      {/* Joined Date */}
-                                      <div>
-                                        <p className="text-sm text-gray-900 dark:text-white">
-                                          <span className="font-medium text-gray-600 dark:text-gray-400">Joined Date:</span> {new Date(participation.joinedAt).toLocaleDateString('en-US', {
-                                            year: 'numeric',
-                                            month: 'short',
-                                            day: 'numeric'
-                                          })}
-                                        </p>
-                                      </div>
-
-                                      {/* Emergency Contact */}
                                       {participation.registrationInfo?.emergencyContact && (
-                                        <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Emergency Contact:</p>
-                                          <div className="space-y-1 ml-4">
+                                        <div className="sm:col-span-3">
+                                          <p className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">Emergency Contact</p>
+                                          <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-3">
                                             {participation.registrationInfo.emergencyContact.name && (
-                                              <p className="text-sm text-gray-900 dark:text-white">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400">Name:</span> {participation.registrationInfo.emergencyContact.name}
-                                              </p>
+                                              <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Name</p>
+                                                <p className="text-sm text-gray-900 dark:text-white">{participation.registrationInfo.emergencyContact.name}</p>
+                                              </div>
                                             )}
                                             {participation.registrationInfo.emergencyContact.phone && (
-                                              <p className="text-sm text-gray-900 dark:text-white">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400">Phone:</span> {participation.registrationInfo.emergencyContact.phone}
-                                              </p>
+                                              <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
+                                                <p className="text-sm text-gray-900 dark:text-white">{participation.registrationInfo.emergencyContact.phone}</p>
+                                              </div>
                                             )}
                                             {participation.registrationInfo.emergencyContact.relationship && (
-                                              <p className="text-sm text-gray-900 dark:text-white">
-                                                <span className="font-medium text-gray-600 dark:text-gray-400">Relationship:</span> {participation.registrationInfo.emergencyContact.relationship}
-                                              </p>
+                                              <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">Relationship</p>
+                                                <p className="text-sm text-gray-900 dark:text-white">{participation.registrationInfo.emergencyContact.relationship}</p>
+                                              </div>
                                             )}
                                           </div>
                                         </div>
