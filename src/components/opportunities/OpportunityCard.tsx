@@ -106,7 +106,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   onApply
 }) => {
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className="hover:shadow-lg transition-shadow bg-white dark:bg-gray-900">
       <CardContent className="p-6">
         <Link href={`/opportunities/${opportunity.id}`}>
           <div className="cursor-pointer">

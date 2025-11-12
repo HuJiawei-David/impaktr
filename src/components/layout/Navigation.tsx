@@ -184,12 +184,18 @@ export function Navigation() {
 
     try {
       const response = await fetch('/api/messages');
+
       if (!response.ok) {
         if (response.status === 401) {
           setUnreadMessagesCount(0);
           return;
         }
-        throw new Error('Failed to fetch messages');
+
+        console.warn(
+          `fetchUnreadMessages: unexpected response status ${response.status}`
+        );
+        setUnreadMessagesCount(0);
+        return;
       }
 
       const data = await response.json();
@@ -204,6 +210,7 @@ export function Navigation() {
       setUnreadMessagesCount(totalUnread);
     } catch (error) {
       console.error('Error fetching unread messages:', error);
+      setUnreadMessagesCount(0);
     }
   }, [user]);
 
