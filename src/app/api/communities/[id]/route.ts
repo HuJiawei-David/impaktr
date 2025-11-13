@@ -16,7 +16,14 @@ const updateCommunitySchema = z.object({
   tags: z.array(z.string()).optional(),
   rules: z.array(z.string()).optional(),
   location: z.string().optional(),
+  locationData: z.object({
+    country: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    state: z.string().nullable().optional(),
+  }).optional(),
   language: z.string().optional(),
+  whoShouldJoin: z.string().nullable().optional(),
+  whatWeDo: z.string().nullable().optional(),
 });
 
 // GET /api/communities/[id] - Get community details
@@ -187,12 +194,44 @@ export async function PUT(
       );
     }
 
+    // Build update data, excluding location (we use locationData instead)
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    // Add fields that are valid Prisma fields
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.category !== undefined) updateData.category = data.category;
+    if (data.privacy !== undefined) updateData.privacy = data.privacy;
+    if (data.language !== undefined) updateData.language = data.language || null;
+    if (data.tags !== undefined) updateData.tags = data.tags;
+    if (data.rules !== undefined) updateData.rules = data.rules;
+    if (data.sdgFocus !== undefined) updateData.sdgFocus = data.sdgFocus;
+    // Convert empty strings to null for optional fields
+    if (data.whoShouldJoin !== undefined) updateData.whoShouldJoin = data.whoShouldJoin?.trim() || null;
+    if (data.whatWeDo !== undefined) updateData.whatWeDo = data.whatWeDo?.trim() || null;
+
+    // Handle locationData separately
+    if (data.locationData) {
+      updateData.locationData = data.locationData;
+      // Also update location string if locationData is provided
+      const locationParts = [
+        data.locationData.city,
+        data.locationData.state,
+        data.locationData.country
+      ].filter(Boolean);
+      if (locationParts.length > 0) {
+        updateData.location = locationParts.join(', ');
+      }
+    } else if (data.location !== undefined) {
+      // Fallback to location string if locationData is not provided
+      updateData.location = data.location;
+    }
+
     const community = await prisma.community.update({
       where: { id },
-      data: {
-        ...data,
-        updatedAt: new Date(),
-      },
+      data: updateData,
       include: {
         createdByUser: {
           select: {
@@ -230,8 +269,9 @@ export async function PUT(
     }
 
     console.error('Error updating community:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: errorMessage, details: error instanceof Error ? error.stack : undefined },
       { status: 500 }
     );
   }

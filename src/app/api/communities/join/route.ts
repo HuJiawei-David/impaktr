@@ -85,13 +85,22 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Update community member count
+    // Get user's avatar
+    const userAvatar = membership.user.image;
+    
+    // Update community member count and memberAvatars
+    const currentAvatars = (community.memberAvatars as string[]) || [];
+    const updatedAvatars = userAvatar && !currentAvatars.includes(userAvatar)
+      ? [...currentAvatars.slice(0, 2), userAvatar].slice(0, 3) // Keep max 3 avatars
+      : currentAvatars;
+
     await prisma.community.update({
       where: { id: communityId },
       data: {
         memberCount: {
           increment: 1
-        }
+        },
+        memberAvatars: updatedAvatars
       }
     });
 

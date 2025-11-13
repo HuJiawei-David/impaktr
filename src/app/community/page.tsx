@@ -20,6 +20,7 @@ interface Community {
   recentActivity: string;
   isPublic: boolean;
   isJoined: boolean;
+  isCreatedByMe?: boolean;
   userRole: string | null;
   bannerImage?: string;
   avatar?: string;

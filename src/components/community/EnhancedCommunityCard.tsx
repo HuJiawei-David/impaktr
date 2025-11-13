@@ -26,7 +26,10 @@ interface EnhancedCommunityCardProps {
     postCount: number;
     recentActivity: string;
     isPublic: boolean;
+    privacy?: string;
     isJoined?: boolean;
+    isCreatedByMe?: boolean;
+    userRole?: string | null;
     bannerImage?: string;
     avatar?: string;
     tags?: string[];
@@ -54,11 +57,10 @@ export function EnhancedCommunityCard({
   onView, 
   onShare 
 }: EnhancedCommunityCardProps) {
-  const primarySDG = community.primarySDG ? getSDGById(community.primarySDG) : null;
   const sdgTags = community.sdgFocus?.map(id => getSDGById(id)).filter(Boolean) || [];
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200 cursor-pointer border-0 shadow-sm h-full">
+    <Card className="group hover:shadow-lg transition-all duration-200 cursor-pointer border-0 shadow-sm h-full bg-white dark:bg-gray-800">
       <div className="relative h-full flex flex-col">
         {/* Community Banner Image */}
         <div className="h-32 bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-lg relative overflow-hidden">
@@ -74,18 +76,14 @@ export function EnhancedCommunityCard({
             </div>
           )}
           
-          {/* SDG Badge */}
-          {primarySDG && (
-            <div className="absolute top-2 right-2">
+          {/* Owner Badge */}
+          {community.isCreatedByMe && (
+            <div className="absolute top-2 left-2">
               <Badge 
-                className="text-white font-semibold px-3 py-1"
-                style={{ 
-                  backgroundColor: primarySDG.color,
-                  borderColor: primarySDG.color
-                }}
+                className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold px-3 py-1 border-0 shadow-md"
               >
-                <img src={primarySDG.image} alt="" className="w-3 h-3 mr-1" />
-                SDG {primarySDG.id}
+                <Star className="w-3 h-3 mr-1 fill-current" />
+                Owner
               </Badge>
             </div>
           )}
@@ -98,7 +96,13 @@ export function EnhancedCommunityCard({
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
               <MapPin className="w-3 h-3" />
-              {community.location?.city || 'Virtual'}, {community.location?.country || 'Global'}
+              {community.location?.city && community.location?.country 
+                ? `${community.location.city}, ${community.location.country}`
+                : community.location?.city 
+                ? community.location.city
+                : community.location?.country
+                ? community.location.country
+                : 'Virtual, Global'}
               {community.distance && (
                 <span className="ml-2 text-xs bg-gray-100 dark:bg-gray-700 dark:text-gray-300 px-2 py-1 rounded">
                   {community.distance}km away
@@ -122,7 +126,7 @@ export function EnhancedCommunityCard({
               ) : (
                 <>
                   <Lock className="w-3 h-3 mr-1" />
-                  Private
+                  {community.privacy === 'INVITE_ONLY' ? 'Invite Only' : 'Private'}
                 </>
               )}
             </Badge>
@@ -144,38 +148,32 @@ export function EnhancedCommunityCard({
             {/* Member Count & Avatars */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
-                  {community.memberAvatars?.slice(0, 3).map((avatar, index) => (
-                    <Avatar key={index} className="w-6 h-6 border-2 border-white">
-                      <AvatarImage src={avatar} />
-                      <AvatarFallback className="text-xs">
-                        {community.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                  )) || (
-                    <div className="flex -space-x-2">
-                      {[1, 2, 3].map((i) => (
-                        <Avatar key={i} className="w-6 h-6 border-2 border-white bg-gray-200">
-                          <AvatarFallback className="text-xs">
-                            {community.name.charAt(i - 1)}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {community.memberAvatars && community.memberAvatars.length > 0 ? (
+                  <div className="flex -space-x-2">
+                    {community.memberAvatars.slice(0, 3).map((avatar, index) => (
+                      <Avatar key={index} className="w-6 h-6 border-2 border-white dark:border-gray-800">
+                        <AvatarImage src={avatar} alt={`Member ${index + 1}`} />
+                        <AvatarFallback className="text-xs bg-gray-200 dark:bg-gray-700">
+                          {community.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex -space-x-2">
+                    {[1, 2, 3].map((i) => (
+                      <Avatar key={i} className="w-6 h-6 border-2 border-white dark:border-gray-800 bg-gray-200 dark:bg-gray-700">
+                        <AvatarFallback className="text-xs">
+                          {community.name.charAt(i - 1) || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                    ))}
+                  </div>
+                )}
                 <span className="text-sm text-gray-600 dark:text-gray-300">
                   {community.memberCount.toLocaleString()} members
                 </span>
               </div>
-              
-              {/* Rating (if available) */}
-              {community.rating && (
-                <div className="flex items-center gap-1">
-                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-medium">{community.rating}</span>
-                </div>
-              )}
             </div>
 
             {/* SDG Tags */}
@@ -188,7 +186,7 @@ export function EnhancedCommunityCard({
                   style={{ borderColor: sdg?.color }}
                 >
                   <img src={sdg?.image} alt="" className="w-3 h-3 mr-1" />
-                  {sdg?.title}
+                  SDG {sdg?.id}: {sdg?.title}
                 </Badge>
               ))}
               {sdgTags.length > 3 && (
@@ -205,13 +203,13 @@ export function EnhancedCommunityCard({
                   <Badge 
                     key={index} 
                     variant="secondary" 
-                    className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    className="px-3 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/30 cursor-pointer transition-colors"
                   >
                     #{tag}
                   </Badge>
                 ))}
                 {community.tags.length > 3 && (
-                  <Badge variant="secondary" className="text-xs px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                  <Badge variant="secondary" className="px-3 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/30 cursor-pointer transition-colors">
                     +{community.tags.length - 3} more
                   </Badge>
                 )}

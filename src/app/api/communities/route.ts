@@ -16,7 +16,11 @@ const createCommunitySchema = z.object({
   privacy: z.enum(['PUBLIC', 'PRIVATE', 'INVITE_ONLY']).default('PUBLIC'),
   tags: z.array(z.string()).optional().default([]),
   rules: z.array(z.string()).optional().default([]),
-  location: z.string().optional(),
+  whoShouldJoin: z.string().optional().default(''),
+  whatWeDo: z.string().optional().default(''),
+  country: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
   language: z.string().optional(),
 });
 
@@ -132,16 +136,40 @@ export async function GET(request: NextRequest) {
     const communitiesWithMembership = communities.map(community => {
       // Parse locationData if it exists
       const locationData = community.locationData as any;
-      const location = locationData ? {
-        city: locationData.city,
-        country: locationData.country,
-        coordinates: locationData.coordinates
-      } : undefined;
+      let location: { city: string; country: string; coordinates?: any } | undefined;
+      
+      if (locationData && (locationData.city || locationData.country)) {
+        location = {
+          city: locationData.city || '',
+          country: locationData.country || '',
+          coordinates: locationData.coordinates
+        };
+      } else if (community.location) {
+        // Fallback to location string if locationData is not available
+        const locationParts = community.location.split(',').map(s => s.trim());
+        location = {
+          city: locationParts[0] || '',
+          country: locationParts[locationParts.length - 1] || '',
+        };
+      }
 
       // Get member avatars from the first few members
-      const memberAvatars = community.memberAvatars?.length > 0 
-        ? community.memberAvatars 
-        : community.members.slice(0, 3).map(m => m.user.image).filter(Boolean) as string[];
+      let memberAvatars: string[] = [];
+      if (community.memberAvatars && community.memberAvatars.length > 0) {
+        memberAvatars = community.memberAvatars;
+      } else if (community.members && community.members.length > 0) {
+        memberAvatars = community.members
+          .slice(0, 3)
+          .map(m => m.user.image)
+          .filter(Boolean) as string[];
+      }
+
+      const isJoined = membershipMap.has(community.id);
+      const userRole = membershipMap.get(community.id) || null;
+      const isCreatedByMe = community.createdBy === userId;
+      
+      // Map privacy enum to isPublic boolean
+      const isPublic = community.privacy === 'PUBLIC';
 
       return {
         ...community,
@@ -150,8 +178,11 @@ export async function GET(request: NextRequest) {
         recentActivity: community.posts.length > 0 
           ? `Last post ${new Date(community.posts[0].createdAt).toLocaleDateString()}`
           : `Created ${new Date(community.createdAt).toLocaleDateString()}`,
-        isJoined: membershipMap.has(community.id),
-        userRole: membershipMap.get(community.id) || null,
+        isJoined,
+        userRole,
+        isCreatedByMe,
+        isPublic,
+        privacy: community.privacy,
         location,
         memberAvatars,
         _count: undefined,
@@ -191,12 +222,32 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     
     // Parse form data
+    const country = formData.get('country') as string || '';
+    const city = formData.get('city') as string || '';
+    const state = formData.get('state') as string || '';
+    
+    // Build location string from structured data
+    const locationParts = [city, state, country].filter(Boolean);
+    const location = locationParts.length > 0 ? locationParts.join(', ') : '';
+    
+    // Build locationData JSON
+    const locationData = {
+      country: country || null,
+      city: city || null,
+      state: state || null,
+    };
+
     const data = {
       name: formData.get('name') as string,
       description: formData.get('description') as string,
       category: formData.get('category') as string,
       privacy: formData.get('privacy') as string,
-      location: formData.get('location') as string,
+      whoShouldJoin: formData.get('whoShouldJoin') as string || '',
+      whatWeDo: formData.get('whatWeDo') as string || '',
+      country: country,
+      city: city,
+      state: state,
+      location: location,
       language: formData.get('language') as string,
       sdgFocus: JSON.parse(formData.get('sdgFocus') as string || '[]'),
       tags: JSON.parse(formData.get('tags') as string || '[]'),
@@ -238,7 +289,18 @@ export async function POST(request: NextRequest) {
 
     const community = await prisma.community.create({
       data: {
-        ...validatedData,
+        name: validatedData.name,
+        description: validatedData.description,
+        category: validatedData.category,
+        privacy: validatedData.privacy,
+        whoShouldJoin: validatedData.whoShouldJoin || null,
+        whatWeDo: validatedData.whatWeDo || null,
+        location: location,
+        locationData: locationData,
+        language: validatedData.language,
+        sdgFocus: validatedData.sdgFocus,
+        tags: validatedData.tags,
+        rules: validatedData.rules,
         avatar: avatarUrl,
         createdBy: session.user.id,
       },
@@ -259,12 +321,28 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Get creator's avatar
+    const creator = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { image: true }
+    });
+
     // Add creator as owner
     await prisma.communityMember.create({
       data: {
         communityId: community.id,
         userId: session.user.id,
         role: 'OWNER'
+      }
+    });
+
+    // Update memberAvatars with creator's avatar
+    const creatorAvatar = creator?.image ? [creator.image] : [];
+    await prisma.community.update({
+      where: { id: community.id },
+      data: {
+        memberCount: 1,
+        memberAvatars: creatorAvatar
       }
     });
 
@@ -275,6 +353,7 @@ export async function POST(request: NextRequest) {
         postCount: 0,
         isJoined: true,
         userRole: 'OWNER',
+        memberAvatars: creatorAvatar,
         _count: undefined,
       }
     }, { status: 201 });

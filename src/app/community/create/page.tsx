@@ -9,9 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { SDGSelector } from '@/components/ui/sdg-selector';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Label } from '@/components/ui/label';
 import { ArrowLeft, Plus, X } from 'lucide-react';
+import { countries } from '@/constants/countries';
+import { languages } from '@/constants/languages';
 
 export default function CreateCommunityPage() {
   const { data: session, status } = useSession();
@@ -25,7 +29,11 @@ export default function CreateCommunityPage() {
     privacy: 'PUBLIC' as 'PUBLIC' | 'PRIVATE' | 'INVITE_ONLY',
     tags: [] as string[],
     rules: [] as string[],
-    location: '',
+    whoShouldJoin: '',
+    whatWeDo: '',
+    country: '',
+    city: '',
+    state: '',
     language: '',
     avatar: null as File | null,
   });
@@ -51,20 +59,6 @@ export default function CreateCommunityPage() {
     'Other'
   ];
 
-  const languages = [
-    'English',
-    'Spanish',
-    'French',
-    'German',
-    'Italian',
-    'Portuguese',
-    'Chinese',
-    'Japanese',
-    'Korean',
-    'Arabic',
-    'Hindi',
-    'Other'
-  ];
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -127,8 +121,8 @@ export default function CreateCommunityPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim() || !formData.description.trim() || !formData.category) {
-      setError('Please fill in all required fields');
+    if (!formData.name.trim() || !formData.description.trim() || !formData.category || !formData.country.trim() || !formData.city.trim()) {
+      setError('Please fill in all required fields (name, description, category, country, and city)');
       return;
     }
 
@@ -141,7 +135,11 @@ export default function CreateCommunityPage() {
       formDataToSend.append('description', formData.description);
       formDataToSend.append('category', formData.category);
       formDataToSend.append('privacy', formData.privacy);
-      formDataToSend.append('location', formData.location);
+      formDataToSend.append('whoShouldJoin', formData.whoShouldJoin);
+      formDataToSend.append('whatWeDo', formData.whatWeDo);
+      formDataToSend.append('country', formData.country);
+      formDataToSend.append('city', formData.city);
+      formDataToSend.append('state', formData.state);
       formDataToSend.append('language', formData.language);
       formDataToSend.append('sdgFocus', JSON.stringify(formData.sdgFocus));
       formDataToSend.append('tags', JSON.stringify(formData.tags));
@@ -396,41 +394,121 @@ export default function CreateCommunityPage() {
             </CardContent>
           </Card>
 
+          {/* Who Should Join */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Who Should Join</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label className="block text-sm font-medium mb-2">
+                  Describe who should join this community
+                </Label>
+                <Textarea
+                  value={formData.whoShouldJoin}
+                  onChange={(e) => handleInputChange('whoShouldJoin', e.target.value)}
+                  placeholder="Describe the ideal members for your community (e.g., 'This community is perfect for individuals who are passionate about environmental conservation...')"
+                  rows={4}
+                  maxLength={1000}
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  {formData.whoShouldJoin.length}/1000 characters
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* What We Do */}
+          <Card>
+            <CardHeader>
+              <CardTitle>What We Do</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label className="block text-sm font-medium mb-2">
+                  Describe what your community does
+                </Label>
+                <Textarea
+                  value={formData.whatWeDo}
+                  onChange={(e) => handleInputChange('whatWeDo', e.target.value)}
+                  placeholder="Describe the activities, initiatives, and goals of your community"
+                  rows={4}
+                  maxLength={1000}
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  {formData.whatWeDo.length}/1000 characters
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Location */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Location</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="block text-sm font-medium mb-2">
+                  Country *
+                </Label>
+                <SearchableSelect
+                  options={countries.map(country => ({
+                    value: country.name,
+                    label: country.name,
+                    flag: country.flag
+                  }))}
+                  value={formData.country}
+                  placeholder="Search country..."
+                  onValueChange={(value) => handleInputChange('country', value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="block text-sm font-medium mb-2">
+                    City *
+                  </Label>
+                  <Input
+                    value={formData.city}
+                    onChange={(e) => handleInputChange('city', e.target.value)}
+                    placeholder="Enter city name"
+                  />
+                </div>
+
+                <div>
+                  <Label className="block text-sm font-medium mb-2">
+                    State/Province
+                  </Label>
+                  <Input
+                    value={formData.state}
+                    onChange={(e) => handleInputChange('state', e.target.value)}
+                    placeholder="Enter state or province"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Additional Information */}
           <Card>
             <CardHeader>
               <CardTitle>Additional Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Location
-                  </label>
-                  <Input
-                    value={formData.location}
-                    onChange={(e) => handleInputChange('location', e.target.value)}
-                    placeholder="City, Country"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Primary Language
-                  </label>
-                  <Select value={formData.language} onValueChange={(value) => handleInputChange('language', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {languages.map(language => (
-                        <SelectItem key={language} value={language}>
-                          {language}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <Label className="block text-sm font-medium mb-2">
+                  Primary Language
+                </Label>
+                <SearchableSelect
+                  options={languages.map(language => ({
+                    value: language.name,
+                    label: language.name
+                  }))}
+                  value={formData.language}
+                  placeholder="Search language..."
+                  onValueChange={(value) => handleInputChange('language', value)}
+                />
               </div>
             </CardContent>
           </Card>
