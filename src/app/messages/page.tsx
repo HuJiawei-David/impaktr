@@ -13,7 +13,10 @@ import {
   Smile,
   Check,
   CheckCheck,
-  Clock
+  Loader2,
+  X,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { getMessagePreview, parseMessageContent } from '@/lib/messages';
+import { toast } from 'react-hot-toast';
 
 interface Message {
   id: string;
@@ -64,10 +68,20 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_MIME_TYPES = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ]);
+  const ALLOWED_EXTENSIONS = new Set(['.pdf', '.doc', '.docx']);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -148,32 +162,57 @@ export default function MessagesPage() {
     }
   };
 
+  const canSendMessage = newMessage.trim().length > 0 || Boolean(selectedFile);
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || isSending) return;
+    if (!selectedConversation || isSending || !canSendMessage) return;
 
     try {
       setIsSending(true);
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          receiverId: selectedConversation,
-          content: newMessage.trim(),
-        }),
-      });
+      const trimmedMessage = newMessage.trim();
+      let response: Response;
+
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('receiverId', selectedConversation);
+        if (trimmedMessage) {
+          formData.append('content', trimmedMessage);
+        }
+        formData.append('file', selectedFile);
+
+        response = await fetch('/api/messages', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        response = await fetch('/api/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            receiverId: selectedConversation,
+            content: trimmedMessage,
+          }),
+        });
+      }
 
       if (response.ok) {
         const data = await response.json();
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
+        setSelectedFile(null);
         
         // Update conversations list
         await fetchConversations();
+      } else {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Failed to send message.';
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Failed to send message. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -182,8 +221,69 @@ export default function MessagesPage() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      if (canSendMessage) {
+        sendMessage();
+      }
     }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes >= 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    if (bytes >= 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${bytes} B`;
+  };
+
+  const isAllowedFile = (file: File) => {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error('File is too large. Maximum size is 10MB.');
+      return false;
+    }
+
+    if (file.type && file.type.startsWith('image/')) {
+      return true;
+    }
+
+    if (file.type && ALLOWED_MIME_TYPES.has(file.type)) {
+      return true;
+    }
+
+    const extensionIndex = file.name.lastIndexOf('.');
+    if (extensionIndex !== -1) {
+      const extension = file.name.slice(extensionIndex).toLowerCase();
+      if (ALLOWED_EXTENSIONS.has(extension)) {
+        return true;
+      }
+    }
+
+    toast.error('Unsupported file type. Please upload a PDF, Word document, or image.');
+    return false;
+  };
+
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!isAllowedFile(file)) {
+      event.target.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+    event.target.value = '';
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
   };
 
   const formatTime = (dateString: string) => {
@@ -443,10 +543,44 @@ export default function MessagesPage() {
                   {/* Message Input */}
                   <div className="border-t p-4">
                     <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={handleFileButtonClick} aria-label="Attach a file">
                         <Paperclip className="h-4 w-4" />
                       </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.doc,.docx,image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
                       <div className="flex-1">
+                        {selectedFile && (
+                          <div className="mb-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-200">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {selectedFile.type.startsWith('image/') ? (
+                                <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                              ) : (
+                                <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatFileSize(selectedFile.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                              onClick={removeSelectedFile}
+                              aria-label="Remove attachment"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                         <Textarea
                           placeholder="Type a message..."
                           value={newMessage}
@@ -461,10 +595,14 @@ export default function MessagesPage() {
                       </Button>
                       <Button 
                         onClick={sendMessage}
-                        disabled={!newMessage.trim() || isSending}
+                        disabled={!canSendMessage || isSending}
                         className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                       >
-                        <Send className="h-4 w-4" />
+                        {isSending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
