@@ -426,6 +426,16 @@ export default function CreateEventPage() {
         errors.push('Meeting location is required for non-virtual events');
       }
     }
+
+    if (
+      formData.maxParticipants === undefined ||
+      formData.maxParticipants === null ||
+      Number.isNaN(formData.maxParticipants)
+    ) {
+      errors.push('Maximum participants is required');
+    } else if (formData.maxParticipants < 1) {
+      errors.push('Maximum participants must be at least 1');
+    }
     
     return errors;
   };
@@ -749,6 +759,18 @@ export default function CreateEventPage() {
         return;
       }
 
+      if (
+        data.maxParticipants === undefined ||
+        data.maxParticipants === null ||
+        Number.isNaN(data.maxParticipants) ||
+        data.maxParticipants < 1
+      ) {
+        toast.error('Maximum participants is required');
+        setIsSubmitting(false);
+        setIsDraft(false);
+        return;
+      }
+
       // Validate location for non-virtual events
       if (!data.location.isVirtual) {
         if (!data.location.city) {
@@ -787,6 +809,8 @@ export default function CreateEventPage() {
         return;
       }
 
+      const sanitizedMaxParticipants = Math.max(1, Math.floor(data.maxParticipants));
+
       // Prepare event data to match API schema
       const eventData = {
         title: data.title.trim(),
@@ -801,7 +825,7 @@ export default function CreateEventPage() {
           coordinates: data.location.coordinates || undefined,
           isVirtual: data.location.isVirtual || false,
         },
-        maxParticipants: data.maxParticipants && data.maxParticipants > 0 ? data.maxParticipants : undefined,
+        maxParticipants: sanitizedMaxParticipants,
         sdgTags: selectedSDGs,
         skills: selectedSkills,
         intensity: data.intensity || 1.0,
@@ -1453,13 +1477,27 @@ export default function CreateEventPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="maxParticipants">Maximum Participants (Optional)</Label>
+                  <Label htmlFor="maxParticipants">
+                    Maximum Participants <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="maxParticipants"
                     type="number"
-                    {...register('maxParticipants', { min: 1, valueAsNumber: true })}
-                    placeholder="Leave empty for unlimited"
+                    {...register('maxParticipants', {
+                      required: 'Maximum participants is required',
+                      min: { value: 1, message: 'Maximum participants must be at least 1' },
+                      valueAsNumber: true,
+                    })}
+                    placeholder="Enter the maximum number of participants"
+                    error={errors.maxParticipants?.message}
+                    onChange={(e) => {
+                      register('maxParticipants').onChange(e);
+                      clearStepValidationErrors(2);
+                    }}
                   />
+                  {errors.maxParticipants && (
+                    <p className="text-xs text-red-500 mt-1">{errors.maxParticipants.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-4">

@@ -261,6 +261,11 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    const organizationState =
+      typeof organization === 'object' && organization !== null && 'state' in organization
+        ? (organization as { state: string | null }).state
+        : null;
+
     // Format response - match detail page structure (explicitly include all fields)
     const orgData = {
       id: organization.id,
@@ -269,7 +274,7 @@ export async function GET(request: NextRequest) {
       description: organization.description,
       type: organization.type,
       city: organization.city,
-      state: organization.state,
+      state: organizationState,
       country: organization.country,
       website: organization.website,
       email: organization.email,

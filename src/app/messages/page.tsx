@@ -28,11 +28,12 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { getMessagePreview, parseMessageContent } from '@/lib/messages';
 
 interface Message {
   id: string;
   content: string;
-  type: string;
+  type: 'TEXT' | 'IMAGE' | 'FILE';
   isRead: boolean;
   createdAt: string;
   sender: {
@@ -66,7 +67,7 @@ export default function MessagesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -75,7 +76,7 @@ export default function MessagesPage() {
       redirect('/signin');
     }
 
-    fetchConversations();
+    fetchConversations({ showSpinner: true });
   }, [session, status]);
 
   useEffect(() => {
@@ -85,16 +86,26 @@ export default function MessagesPage() {
   }, [selectedConversation]);
 
   useEffect(() => {
-    scrollToBottom();
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior,
+    });
   };
 
-  const fetchConversations = async () => {
+  const fetchConversations = async ({ showSpinner = false }: { showSpinner?: boolean } = {}) => {
     try {
-      setIsLoading(true);
+      if (showSpinner) {
+        setIsLoading(true);
+      }
       const response = await fetch('/api/messages');
       if (response.ok) {
         const data = await response.json();
@@ -103,7 +114,9 @@ export default function MessagesPage() {
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
-      setIsLoading(false);
+      if (showSpinner) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -112,7 +125,23 @@ export default function MessagesPage() {
       const response = await fetch(`/api/messages?conversationId=${conversationId}`);
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.messages);
+        const sortedMessages = [...data.messages].sort(
+          (a: Message, b: Message) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        setMessages(sortedMessages);
+        requestAnimationFrame(() => scrollToBottom('auto'));
+
+        if (sortedMessages.length > 0) {
+          const latestMessage = sortedMessages[sortedMessages.length - 1];
+          setConversations((prev) =>
+            prev.map((conversation) =>
+              conversation.partner.id === conversationId
+                ? { ...conversation, lastMessage: latestMessage }
+                : conversation
+            )
+          );
+        }
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -216,9 +245,9 @@ export default function MessagesPage() {
 
         {/* Main Content */}
         <div className="pt-3 pb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 h-[70vh] md:h-[75vh] lg:h-[80vh] overflow-y-auto lg:overflow-hidden">
             {/* Conversations List */}
-            <Card className="lg:col-span-1">
+            <Card className="flex h-full max-h-full flex-col overflow-hidden lg:col-span-1">
               <CardHeader>
                 <CardTitle>Conversations</CardTitle>
                 <div className="relative">
@@ -231,8 +260,7 @@ export default function MessagesPage() {
                   />
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="space-y-1 max-h-[500px] overflow-y-auto">
+              <CardContent className="flex-1 min-h-0 space-y-1 overflow-y-auto p-0">
                   {filteredConversations.map((conversation) => (
                     <div
                       key={conversation.partner.id}
@@ -263,7 +291,7 @@ export default function MessagesPage() {
                           
                           <div className="flex items-center justify-between">
                             <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                              {conversation.lastMessage.content}
+                              {getMessagePreview(conversation.lastMessage)}
                             </p>
                             {conversation.unreadCount > 0 && (
                               <Badge variant="default" className="ml-2 text-xs">
@@ -281,12 +309,11 @@ export default function MessagesPage() {
                       {searchQuery ? 'No conversations found' : 'No conversations yet'}
                     </div>
                   )}
-                </div>
               </CardContent>
             </Card>
 
             {/* Messages */}
-            <Card className="lg:col-span-2 flex flex-col">
+            <Card className="flex h-full max-h-full flex-col overflow-hidden lg:col-span-2">
               {selectedConversation ? (
                 <>
                   {/* Chat Header */}
@@ -336,29 +363,80 @@ export default function MessagesPage() {
                   </CardHeader>
 
                   {/* Messages */}
-                  <CardContent className="flex-1 p-4 overflow-y-auto">
+                  <CardContent
+                    ref={messagesContainerRef}
+                    className="flex-1 min-h-0 overflow-y-auto p-4"
+                  >
                     <div className="space-y-4">
-                      {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${message.sender.id === session?.user?.id ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                            message.sender.id === session?.user?.id
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                          }`}>
-                            <p className="text-sm">{message.content}</p>
-                            <div className="flex items-center justify-end space-x-1 mt-1">
-                              <span className="text-xs opacity-70">
-                                {formatTime(message.createdAt)}
-                              </span>
-                              {getReadStatus(message)}
+                      {messages.map((message) => {
+                        const isCurrentUser = message.sender.id === session?.user?.id;
+                        const parsedContent = parseMessageContent(message.content);
+                        const hasText = Boolean(parsedContent.text);
+                        const hasAttachment = Boolean(parsedContent.url);
+
+                        return (
+                          <div
+                            key={message.id}
+                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-xs lg:max-w-md rounded-lg px-4 py-3 ${
+                                isCurrentUser
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                              }`}
+                            >
+                              <div className="space-y-2">
+                                {hasText && (
+                                  <p className="text-sm whitespace-pre-line leading-relaxed">
+                                    {parsedContent.text}
+                                  </p>
+                                )}
+                                {hasAttachment && parsedContent.url && (
+                                  <>
+                                    {message.type === 'IMAGE' ? (
+                                      <a
+                                        href={parsedContent.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block overflow-hidden rounded-lg"
+                                      >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={parsedContent.url}
+                                          alt={parsedContent.name || 'Image attachment'}
+                                          className="max-h-64 w-full rounded-lg object-cover"
+                                          loading="lazy"
+                                        />
+                                      </a>
+                                    ) : (
+                                      <a
+                                        href={parsedContent.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                                          isCurrentUser
+                                            ? 'border-white/30 bg-white/10 hover:bg-white/20'
+                                            : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700/60 dark:hover:bg-gray-700'
+                                        }`}
+                                      >
+                                        <Paperclip className="h-4 w-4" />
+                                        <span className="truncate">
+                                          {parsedContent.name || 'Attachment'}
+                                        </span>
+                                      </a>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                              <div className="mt-2 flex items-center justify-end space-x-1 text-xs opacity-80">
+                                <span>{formatTime(message.createdAt)}</span>
+                                {getReadStatus(message)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                      <div ref={messagesEndRef} />
+                        );
+                      })}
                     </div>
                   </CardContent>
 
