@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Send, Paperclip, Smile, Loader2, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { Send, Paperclip, Loader2, X, FileText, Image as ImageIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { toast } from 'react-hot-toast';
 import { parseMessageContent } from '@/lib/messages';
+import { EmojiPicker } from '@/components/messages/EmojiPicker';
 
 type MessageType = 'TEXT' | 'IMAGE' | 'FILE';
 
@@ -64,6 +65,7 @@ export function ParticipantMessageDialog({
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const participantInitials = useMemo(() => {
     if (!participant?.name) return 'U';
@@ -88,6 +90,12 @@ export function ParticipantMessageDialog({
       scrollToBottom();
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!open) {
+      setIsEmojiPickerOpen(false);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -132,6 +140,7 @@ export function ParticipantMessageDialog({
   const resetComposer = () => {
     setNewMessage('');
     setSelectedFile(null);
+    setIsEmojiPickerOpen(false);
   };
 
   const fetchMessages = async (conversationId: string) => {
@@ -295,6 +304,32 @@ export function ParticipantMessageDialog({
     onOpenChange(false);
   }, [onOpenChange]);
 
+  const handleEmojiSelect = (emoji: string) => {
+    if (!textareaRef.current) {
+      setNewMessage((prev) => `${prev}${emoji}`);
+      return;
+    }
+
+    const textarea = textareaRef.current;
+    const { selectionStart, selectionEnd } = textarea;
+
+    setNewMessage((prev) => {
+      const before = prev.slice(0, selectionStart);
+      const after = prev.slice(selectionEnd);
+      return `${before}${emoji}${after}`;
+    });
+
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) {
+        return;
+      }
+      const cursorPosition = selectionStart + emoji.length;
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    });
+
+  };
+
   if (!open || !participant) {
     return null;
   }
@@ -449,7 +484,7 @@ export function ParticipantMessageDialog({
           </div>
 
           <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4">
-            <div className="flex items-end gap-2">
+            <div className="relative flex items-end gap-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -501,11 +536,14 @@ export function ParticipantMessageDialog({
                   onChange={(event) => setNewMessage(event.target.value)}
                   onKeyDown={handleKeyPress}
                   className="min-h-[48px] max-h-[120px] resize-none"
+                  onFocus={() => setIsEmojiPickerOpen(false)}
                 />
               </div>
-              <Button variant="ghost" size="sm" className="text-gray-500 dark:text-gray-400" disabled>
-                <Smile className="h-4 w-4" />
-              </Button>
+              <EmojiPicker
+                open={isEmojiPickerOpen}
+                onOpenChange={setIsEmojiPickerOpen}
+                onEmojiSelect={handleEmojiSelect}
+              />
               <Button
                 onClick={handleSendMessage}
                 disabled={!canSendMessage || isSending}

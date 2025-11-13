@@ -3,20 +3,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
-import { 
-  Send, 
-  Search, 
+import {
+  Send,
+  Search,
   MoreVertical,
   Phone,
   Video,
   Paperclip,
-  Smile,
   Check,
   CheckCheck,
   Loader2,
   X,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +32,7 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { getMessagePreview, parseMessageContent } from '@/lib/messages';
 import { toast } from 'react-hot-toast';
+import { EmojiPicker } from '@/components/messages/EmojiPicker';
 
 interface Message {
   id: string;
@@ -74,6 +74,8 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
   const ALLOWED_MIME_TYPES = new Set([
@@ -97,6 +99,10 @@ export default function MessagesPage() {
     if (selectedConversation) {
       fetchMessages(selectedConversation);
     }
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    setIsEmojiPickerOpen(false);
   }, [selectedConversation]);
 
   useEffect(() => {
@@ -202,6 +208,7 @@ export default function MessagesPage() {
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
         setSelectedFile(null);
+        setIsEmojiPickerOpen(false);
         
         // Update conversations list
         await fetchConversations();
@@ -225,6 +232,31 @@ export default function MessagesPage() {
         sendMessage();
       }
     }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    if (!textareaRef.current) {
+      setNewMessage((prev) => `${prev}${emoji}`);
+      return;
+    }
+
+    const textarea = textareaRef.current;
+    const { selectionStart, selectionEnd } = textarea;
+
+    setNewMessage((prev) => {
+      const before = prev.slice(0, selectionStart);
+      const after = prev.slice(selectionEnd);
+      return `${before}${emoji}${after}`;
+    });
+
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) {
+        return;
+      }
+      const cursorPosition = selectionStart + emoji.length;
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    });
   };
 
   const formatFileSize = (bytes: number) => {
@@ -582,17 +614,21 @@ export default function MessagesPage() {
                           </div>
                         )}
                         <Textarea
+                          ref={textareaRef}
                           placeholder="Type a message..."
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyPress={handleKeyPress}
+                          onKeyDown={handleKeyPress}
                           className="min-h-[40px] max-h-[120px] resize-none"
+                          onFocus={() => setIsEmojiPickerOpen(false)}
                           rows={1}
                         />
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <Smile className="h-4 w-4" />
-                      </Button>
+                      <EmojiPicker
+                        open={isEmojiPickerOpen}
+                        onOpenChange={setIsEmojiPickerOpen}
+                        onEmojiSelect={handleEmojiSelect}
+                      />
                       <Button 
                         onClick={sendMessage}
                         disabled={!canSendMessage || isSending}
