@@ -449,31 +449,127 @@ export default function CommunityPage() {
     }
 
     try {
-      // Optimistic update
+      // Get current state
       const currentLike = postLikes.get(postId) || { liked: false, count: 0 };
       const newLiked = !currentLike.liked;
       const newCount = newLiked ? currentLike.count + 1 : Math.max(0, currentLike.count - 1);
       
+      // Get current user info
+      const currentUser = {
+        id: session.user.id!,
+        name: session.user.name || 'You',
+        image: session.user.image || null,
+      };
+      
+      // Get current post's likedBy array for reversion
+      const currentPost = community?.posts.find(p => p.id === postId);
+      const currentLikedBy = currentPost?.likedBy || [];
+      
+      // Optimistically update postLikes Map
       setPostLikes(prev => new Map(prev).set(postId, { liked: newLiked, count: newCount }));
+      
+      // Optimistically update likedBy array in the post
+      if (community) {
+        setCommunity(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            posts: prev.posts.map(post => {
+              if (post.id === postId) {
+                let updatedLikedBy: Array<{ id: string; name: string; image: string | null }>;
+                
+                if (newLiked) {
+                  // Add current user if not already in list
+                  if (!currentLikedBy.some(user => user.id === currentUser.id)) {
+                    updatedLikedBy = [...currentLikedBy, currentUser];
+                  } else {
+                    updatedLikedBy = currentLikedBy;
+                  }
+                } else {
+                  // Remove current user from list
+                  updatedLikedBy = currentLikedBy.filter(user => user.id !== currentUser.id);
+                }
+                
+                return {
+                  ...post,
+                  likedBy: updatedLikedBy,
+                };
+              }
+              return post;
+            }),
+          };
+        });
+      }
 
+      // Make API call
       const response = await fetch(`/api/communities/posts/${postId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
 
       if (!response.ok) {
-        // Revert on error
+        // Revert both states on error
         setPostLikes(prev => new Map(prev).set(postId, currentLike));
+        if (community) {
+          setCommunity(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              posts: prev.posts.map(post => {
+                if (post.id === postId) {
+                  return {
+                    ...post,
+                    likedBy: currentLikedBy, // Revert to original
+                  };
+                }
+                return post;
+              }),
+            };
+          });
+        }
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Error liking post:', errorData);
         throw new Error(errorData.error || errorData.message || 'Failed to like post');
       }
 
+      // Success - update with server response
       const data = await response.json();
       setPostLikes(prev => new Map(prev).set(postId, { 
         liked: data.liked, 
         count: data.count || newCount 
       }));
+      
+      // Fetch updated likes list for accuracy (especially if others liked simultaneously)
+      try {
+        const likesResponse = await fetch(`/api/communities/posts/${postId}/likes`);
+        if (likesResponse.ok) {
+          const likesData = await likesResponse.json();
+          if (community && likesData.likes) {
+            setCommunity(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                posts: prev.posts.map(post => {
+                  if (post.id === postId) {
+                    return {
+                      ...post,
+                      likedBy: likesData.likes.map((like: any) => ({
+                        id: like.userId,
+                        name: like.userName,
+                        image: like.userImage,
+                      })),
+                    };
+                  }
+                  return post;
+                }),
+              };
+            });
+          }
+        }
+      } catch (fetchError) {
+        // Silently fail - optimistic update is already in place
+        console.warn('Failed to fetch updated likes list:', fetchError);
+      }
     } catch (err) {
       console.error('Error liking post:', err);
       toast.error('Failed to like post');
