@@ -9,7 +9,8 @@ import {
   Building,
   Heart,
   Loader2,
-  CheckCircle
+  CheckCircle,
+  Share2
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ interface OpportunityCardProps {
   isApplying?: boolean;
   onBookmark?: (opportunityId: string) => void;
   onApply?: (opportunityId: string) => void;
+  onShare?: (opportunityId: string) => void;
 }
 
 const getBadgeColor = (text: string, type: 'requirement' | 'skill') => {
@@ -103,7 +105,8 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   isApplied = false,
   isApplying = false,
   onBookmark,
-  onApply
+  onApply,
+  onShare
 }) => {
   return (
     <Card className="hover:shadow-lg transition-shadow bg-white dark:bg-gray-900">
@@ -122,24 +125,40 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
                   <Badge variant="outline" className="px-3 py-1">Remote</Badge>
                 )}
               </div>
-              {onBookmark && (
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onBookmark(opportunity.id);
-                  }}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors z-10 relative"
-                >
-                  <Heart 
-                    className={`w-5 h-5 ${
-                      isBookmarked
-                        ? 'fill-red-500 text-red-500'
-                        : 'text-gray-400 hover:text-red-500'
-                    }`}
-                  />
-                </button>
-              )}
+              <div className="flex items-center space-x-2">
+                {onShare && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onShare(opportunity.id);
+                    }}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors z-10 relative"
+                    title="Share opportunity"
+                  >
+                    <Share2 className="w-5 h-5 text-gray-400 hover:text-blue-500" />
+                  </button>
+                )}
+                {onBookmark && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onBookmark(opportunity.id);
+                    }}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors z-10 relative"
+                    title={isBookmarked ? "Remove bookmark" : "Bookmark"}
+                  >
+                    <Heart 
+                      className={`w-5 h-5 ${
+                        isBookmarked
+                          ? 'fill-red-500 text-red-500'
+                          : 'text-gray-400 hover:text-red-500'
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-4">

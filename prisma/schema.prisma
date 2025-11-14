@@ -78,6 +78,8 @@ model User {
   likes                        Like[]
   receivedMessages             Message[]                  @relation("ReceivedMessages")
   sentMessages                 Message[]                  @relation("SentMessages")
+  groupChatMemberships         GroupChatMember[]          @relation("GroupChatMemberships")
+  groupChatMessages            GroupChatMessage[]         @relation("GroupChatMessages")
   notificationTemplates        NotificationTemplate[]
   notifications                Notification[]
   opportunityBookmarks         OpportunityBookmark[]
@@ -436,6 +438,7 @@ model Event {
   attendanceEnabled     Boolean               @default(false)
   attendanceEnabledAt   DateTime?
   attendanceDisabledAt  DateTime?
+  certificateConfig     Json? // Certificate configuration: { certificateName, certificateContent }
   broadcasts            Broadcast[]
   bookmarks             EventBookmark[]
   comments              EventComment[]
@@ -447,6 +450,7 @@ model Event {
   participations        Participation[]
   organizationPosts     OrganizationPost[]
   sessions              EventSession[]
+  groupChat             GroupChat?
 
   @@index([startDate])
   @@index([type])
@@ -749,6 +753,52 @@ model Message {
   @@index([senderId])
   @@index([receiverId])
   @@map("messages")
+}
+
+model GroupChat {
+  id          String             @id @default(cuid())
+  eventId     String             @unique
+  name        String
+  description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  event       Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  members     GroupChatMember[]
+  messages    GroupChatMessage[]
+
+  @@index([eventId])
+  @@map("group_chats")
+}
+
+model GroupChatMember {
+  id          String    @id @default(cuid())
+  groupChatId String
+  userId      String
+  role        String    @default("MEMBER") // MEMBER, ADMIN
+  joinedAt    DateTime  @default(now())
+  groupChat   GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  user        User      @relation("GroupChatMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupChatId, userId])
+  @@index([userId])
+  @@index([groupChatId])
+  @@map("group_chat_members")
+}
+
+model GroupChatMessage {
+  id          String      @id @default(cuid())
+  groupChatId String
+  senderId    String
+  content     String
+  type        MessageType @default(TEXT)
+  createdAt   DateTime    @default(now())
+  groupChat   GroupChat   @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  sender      User        @relation("GroupChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([groupChatId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("group_chat_messages")
 }
 
 model Notification {
@@ -1933,4 +1983,34 @@ enum PaymentStatus {
   COMPLETED
   FAILED
   REFUNDED
+}
+
+model Country {
+  id        String   @id @default(cuid())
+  code      String   @unique // ISO 3166-1 alpha-2 (e.g., "US", "MY")
+  name      String
+  code3     String? // ISO 3166-1 alpha-3 (e.g., "USA", "MYS")
+  numeric   String? // ISO 3166-1 numeric (e.g., "840", "458")
+  states    State[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+  @@index([name])
+  @@map("countries")
+}
+
+model State {
+  id        String   @id @default(cuid())
+  code      String // State/Province code (e.g., "CA", "NY", "KL")
+  name      String
+  countryId String
+  country   Country  @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([countryId, code])
+  @@index([countryId])
+  @@index([name])
+  @@map("states")
 }

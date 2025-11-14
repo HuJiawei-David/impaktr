@@ -370,11 +370,24 @@ export async function POST(request: NextRequest) {
             breakMin: s.breakMin ?? 0,
             label: s.label || null
           }))
+        },
+        groupChat: {
+          create: {
+            name: `${parsed.title} - Group Chat`,
+            description: `Group chat for ${parsed.title}`,
+            members: {
+              create: {
+                userId: user.id,
+                role: 'ADMIN'
+              }
+            }
+          }
         }
       },
       include: {
         organization: true,
         sessions: true,
+        groupChat: true,
       },
     });
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Search,
@@ -94,13 +94,14 @@ interface Opportunity {
 
 function OpportunitiesPage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const orgId = searchParams.get('org');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('OPEN');
+  const [statusFilter, setStatusFilter] = useState('BOTH');
   const [sdgFilter, setSdgFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('recent');
   const [isApplying, setIsApplying] = useState<string | null>(null);
@@ -109,6 +110,45 @@ function OpportunitiesPage() {
   const [appliedOpportunities, setAppliedOpportunities] = useState<string[]>([]);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const [statusSelectOpen, setStatusSelectOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  type AISuggestion = {
+    id: string;
+    title: string;
+    description: string;
+    organization?: Opportunity['organization'];
+    location?: string | null;
+    sdg?: string | null;
+    skills?: string[];
+    highlight?: string[];
+    matchReason?: string | null;
+    tags?: string[];
+    isApplied?: boolean;
+  };
+
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [isAISuggestionsLoading, setIsAISuggestionsLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiInfo, setAiInfo] = useState<string | null>(null);
+  const [aiInfoVariant, setAiInfoVariant] = useState<'default' | 'fallback'>('default');
+  const [aiSuggestionsExpanded, setAiSuggestionsExpanded] = useState(true);
+  const [selectedSuggestionIds, setSelectedSuggestionIds] = useState<string[]>([]);
+  const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<string[]>([]);
+  const [isBulkApplying, setIsBulkApplying] = useState(false);
+  const [isBulkApplyMode, setIsBulkApplyMode] = useState(false);
+  const [bulkApplyQueue, setBulkApplyQueue] = useState<string[]>([]);
+  const isPromptReady = aiPrompt.trim().length > 0;
+  const actionableSuggestionIds = aiSuggestions
+    .filter((suggestion) => !appliedSuggestionIds.includes(suggestion.id))
+    .map((suggestion) => suggestion.id);
+  const selectedActionableIds = selectedSuggestionIds.filter((id) =>
+    actionableSuggestionIds.includes(id)
+  );
+  const selectedActionableCount = selectedActionableIds.length;
+  const allActionableSelected =
+    actionableSuggestionIds.length > 0 &&
+    selectedActionableCount === actionableSuggestionIds.length;
   
   // Application dialog state
   const [showApplicationDialog, setShowApplicationDialog] = useState(false);
@@ -181,6 +221,40 @@ function OpportunitiesPage() {
     fetchOpportunities();
   }, [fetchOpportunities]);
 
+  useEffect(() => {
+    if (appliedOpportunities.length === 0) return;
+    setAppliedSuggestionIds((prev) =>
+      Array.from(new Set([...prev, ...appliedOpportunities]))
+    );
+  }, [appliedOpportunities]);
+
+  const getOpportunityById = useCallback(
+    async (opportunityId: string): Promise<Opportunity | null> => {
+      const existing = opportunities.find((opp) => opp.id === opportunityId);
+      if (existing) {
+        return existing;
+      }
+
+      try {
+        const response = await fetch(`/api/opportunities/${opportunityId}`, {
+          cache: 'no-store',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Unable to fetch opportunity ${opportunityId}`);
+        }
+
+        const data = await response.json();
+        return data as Opportunity;
+      } catch (error) {
+        console.error('Failed to load opportunity for application:', error);
+        toast.error('Unable to load opportunity details. Please try again.');
+        return null;
+      }
+    },
+    [opportunities]
+  );
+
   // Debug: Watch dialog state changes
   useEffect(() => {
     console.log('showApplicationDialog changed to:', showApplicationDialog);
@@ -194,30 +268,32 @@ function OpportunitiesPage() {
     }
   }, [orgId]);
 
-  const handleApply = (opportunityId: string) => {
-    console.log('=== APPLY BUTTON CLICKED ===');
-    console.log('opportunityId:', opportunityId);
-    console.log('session:', session);
-    console.log('opportunities array length:', opportunities.length);
-    console.log('opportunities:', opportunities);
-    
+  const handleApply = async (opportunityId: string) => {
     if (!session) {
-      console.log('No session - showing error');
       toast.error('Please sign in to apply');
       return;
     }
 
-    const opportunity = opportunities.find(opp => opp.id === opportunityId);
-    console.log('Found opportunity:', opportunity);
-    
-    if (opportunity) {
-      console.log('Setting selected opportunity and opening dialog');
-      setSelectedOpportunity(opportunity);
-      setShowApplicationDialog(true);
-      console.log('State should be updated now. showApplicationDialog should be true');
-    } else {
-      console.log('ERROR: Opportunity not found in opportunities array!');
+    if (
+      appliedOpportunities.includes(opportunityId) ||
+      appliedSuggestionIds.includes(opportunityId)
+    ) {
+      toast.error('You have already applied to this opportunity.');
+      return;
     }
+
+    const opportunity = await getOpportunityById(opportunityId);
+    if (!opportunity) {
+      return;
+    }
+
+    if (opportunity.isApplied) {
+      toast.error('You have already applied to this opportunity.');
+      return;
+    }
+
+    setSelectedOpportunity(opportunity);
+    setShowApplicationDialog(true);
   };
 
   const handleSubmitApplication = async () => {
@@ -280,10 +356,49 @@ function OpportunitiesPage() {
       });
 
       if (response.ok) {
-        toast.success('Application submitted successfully!');
-        setAppliedOpportunities(prev => [...prev, selectedOpportunity.id]);
-        handleCloseDialog();
-        fetchOpportunities(); // Refresh the list
+        const opportunityId = selectedOpportunity.id;
+        const hasRemainingBulkTargets = isBulkApplyMode && bulkApplyQueue.length > 0;
+
+        toast.success(
+          hasRemainingBulkTargets
+            ? 'Application submitted! Review the next opportunity.'
+            : 'Application submitted successfully!'
+        );
+
+        setAppliedOpportunities(prev => [...prev, opportunityId]);
+        setAppliedSuggestionIds((prev) => Array.from(new Set([...prev, opportunityId])));
+        setSelectedSuggestionIds((prev) => prev.filter((id) => id !== opportunityId));
+
+        if (isBulkApplyMode) {
+          let remainingQueue = [...bulkApplyQueue];
+          let nextOpportunity: Opportunity | null = null;
+
+          while (remainingQueue.length > 0 && !nextOpportunity) {
+            const nextId = remainingQueue[0];
+            const loadedOpportunity = await getOpportunityById(nextId);
+            if (loadedOpportunity) {
+              nextOpportunity = loadedOpportunity;
+              remainingQueue = remainingQueue.slice(1);
+            } else {
+              remainingQueue = remainingQueue.slice(1);
+              setSelectedSuggestionIds((prev) => prev.filter((id) => id !== nextId));
+            }
+          }
+
+          if (nextOpportunity) {
+            setBulkApplyQueue(remainingQueue);
+            setSelectedOpportunity(nextOpportunity);
+            return;
+          }
+
+          setIsBulkApplyMode(false);
+          setBulkApplyQueue([]);
+          handleCloseDialog();
+          fetchOpportunities();
+        } else {
+          handleCloseDialog();
+          fetchOpportunities();
+        }
       } else {
         const error = await response.json().catch(() => null);
         toast.error(error?.error || 'Failed to apply');
@@ -301,6 +416,9 @@ function OpportunitiesPage() {
     setShowApplicationDialog(false);
     setSelectedOpportunity(null);
     setIsUploadingResume(false);
+    setIsBulkApplyMode(false);
+    setBulkApplyQueue([]);
+    setIsBulkApplying(false);
     setApplicationForm({
       agreeToShare: false,
       message: '',
@@ -351,6 +469,42 @@ function OpportunitiesPage() {
     }
   };
 
+  const handleShare = async (opportunityId: string) => {
+    try {
+      const opportunity = opportunities.find(opp => opp.id === opportunityId);
+      const shareUrl = `${window.location.origin}/opportunities/${opportunityId}`;
+      const shareTitle = opportunity?.title || 'Check out this opportunity';
+      const shareText = opportunity?.description 
+        ? `${shareTitle}\n\n${opportunity.description.substring(0, 150)}...` 
+        : shareTitle;
+
+      // Try Web Share API first (mobile/native sharing)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: shareTitle,
+            text: shareText,
+            url: shareUrl,
+          });
+          toast.success('Shared successfully!');
+          return;
+        } catch (err: any) {
+          // User cancelled or error occurred, fall back to clipboard
+          if (err.name !== 'AbortError') {
+            console.error('Error sharing:', err);
+          }
+        }
+      }
+
+      // Fallback to clipboard
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied to clipboard!');
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast.error('Failed to share opportunity');
+    }
+  };
+
 
   const toggleSDG = (sdgNumber: number) => {
     const currentSDGs = sdgFilter.map(s => parseInt(s));
@@ -368,6 +522,206 @@ function OpportunitiesPage() {
 
   const clearAllSDGs = () => {
     setSdgFilter([]);
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setLocationFilter('');
+    setStatusFilter('BOTH');
+    setSdgFilter([]);
+    setSortBy('recent');
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm !== '' || 
+                          locationFilter !== '' || 
+                          statusFilter !== 'BOTH' || 
+                          sdgFilter.length > 0 || 
+                          sortBy !== 'recent';
+
+  const handleFetchAISuggestions = async () => {
+    const prompt = aiPrompt.trim();
+
+    if (!prompt) {
+      toast.error('Tell the assistant what you are looking for first.');
+      return;
+    }
+
+    try {
+      setIsAISuggestionsLoading(true);
+      setAiError(null);
+      setAiInfo(null);
+      setAiInfoVariant('default');
+
+      const response = await fetch('/api/opportunities/ai-suggestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          filters: {
+            sdg: sdgFilter,
+            location: locationFilter,
+            status: statusFilter,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unexpected status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data.suggestions)) {
+        throw new Error('Malformed response from assistant API');
+      }
+
+      const summary =
+        typeof data.summary === 'string' && data.summary.trim().length > 0
+          ? data.summary.trim()
+          : null;
+      let infoMessage: string | null = null;
+
+      if (data.reason === 'error') {
+        setAiSuggestions([]);
+        setSelectedSuggestionIds([]);
+        setAppliedSuggestionIds(appliedOpportunities);
+        setAiError('We had trouble generating suggestions. Please try again.');
+        setAiInfoVariant('default');
+        return;
+      }
+
+      let infoVariant: 'default' | 'fallback' = 'default';
+      if (data.reason === 'fallback_prompt') {
+        infoMessage = 'We need more detail to tailor results. Showing fresh opportunities instead.';
+        infoVariant = 'fallback';
+      } else if (data.reason === 'fallback_nomatch') {
+        infoMessage = 'No direct matches found, so here are fresh openings you might like.';
+        infoVariant = 'fallback';
+      } else if (data.reason === 'success') {
+        infoMessage = 'Suggestions based on your keywords, skills, and SDG filters.';
+      }
+
+      if (summary) {
+        infoMessage = infoMessage ? `${infoMessage} — ${summary}` : summary;
+      }
+
+      setAiInfo(infoMessage);
+      setAiInfoVariant(infoVariant);
+
+      if (data.suggestions.length === 0) {
+        setAiSuggestions([]);
+        setSelectedSuggestionIds([]);
+        setAppliedSuggestionIds(appliedOpportunities);
+        setAiError('No opportunities available right now. Please check back later.');
+        setAiInfoVariant('fallback');
+        return;
+      }
+
+      setAiSuggestions(data.suggestions);
+
+      const appliedFromSuggestions = data.suggestions
+        .filter((suggestion: AISuggestion) => suggestion.isApplied)
+        .map((suggestion: AISuggestion) => suggestion.id);
+
+      const combinedAppliedSet = new Set([
+        ...appliedOpportunities,
+        ...appliedFromSuggestions,
+      ]);
+
+      setAppliedSuggestionIds((prev) =>
+        Array.from(new Set([...prev, ...combinedAppliedSet]))
+      );
+
+      setSelectedSuggestionIds(
+        data.suggestions
+          .filter((suggestion: AISuggestion) => !combinedAppliedSet.has(suggestion.id))
+          .map((suggestion: AISuggestion) => suggestion.id)
+      );
+      setAiSuggestionsExpanded(true);
+    } catch (error) {
+      console.error('AI suggestion error:', error);
+      setAiError('We had trouble generating suggestions. Please try again.');
+      setAiSuggestions([]);
+      setSelectedSuggestionIds([]);
+      setAppliedSuggestionIds(appliedOpportunities);
+      setAiInfo(null);
+      setAiInfoVariant('default');
+    } finally {
+      setIsAISuggestionsLoading(false);
+    }
+  };
+
+  const handleToggleSuggestionSelection = (suggestionId: string) => {
+    setSelectedSuggestionIds((prev) =>
+      prev.includes(suggestionId)
+        ? prev.filter((id) => id !== suggestionId)
+        : [...prev, suggestionId]
+    );
+  };
+
+  const handleToggleSelectAllSuggestions = () => {
+    const actionableIds = aiSuggestions
+      .filter((suggestion) => !appliedSuggestionIds.includes(suggestion.id))
+      .map((suggestion) => suggestion.id);
+
+    const allSelected = actionableIds.length > 0 && actionableIds.every((id) => selectedSuggestionIds.includes(id));
+
+    if (allSelected) {
+      setSelectedSuggestionIds((prev) => prev.filter((id) => !actionableIds.includes(id)));
+    } else {
+      setSelectedSuggestionIds((prev) => Array.from(new Set([...prev, ...actionableIds])));
+    }
+  };
+
+  const handleBulkApplySuggestions = async () => {
+    if (!session) {
+      toast.error('Please sign in to apply.');
+      router.push('/signin');
+      return;
+    }
+
+    const actionableSuggestions = aiSuggestions.filter(
+      (suggestion) =>
+        selectedSuggestionIds.includes(suggestion.id) &&
+        !appliedSuggestionIds.includes(suggestion.id)
+    );
+
+    if (actionableSuggestions.length === 0) {
+      toast.error('Select at least one suggestion to apply.');
+      return;
+    }
+
+    setIsBulkApplying(true);
+
+    const [firstSuggestion, ...remainingSuggestions] = actionableSuggestions;
+    const initialOpportunity = await getOpportunityById(firstSuggestion.id);
+
+    if (!initialOpportunity) {
+      setIsBulkApplying(false);
+      return;
+    }
+
+    if (
+      applicationForm.message.trim().length === 0 &&
+      firstSuggestion.matchReason &&
+      firstSuggestion.matchReason.length > 0
+    ) {
+      const assistantNote = `AI Assistant note: ${firstSuggestion.matchReason}`;
+      const trimmedNote = assistantNote.length > 500 ? `${assistantNote.slice(0, 497)}...` : assistantNote;
+      setApplicationForm((prev) => ({
+        ...prev,
+        message: trimmedNote,
+      }));
+    }
+
+    setIsBulkApplyMode(true);
+    setBulkApplyQueue(remainingSuggestions.map((suggestion) => suggestion.id));
+    setSelectedOpportunity(initialOpportunity);
+    setShowApplicationDialog(true);
+    setIsBulkApplying(false);
   };
 
   const getFilteredOpportunities = () => {
@@ -577,235 +931,495 @@ function OpportunitiesPage() {
             </button>
           </div>
         </div>
-
-          {/* Search and Filters */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mt-8">
-            {/* Main Filters Row */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <Input
-                    placeholder="Search opportunities..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 h-12"
-                  />
-                </div>
+        <div className="mt-6 space-y-6">
+          {activeTab !== 'bookmarked' && activeTab !== 'applied' && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Smart Opportunity Assistant
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Describe what you’re looking for and we’ll highlight opportunities that fit. We consider your profile, filters, and goals.
+              </p>
+            </div>
+            <Textarea
+              placeholder="e.g. Remote design internships focused on social impact"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(event) => {
+                const isSubmitCombo = (event.metaKey || event.ctrlKey) && event.key === 'Enter';
+                if (isSubmitCombo && isPromptReady && !isAISuggestionsLoading) {
+                  event.preventDefault();
+                  void handleFetchAISuggestions();
+                }
+              }}
+              rows={3}
+              maxLength={200}
+            />
+            {isPromptReady && (
+              <div className="flex items-center justify-start gap-3">
+                <Button
+                  onClick={handleFetchAISuggestions}
+                  disabled={isAISuggestionsLoading}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                >
+                  {isAISuggestionsLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Thinking...
+                    </>
+                  ) : (
+                    'Get Smart Suggestions'
+                  )}
+                </Button>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Press <kbd className="px-1 py-0.5 border rounded">Ctrl</kbd>/<kbd className="px-1 py-0.5 border rounded">⌘</kbd> + <kbd className="px-1 py-0.5 border rounded">Enter</kbd>
+                </span>
               </div>
-              <div>
+            )}
+            {aiError && (
+              <p className="text-xs text-red-500 dark:text-red-400">{aiError}</p>
+            )}
+            {aiInfo && !aiError && (
+              aiInfoVariant === 'fallback' ? (
+                <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/40 dark:text-amber-100" role="status">
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  <span className="font-medium leading-relaxed">{aiInfo}</span>
+                </div>
+              ) : (
+                <p className="text-xs text-blue-600 dark:text-blue-300">{aiInfo}</p>
+              )
+            )}
+            {aiSuggestions.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Suggested for you
+                    </span>
+                    <Badge variant="secondary">{aiSuggestions.length}</Badge>
+                    {selectedActionableCount > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {selectedActionableCount} selected
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAiSuggestionsExpanded((prev) => !prev)}
+                    >
+                      {aiSuggestionsExpanded ? 'Collapse suggestions' : 'Expand suggestions'}
+                    </Button>
+                    <Button
+                      onClick={handleBulkApplySuggestions}
+                      disabled={selectedActionableCount === 0 || isBulkApplying || showApplicationDialog}
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                    >
+                      {isBulkApplying ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Applying...
+                        </>
+                      ) : (
+                        `Apply to Selected (${selectedActionableCount})`
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                {aiSuggestionsExpanded && (
+                  <>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
+                      <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={allActionableSelected}
+                          onChange={handleToggleSelectAllSuggestions}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        {allActionableSelected ? 'Unselect all' : 'Select all'}
+                      </label>
+                      {appliedSuggestionIds.length > 0 && (
+                        <span className="text-[11px] uppercase tracking-wide text-green-600 dark:text-green-300">
+                          {appliedSuggestionIds.length} applied
+                        </span>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      {aiSuggestions.map((suggestion) => {
+                        const isApplied = appliedSuggestionIds.includes(suggestion.id);
+                        const isSelected = selectedSuggestionIds.includes(suggestion.id);
+                        return (
+                          <div
+                            key={suggestion.id}
+                            className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:border-blue-500 transition-colors"
+                          >
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  disabled={isApplied || isBulkApplying}
+                                  onChange={() => handleToggleSuggestionSelection(suggestion.id)}
+                                  className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                                  aria-label={`Select ${suggestion.title}`}
+                                />
+                                <div>
+                                  <Link
+                                    href={`/opportunities/${suggestion.id}`}
+                                    className="text-sm font-semibold text-gray-900 dark:text-white hover:underline"
+                                  >
+                                    {suggestion.title}
+                                  </Link>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {suggestion.organization?.name ?? 'Opportunity'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {isApplied && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Applied
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            {suggestion.description && (
+                              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 mt-2">
+                                {suggestion.description}
+                              </p>
+                            )}
+                            {suggestion.matchReason && (
+                              <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                                {suggestion.matchReason}
+                              </p>
+                            )}
+                            {suggestion.highlight && suggestion.highlight.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-3">
+                                {suggestion.highlight.map((token) => (
+                                  <span
+                                    key={`${suggestion.id}-${token}`}
+                                    className="text-[10px] uppercase tracking-wide bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 px-2 py-1 rounded-full"
+                                  >
+                                    {token}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {suggestion.skills && suggestion.skills.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-3">
+                                {suggestion.skills.slice(0, 4).map((skill, idx) => (
+                                  <span
+                                    key={`${suggestion.id}-skill-${idx}`}
+                                    className="text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 px-2 py-1 rounded-full"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {suggestion.tags && suggestion.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-3">
+                                {suggestion.tags.slice(0, 4).map((tag, idx) => (
+                                  <span
+                                    key={`${suggestion.id}-tag-${idx}`}
+                                    className="text-[10px] uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-200 px-2 py-1 rounded-full"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          )}
+        </div>
+        <div className="mt-6 lg:grid lg:grid-cols-4 lg:gap-6">
+          <aside className="lg:col-span-1">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 space-y-6 lg:sticky lg:top-24">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <Input
+                      placeholder="Search opportunities..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 h-12"
+                    />
+                  </div>
+                </div>
                 <LocationAutocomplete
                   value={locationFilter}
                   onChange={setLocationFilter}
                   placeholder="Search location (e.g., California, United States)"
                   className="h-12"
+                  open={locationDropdownOpen}
+                  onOpenChange={(open) => {
+                    setLocationDropdownOpen(open);
+                    // Close other dropdowns when location dropdown opens
+                    if (open) {
+                      setShowAdvancedFilters(false);
+                      setStatusSelectOpen(false);
+                    }
+                  }}
                 />
-              </div>
-              <div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-12">
+                <Select 
+                  value={statusFilter} 
+                  open={statusSelectOpen}
+                  onOpenChange={(open) => {
+                    setStatusSelectOpen(open);
+                    // Close location dropdown when Select opens
+                    if (open) {
+                      setLocationDropdownOpen(false);
+                      setShowAdvancedFilters(false);
+                    }
+                  }}
+                  onValueChange={(value) => {
+                    setStatusFilter(value);
+                    // Close Select after selection
+                    setStatusSelectOpen(false);
+                  }}
+                >
+                  <SelectTrigger className="h-12 w-full">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="BOTH">Both (Open & Closed)</SelectItem>
                     <SelectItem value="OPEN">Open</SelectItem>
                     <SelectItem value="CLOSED">Closed</SelectItem>
                     <SelectItem value="FILLED">Filled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            {/* Advanced Filters Toggle */}
-            <div className="mb-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="w-full justify-between bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-              >
-                <div className="flex items-center">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <span>Advanced Filters</span>
-                  {(sdgFilter && sdgFilter.length > 0) && (
-                    <Badge variant="secondary" className="ml-2 text-xs px-3 py-1">
-                      {sdgFilter.length} SDG{sdgFilter.length > 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                </div>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
-              </Button>
-            </div>
-
-            {/* Collapsible Advanced Filters */}
-            {showAdvancedFilters && (
-              <div className="mb-6 space-y-6 animate-in slide-in-from-top-2 duration-200">
-                {/* SDG Filter */}
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Filter by SDG Categories
-                    </label>
+              <div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const willOpen = !showAdvancedFilters;
+                    setShowAdvancedFilters(willOpen);
+                    // Close other dropdowns when advanced filters open
+                    if (willOpen) {
+                      setLocationDropdownOpen(false);
+                      setStatusSelectOpen(false);
+                    }
+                  }}
+                  className="w-full justify-between bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
+                >
+                  <div className="flex items-center">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <span>Advanced Filters</span>
                     {(sdgFilter && sdgFilter.length > 0) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearAllSDGs}
-                        className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                      >
-                        Clear All
-                      </Button>
+                      <Badge variant="secondary" className="ml-2 text-xs px-3 py-1">
+                        {sdgFilter.length} SDG{sdgFilter.length > 1 ? 's' : ''}
+                      </Badge>
                     )}
                   </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+                </Button>
 
-                  {/* Selected SDGs Tag Cloud */}
-                  {sdgFilter && sdgFilter.length > 0 && (
-                    <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <div className="flex flex-wrap gap-2">
-                        {sdgFilter.map(sdgString => {
-                          const sdgNumber = parseInt(sdgString);
-                          const sdgInfo = SDG_DEFINITIONS[sdgNumber as keyof typeof SDG_DEFINITIONS];
-                          return (
-                            <div
-                              key={sdgNumber}
-                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${sdgInfo?.color || 'bg-gray-100 text-gray-800'}`}
-                            >
-                              <span className="mr-2">SDG {sdgNumber}</span>
+                {showAdvancedFilters && (
+                  <div className="mt-4 space-y-6 animate-in slide-in-from-top-2 duration-200">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Filter by SDG Categories
+                        </label>
+                        {(sdgFilter && sdgFilter.length > 0) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearAllSDGs}
+                            className="text-xs bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                          >
+                            Clear All
+                          </Button>
+                        )}
+                      </div>
+
+                      {sdgFilter && sdgFilter.length > 0 && (
+                        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <div className="flex flex-wrap gap-2">
+                            {sdgFilter.map(sdgString => {
+                              const sdgNumber = parseInt(sdgString);
+                              const sdgInfo = SDG_DEFINITIONS[sdgNumber as keyof typeof SDG_DEFINITIONS];
+                              return (
+                                <div
+                                  key={sdgNumber}
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${sdgInfo?.color || 'bg-gray-100 text-gray-800'}`}
+                                >
+                                  <span className="mr-2">SDG {sdgNumber}</span>
+                                  <button
+                                    onClick={() => removeSDG(sdgNumber)}
+                                    className="ml-1 hover:bg-black/10 rounded-full w-4 h-4 flex items-center justify-center"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="max-h-[400px] overflow-y-auto pr-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(SDG_DEFINITIONS).map(([number, info]) => {
+                            const sdgNumber = parseInt(number);
+                            const isSelected = sdgFilter.includes(sdgNumber.toString());
+                            return (
                               <button
-                                onClick={() => removeSDG(sdgNumber)}
-                                className="ml-1 hover:bg-black/10 rounded-full w-4 h-4 flex items-center justify-center"
+                                key={sdgNumber}
+                                onClick={() => toggleSDG(sdgNumber)}
+                                className={`h-20 p-3 rounded-lg border-2 transition-all text-xs font-medium flex flex-col items-center justify-center ${
+                                  isSelected
+                                    ? 'border-blue-500 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
+                                    : 'border-gray-200 dark:border-gray-600 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
+                                }`}
                               >
-                                ×
+                                <div className="text-center w-full">
+                                  <div className="font-bold mb-1">SDG {sdgNumber}</div>
+                                  <div className="text-xs leading-tight line-clamp-2">{info.name}</div>
+                                </div>
                               </button>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  )}
-
-                  {/* SDG Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {Object.entries(SDG_DEFINITIONS).map(([number, info]) => {
-                      const sdgNumber = parseInt(number);
-                      const isSelected = sdgFilter.includes(sdgNumber.toString());
-                      return (
-                        <button
-                          key={sdgNumber}
-                          onClick={() => toggleSDG(sdgNumber)}
-                          className={`p-3 rounded-lg border-2 transition-all text-xs font-medium ${
-                            isSelected
-                              ? 'border-blue-500 bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                              : 'border-gray-200 dark:border-gray-600 hover:bg-gradient-to-r hover:from-blue-500 hover:to-purple-600 hover:text-white hover:border-transparent'
-                          }`}
-                        >
-                          <div className="text-center">
-                            <div className="font-bold mb-1">SDG {sdgNumber}</div>
-                            <div className="text-xs leading-tight">{info.name}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
                   </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</span>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recent">Most Recent</SelectItem>
+                      <SelectItem value="popular">Most Popular</SelectItem>
+                      <SelectItem value="deadline">Deadline Soon</SelectItem>
+                      <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
+
+              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={fetchOpportunities}
+                    className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 text-blue-700 dark:text-blue-300"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Apply
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={clearAllFilters}
+                    className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30 hover:border-red-300 dark:hover:border-red-700 text-red-700 dark:text-red-300"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <div className="lg:col-span-3">
+
+            {organizationName && (
+              <Card className="hover:shadow-lg transition-shadow mb-6 bg-white dark:bg-gray-900">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {getFilteredOpportunities().length} opportunities from <Link href={`/organizations/${orgId}`} className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent hover:from-blue-600 hover:to-purple-700 transition-all duration-200">{organizationName}</Link>
+                    </h2>
+                    <Link href="/opportunities">
+                      <Button variant="outline" size="sm">
+                        Clear Filter
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
-            {/* Sort Options */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</span>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recent">Most Recent</SelectItem>
-                    <SelectItem value="popular">Most Popular</SelectItem>
-                    <SelectItem value="deadline">Deadline Soon</SelectItem>
-                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
+            <div className="space-y-6 mt-8 lg:mt-0 min-h-[60vh]">
+              {getFilteredOpportunities().length === 0 ? (
+                <div className="text-center py-12">
+                  <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    {activeTab === 'bookmarked' 
+                      ? 'No bookmarked opportunities'
+                      : activeTab === 'applied'
+                      ? 'No applied opportunities'
+                      : activeTab === 'for-you'
+                      ? 'No recommendations yet'
+                      : activeTab === 'research-lab'
+                      ? 'No research & lab opportunities found'
+                      : activeTab === 'scholarship'
+                      ? 'No scholarship opportunities found'
+                      : activeTab === 'sponsorship'
+                      ? 'No sponsorship opportunities found'
+                      : activeTab === 'donation'
+                      ? 'No donation opportunities found'
+                      : activeTab === 'internship'
+                      ? 'No internship opportunities found'
+                      : 'No opportunities found'
+                    }
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {activeTab === 'bookmarked'
+                      ? 'Bookmark opportunities you\'re interested in to see them here.'
+                      : activeTab === 'applied'
+                      ? 'Apply to opportunities to track your applications here.'
+                      : activeTab === 'for-you'
+                      ? 'Complete your profile and engage with opportunities to get personalized recommendations.'
+                      : activeTab === 'research-lab'
+                      ? 'No research or laboratory opportunities are currently available. Check back later for new postings.'
+                      : activeTab === 'scholarship'
+                      ? 'No scholarship opportunities are currently available. Check back later for new postings.'
+                      : activeTab === 'sponsorship'
+                      ? 'No sponsorship opportunities are currently available. Check back later for new postings.'
+                      : activeTab === 'donation'
+                      ? 'No donation opportunities are currently available. Check back later for new postings.'
+                      : activeTab === 'internship'
+                      ? 'No internship opportunities are currently available. Check back later for new postings.'
+                      : 'Try adjusting your search criteria or check back later for new opportunities.'
+                    }
+                  </p>
+                </div>
+              ) : (
+                getFilteredOpportunities().map((opportunity) => (
+                  <OpportunityCard
+                    key={opportunity.id}
+                    opportunity={opportunity}
+                    isBookmarked={bookmarkedOpportunities.includes(opportunity.id)}
+                    isApplied={appliedOpportunities.includes(opportunity.id)}
+                    isApplying={isApplying === opportunity.id}
+                    onBookmark={handleBookmark}
+                    onApply={handleApply}
+                    onShare={handleShare}
+                  />
+                ))
+              )}
             </div>
           </div>
-
-        {/* Results Header */}
-        {organizationName && (
-          <Card className="hover:shadow-lg transition-shadow mb-6 bg-white dark:bg-gray-900">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {getFilteredOpportunities().length} opportunities from <Link href={`/organizations/${orgId}`} className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent hover:from-blue-600 hover:to-purple-700 transition-all duration-200">{organizationName}</Link>
-                </h2>
-                <Link href="/opportunities">
-                  <Button variant="outline" size="sm">
-                    Clear Filter
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Opportunities List */}
-        <div className="space-y-6 mt-8">
-          {getFilteredOpportunities().length === 0 ? (
-            <div className="text-center py-12">
-              <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                {activeTab === 'bookmarked' 
-                  ? 'No bookmarked opportunities'
-                  : activeTab === 'applied'
-                  ? 'No applied opportunities'
-                  : activeTab === 'for-you'
-                  ? 'No recommendations yet'
-                  : activeTab === 'research-lab'
-                  ? 'No research & lab opportunities found'
-                  : activeTab === 'scholarship'
-                  ? 'No scholarship opportunities found'
-                  : activeTab === 'sponsorship'
-                  ? 'No sponsorship opportunities found'
-                  : activeTab === 'donation'
-                  ? 'No donation opportunities found'
-                  : activeTab === 'internship'
-                  ? 'No internship opportunities found'
-                  : 'No opportunities found'
-                }
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                {activeTab === 'bookmarked'
-                  ? 'Bookmark opportunities you\'re interested in to see them here.'
-                  : activeTab === 'applied'
-                  ? 'Apply to opportunities to track your applications here.'
-                  : activeTab === 'for-you'
-                  ? 'Complete your profile and engage with opportunities to get personalized recommendations.'
-                  : activeTab === 'research-lab'
-                  ? 'No research or laboratory opportunities are currently available. Check back later for new postings.'
-                  : activeTab === 'scholarship'
-                  ? 'No scholarship opportunities are currently available. Check back later for new postings.'
-                  : activeTab === 'sponsorship'
-                  ? 'No sponsorship opportunities are currently available. Check back later for new postings.'
-                  : activeTab === 'donation'
-                  ? 'No donation opportunities are currently available. Check back later for new postings.'
-                  : activeTab === 'internship'
-                  ? 'No internship opportunities are currently available. Check back later for new postings.'
-                  : 'Try adjusting your search criteria or check back later for new opportunities.'
-                }
-              </p>
-            </div>
-          ) : (
-            getFilteredOpportunities().map((opportunity) => (
-              <OpportunityCard
-                key={opportunity.id}
-                opportunity={opportunity}
-                isBookmarked={bookmarkedOpportunities.includes(opportunity.id)}
-                isApplied={appliedOpportunities.includes(opportunity.id)}
-                isApplying={isApplying === opportunity.id}
-                onBookmark={handleBookmark}
-                onApply={handleApply}
-              />
-            ))
-          )}
         </div>
 
         {/* Application Dialog - Custom Modal */}

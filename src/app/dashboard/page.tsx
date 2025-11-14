@@ -30,7 +30,9 @@ import {
   Image as ImageIcon,
   Video,
   FileText,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -181,6 +183,21 @@ interface ProfileData {
   };
 }
 
+interface AssistantSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  organization?: {
+    id: string;
+    name: string;
+    logo?: string | null;
+  } | null;
+  location?: string | null;
+  sdg?: string | null;
+  skills?: string[];
+  highlight?: string[];
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const user = session?.user;
@@ -220,6 +237,11 @@ export default function DashboardPage() {
       }>;
     }>;
   } | null>(null);
+  const [assistantPrompt, setAssistantPrompt] = useState('');
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [assistantInfo, setAssistantInfo] = useState<string | null>(null);
+  const [assistantSuggestions, setAssistantSuggestions] = useState<AssistantSuggestion[]>([]);
 
   const fetchPendingConnections = useCallback(async () => {
     if (!user?.id) return;
@@ -253,6 +275,67 @@ export default function DashboardPage() {
       console.error('Error fetching badge progress:', error);
     }
   }, [profileData?.user?.id]);
+
+  const handleSmartAssistantFetch = useCallback(async () => {
+    try {
+      setAssistantLoading(true);
+      setAssistantError(null);
+      setAssistantInfo(null);
+
+      const response = await fetch('/api/opportunities/ai-suggestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: assistantPrompt,
+          filters: {
+            sdg: profileData?.user?.profile?.sdgFocus || [],
+            location:
+              profileData?.user?.profile?.city ||
+              profileData?.user?.profile?.country ||
+              undefined,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unexpected status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data.suggestions)) {
+        throw new Error('Malformed assistant response');
+      }
+
+      if (data.reason === 'error') {
+        setAssistantError('We had trouble generating suggestions. Please try again.');
+        setAssistantSuggestions([]);
+        return;
+      }
+
+      if (data.reason === 'fallback_prompt') {
+        setAssistantInfo('Please provide more detail so we can tailor results. Showing fresh opportunities instead.');
+      } else if (data.reason === 'fallback_nomatch') {
+        setAssistantInfo('No direct matches found. Here are some fresh opportunities you might like.');
+      } else {
+        setAssistantInfo(null);
+      }
+
+      setAssistantSuggestions(data.suggestions);
+
+      if (data.suggestions.length === 0) {
+        setAssistantError('No opportunities available right now. Please check back later.');
+      }
+    } catch (error) {
+      console.error('Smart assistant error:', error);
+      setAssistantError('We had trouble generating suggestions. Please try again.');
+      setAssistantSuggestions([]);
+    } finally {
+      setAssistantLoading(false);
+    }
+  }, [assistantPrompt, profileData?.user?.profile?.sdgFocus, profileData?.user?.profile?.city, profileData?.user?.profile?.country]);
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim()) return;
@@ -810,6 +893,114 @@ export default function DashboardPage() {
 
           {/* Right Sidebar - Upcoming Events & Connections */}
           <div className="lg:col-span-3 space-y-4">
+            {/* Smart Opportunity Assistant */}
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-2">
+                    <Sparkles className="w-4 h-4 text-white" />
+                  </div>
+                  Smart Opportunity Assistant
+                </CardTitle>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Describe what you care about and we’ll recommend matching opportunities using your SDG interests.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Textarea
+                  value={assistantPrompt}
+                  onChange={(e) => setAssistantPrompt(e.target.value)}
+                  placeholder="e.g. animal welfare, community health, education access"
+                  rows={3}
+                />
+                <div className="flex items-center justify-start gap-2">
+                  <Button
+                    onClick={handleSmartAssistantFetch}
+                    disabled={assistantLoading}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  >
+                    {assistantLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      'Get AI Suggestions'
+                    )}
+                  </Button>
+                </div>
+                {assistantError && (
+                  <p className="text-xs text-red-500 dark:text-red-400">{assistantError}</p>
+                )}
+                {assistantInfo && !assistantError && (
+                  <p className="text-xs text-blue-600 dark:text-blue-300">{assistantInfo}</p>
+                )}
+                {assistantSuggestions.length > 0 ? (
+                  <div className="space-y-3">
+                    {assistantSuggestions.map((suggestion) => (
+                      <div
+                        key={suggestion.id}
+                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:border-blue-500 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              href={`/opportunities/${suggestion.id}`}
+                              className="text-sm font-semibold text-gray-900 dark:text-white hover:underline"
+                            >
+                              {suggestion.title}
+                            </Link>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {suggestion.organization?.name ?? 'Opportunity'}
+                              {suggestion.location ? ` • ${suggestion.location}` : ''}
+                            </p>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link href={`/opportunities/${suggestion.id}`}>
+                              View
+                            </Link>
+                          </Button>
+                        </div>
+                        {suggestion.description && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3 mt-2">
+                            {suggestion.description}
+                          </p>
+                        )}
+                        {suggestion.highlight && suggestion.highlight.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {suggestion.highlight.map((token) => (
+                              <span
+                                key={`${suggestion.id}-${token}`}
+                                className="text-[10px] uppercase tracking-wide bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-200 px-2 py-1 rounded-full"
+                              >
+                                {token}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {suggestion.skills && suggestion.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {suggestion.skills.slice(0, 4).map((skill, idx) => (
+                              <span
+                                key={`${suggestion.id}-skill-${idx}`}
+                                className="text-[10px] px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : !assistantLoading && !assistantError ? (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Use the assistant above or explore opportunities directly to start tailoring recommendations.
+                  </p>
+                ) : null}
+              </CardContent>
+            </Card>
+
             {/* Upcoming Events */}
             <UpcomingEventsWidget />
 

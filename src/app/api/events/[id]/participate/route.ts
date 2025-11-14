@@ -167,7 +167,9 @@ export async function POST(
           select: {
             id: true,
             title: true,
-            status: true
+            status: true,
+            organizerId: true,
+            organizationId: true
           }
         },
         user: {
@@ -179,6 +181,217 @@ export async function POST(
         }
       }
     });
+
+    // Add user to group chat if it exists, or create it
+    try {
+      let groupChat = await prisma.groupChat.findUnique({
+        where: { eventId: id },
+        include: {
+          members: {
+            select: { userId: true }
+          }
+        }
+      });
+
+      if (!groupChat) {
+        // Create group chat if it doesn't exist
+        const isOrganizer = event.organizerId === user.id;
+        const isAdmin = event.organizationId ? await prisma.organizationMember.findFirst({
+          where: {
+            organizationId: event.organizationId,
+            userId: user.id,
+            role: { in: ['admin', 'owner'] }
+          }
+        }) : null;
+
+        // Get all participants to add as members
+        const participants = await prisma.participation.findMany({
+          where: {
+            eventId: id,
+            status: { in: ['REGISTERED', 'PENDING', 'CONFIRMED', 'ATTENDED', 'VERIFIED'] }
+          },
+          select: { userId: true }
+        });
+
+        // Get organization admins
+        const orgAdmins = event.organizationId ? await prisma.organizationMember.findMany({
+          where: {
+            organizationId: event.organizationId,
+            role: { in: ['admin', 'owner'] },
+            status: 'active'
+          },
+          select: { userId: true }
+        }) : [];
+
+        // Build members list
+        const memberIds = new Set<string>();
+        const membersToCreate: Array<{ userId: string; role: string }> = [];
+
+        // Add current user
+        if (!memberIds.has(user.id)) {
+          membersToCreate.push({
+            userId: user.id,
+            role: (isOrganizer || isAdmin) ? 'ADMIN' : 'MEMBER'
+          });
+          memberIds.add(user.id);
+        }
+
+        // Add organizer if not already added
+        if (event.organizerId && !memberIds.has(event.organizerId)) {
+          membersToCreate.push({
+            userId: event.organizerId,
+            role: 'ADMIN'
+          });
+          memberIds.add(event.organizerId);
+        }
+
+        // Add all participants
+        for (const participant of participants) {
+          if (!memberIds.has(participant.userId)) {
+            const isParticipantOrganizer = participant.userId === event.organizerId;
+            const isParticipantAdmin = event.organizationId ? orgAdmins.some(a => a.userId === participant.userId) : false;
+            
+            membersToCreate.push({
+              userId: participant.userId,
+              role: (isParticipantOrganizer || isParticipantAdmin) ? 'ADMIN' : 'MEMBER'
+            });
+            memberIds.add(participant.userId);
+          }
+        }
+
+        // Add organization admins
+        for (const admin of orgAdmins) {
+          if (!memberIds.has(admin.userId)) {
+            membersToCreate.push({
+              userId: admin.userId,
+              role: 'ADMIN'
+            });
+            memberIds.add(admin.userId);
+          }
+        }
+
+        groupChat = await prisma.groupChat.create({
+          data: {
+            eventId: id,
+            name: `${event.title} - Group Chat`,
+            description: `Group chat for ${event.title}`,
+            members: {
+              create: membersToCreate
+            }
+          },
+          include: {
+            members: {
+              select: { userId: true }
+            }
+          }
+        });
+      } else {
+        // Add user to existing group chat if not already a member
+        const existingMemberIds = new Set(groupChat.members.map(m => m.userId));
+        
+        if (!existingMemberIds.has(user.id)) {
+          const isOrganizer = event.organizerId === user.id;
+          const isAdmin = event.organizationId ? await prisma.organizationMember.findFirst({
+            where: {
+              organizationId: event.organizationId,
+              userId: user.id,
+              role: { in: ['admin', 'owner'] }
+            }
+          }) : null;
+
+          await prisma.groupChatMember.create({
+            data: {
+              groupChatId: groupChat.id,
+              userId: user.id,
+              role: (isOrganizer || isAdmin) ? 'ADMIN' : 'MEMBER'
+            }
+          });
+        }
+
+        // Ensure organizer is a member (ADMIN)
+        if (event.organizerId && !existingMemberIds.has(event.organizerId)) {
+          await prisma.groupChatMember.create({
+            data: {
+              groupChatId: groupChat.id,
+              userId: event.organizerId,
+              role: 'ADMIN'
+            }
+          }).catch(err => {
+            // Ignore unique constraint errors
+            if (!err?.message?.includes('Unique constraint') && err?.code !== 'P2002') {
+              console.error('Error adding organizer to group chat:', err);
+            }
+          });
+        }
+
+        // Ensure organization admins are members (ADMIN)
+        if (event.organizationId) {
+          const orgAdmins = await prisma.organizationMember.findMany({
+            where: {
+              organizationId: event.organizationId,
+              role: { in: ['admin', 'owner'] },
+              status: 'active'
+            },
+            select: { userId: true }
+          });
+
+          for (const admin of orgAdmins) {
+            if (!existingMemberIds.has(admin.userId)) {
+              await prisma.groupChatMember.create({
+                data: {
+                  groupChatId: groupChat.id,
+                  userId: admin.userId,
+                  role: 'ADMIN'
+                }
+              }).catch(err => {
+                // Ignore unique constraint errors
+                if (!err?.message?.includes('Unique constraint') && err?.code !== 'P2002') {
+                  console.error('Error adding org admin to group chat:', err);
+                }
+              });
+            }
+          }
+        }
+
+        // Ensure all existing participants are members
+        const allParticipants = await prisma.participation.findMany({
+          where: {
+            eventId: id,
+            status: { in: ['REGISTERED', 'PENDING', 'CONFIRMED', 'ATTENDED', 'VERIFIED'] }
+          },
+          select: { userId: true }
+        });
+
+        for (const participant of allParticipants) {
+          if (!existingMemberIds.has(participant.userId)) {
+            const isParticipantOrganizer = participant.userId === event.organizerId;
+            const isParticipantAdmin = event.organizationId ? await prisma.organizationMember.findFirst({
+              where: {
+                organizationId: event.organizationId,
+                userId: participant.userId,
+                role: { in: ['admin', 'owner'] }
+              }
+            }) : null;
+
+            await prisma.groupChatMember.create({
+              data: {
+                groupChatId: groupChat.id,
+                userId: participant.userId,
+                role: (isParticipantOrganizer || isParticipantAdmin) ? 'ADMIN' : 'MEMBER'
+              }
+            }).catch(err => {
+              // Ignore unique constraint errors
+              if (!err?.message?.includes('Unique constraint') && err?.code !== 'P2002') {
+                console.error('Error adding participant to group chat:', err);
+              }
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error adding user to group chat:', error);
+      // Don't fail the participation creation if group chat addition fails
+    }
 
     // Don't increment participant count here - only count CONFIRMED participants
     // Count will be updated when admin confirms the registration
