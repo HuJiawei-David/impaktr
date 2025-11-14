@@ -64,6 +64,8 @@ model User {
   communityPostComments        CommunityPostComment[]     @relation("CommunityPostComments")
   communityPostLikes           CommunityPostLike[]        @relation("CommunityPostLikes")
   communityPostCommentLikes    CommunityPostCommentLike[] @relation("CommunityPostCommentLikes")
+  communityPostReports         CommunityPostReport[]      @relation("CommunityPostReports")
+  communityPostReportReviews   CommunityPostReport[]     @relation("CommunityPostReportReviews")
   communityResources           CommunityResource[]        @relation("CommunityResources")
   donations                    Donation[]
   emailTemplates               EmailTemplate[]
@@ -1453,10 +1455,32 @@ model CommunityPost {
   user        User                   @relation("CommunityPosts", fields: [userId], references: [id], onDelete: Cascade)
   comments    CommunityPostComment[]
   likes       CommunityPostLike[]
+  reports     CommunityPostReport[]
 
   @@index([communityId, createdAt])
   @@index([type])
   @@map("community_posts")
+}
+
+model CommunityPostReport {
+  id          String       @id @default(cuid())
+  postId      String
+  userId      String
+  reason      ReportReason
+  description String?
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporter    User         @relation("CommunityPostReports", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer    User?        @relation("CommunityPostReportReviews", fields: [reviewedBy], references: [id])
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("community_post_reports")
 }
 
 model CommunityPostLike {

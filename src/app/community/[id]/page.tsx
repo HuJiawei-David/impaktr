@@ -32,7 +32,10 @@ import {
   Trash2,
   X,
   UserCheck,
-  UserX
+  UserX,
+  Eye,
+  EyeOff,
+  Flag
 } from 'lucide-react';
 import { getSDGById } from '@/constants/sdgs';
 import { toast } from 'react-hot-toast';
@@ -43,6 +46,21 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { ParticipantMessageDialog } from '@/components/messages/ParticipantMessageDialog';
 
 interface Community {
@@ -176,7 +194,32 @@ export default function CommunityPage() {
   const [community, setCommunity] = useState<Community | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'about' | 'requests'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'about' | 'requests' | 'flagged'>('feed');
+  const [flaggedPosts, setFlaggedPosts] = useState<Array<{
+    post: {
+      id: string;
+      content: string;
+      createdAt: string;
+      user: {
+        id: string;
+        name: string;
+        image?: string | null;
+      };
+    };
+    reports: Array<{
+      id: string;
+      reason: string;
+      description?: string;
+      createdAt: string;
+      reporter: {
+        id: string;
+        name: string;
+        image?: string | null | undefined;
+      };
+    }>;
+    reportCount: number;
+  }>>([]);
+  const [loadingFlaggedPosts, setLoadingFlaggedPosts] = useState(false);
   const [membersTab, setMembersTab] = useState<'all' | 'admins' | 'members'>('all');
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -199,6 +242,13 @@ export default function CommunityPage() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [likesList, setLikesList] = useState<Array<{ id: string; userId: string; userName: string; userImage: string | null; createdAt: string }>>([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
+  const [hiddenPosts, setHiddenPosts] = useState<Set<string>>(new Set());
+  const [processingPost, setProcessingPost] = useState<string | null>(null);
+  const [showFlagDialog, setShowFlagDialog] = useState(false);
+  const [selectedPostToFlag, setSelectedPostToFlag] = useState<string | null>(null);
+  const [flagReason, setFlagReason] = useState<string>('');
+  const [flagDescription, setFlagDescription] = useState<string>('');
+  const [isSubmittingFlag, setIsSubmittingFlag] = useState(false);
   const [joinRequests, setJoinRequests] = useState<Array<{
     id: string;
     requesterId: string;
@@ -588,9 +638,167 @@ export default function CommunityPage() {
       }
     } catch (e) {
       console.error('Error creating post:', e);
-      alert('Failed to create post. Please try again.');
+      toast.error('Failed to create post. Please try again.');
     } finally {
       setIsCreatingPost(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setProcessingPost(postId);
+      const response = await fetch(`/api/communities/posts/${postId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast.success('Post deleted successfully');
+        // Remove post from state
+        if (community) {
+          setCommunity({
+            ...community,
+            posts: community.posts.filter(p => p.id !== postId)
+          });
+        }
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to delete post');
+      }
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      toast.error('Failed to delete post');
+    } finally {
+      setProcessingPost(null);
+    }
+  };
+
+  const handlePinPost = async (postId: string, isPinned: boolean) => {
+    try {
+      setProcessingPost(postId);
+      const response = await fetch(`/api/communities/posts/${postId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: isPinned ? 'unpin' : 'pin',
+          isPinned: !isPinned,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(isPinned ? 'Post unpinned' : 'Post pinned');
+        // Refresh community data
+        await fetchCommunity();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to update post');
+      }
+    } catch (err) {
+      console.error('Error pinning post:', err);
+      toast.error('Failed to update post');
+    } finally {
+      setProcessingPost(null);
+    }
+  };
+
+  const handleHidePost = (postId: string) => {
+    setHiddenPosts(prev => {
+      const newSet = new Set(prev);
+      newSet.add(postId);
+      return newSet;
+    });
+    toast.success('Post hidden');
+  };
+
+  const handleFlagPost = (postId: string) => {
+    setSelectedPostToFlag(postId);
+    setShowFlagDialog(true);
+    setFlagReason('');
+    setFlagDescription('');
+  };
+
+  const handleSubmitFlag = async () => {
+    if (!flagReason || !selectedPostToFlag) {
+      toast.error('Please select a reason for flagging');
+      return;
+    }
+
+    try {
+      setIsSubmittingFlag(true);
+      const response = await fetch(`/api/communities/posts/${selectedPostToFlag}/report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: flagReason,
+          description: flagDescription || undefined,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Post reported successfully. The community admin will review it.');
+        setShowFlagDialog(false);
+        setSelectedPostToFlag(null);
+        setFlagReason('');
+        setFlagDescription('');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to report post');
+      }
+    } catch (err) {
+      console.error('Error flagging post:', err);
+      toast.error('Failed to report post');
+    } finally {
+      setIsSubmittingFlag(false);
+    }
+  };
+
+  const fetchFlaggedPosts = useCallback(async () => {
+    if (!community) return;
+    
+    try {
+      setLoadingFlaggedPosts(true);
+      const response = await fetch(`/api/communities/${communityId}/flagged-posts`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFlaggedPosts(data.flaggedPosts || []);
+      } else {
+        console.error('Failed to fetch flagged posts');
+      }
+    } catch (err) {
+      console.error('Error fetching flagged posts:', err);
+    } finally {
+      setLoadingFlaggedPosts(false);
+    }
+  }, [community, communityId]);
+
+  const handleReviewReport = async (postId: string, reportId: string, action: 'dismiss' | 'resolve') => {
+    try {
+      const response = await fetch(`/api/communities/posts/${postId}/report/${reportId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      });
+
+      if (response.ok) {
+        toast.success(`Report ${action}ed successfully`);
+        await fetchFlaggedPosts();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to review report');
+      }
+    } catch (err) {
+      console.error('Error reviewing report:', err);
+      toast.error('Failed to review report');
     }
   };
 
@@ -1353,10 +1561,11 @@ export default function CommunityPage() {
             About
           </Button>
           {(community?.userRole === 'OWNER' || community?.userRole === 'ADMIN') && (
-            <Button
-              variant={activeTab === 'requests' ? 'default' : 'outline'}
-              onClick={() => {
-                setActiveTab('requests');
+            <>
+              <Button
+                variant={activeTab === 'requests' ? 'default' : 'outline'}
+                onClick={() => {
+                  setActiveTab('requests');
                 fetchJoinRequests();
               }}
               className={`rounded-full px-6 py-2 relative ${
@@ -1373,6 +1582,27 @@ export default function CommunityPage() {
                 </Badge>
               )}
             </Button>
+            <Button
+              variant={activeTab === 'flagged' ? 'default' : 'outline'}
+              onClick={() => {
+                setActiveTab('flagged');
+                fetchFlaggedPosts();
+              }}
+              className={`rounded-full px-6 py-2 relative ${
+                activeTab === 'flagged' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <Flag className="w-4 h-4 mr-2" />
+              Flagged Posts
+              {flaggedPosts.length > 0 && (
+                <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500">
+                  {flaggedPosts.length}
+                </Badge>
+              )}
+            </Button>
+            </>
           )}
         </div>
 
@@ -1720,7 +1950,18 @@ export default function CommunityPage() {
                     </Card>
                   ) : (
                     <div className="space-y-3">
-                      {community.posts.map((post) => (
+                      {community.posts
+                        .filter(post => !hiddenPosts.has(post.id))
+                        .map((post) => {
+                          const isOwner = community.userRole === 'OWNER';
+                          const isAdmin = community.userRole === 'ADMIN';
+                          const isModerator = community.userRole === 'MODERATOR';
+                          const isPostAuthor = post.user.id === session?.user?.id;
+                          const canModerate = isOwner || isAdmin || isModerator;
+                          const canDelete = canModerate || isPostAuthor;
+                          const canPin = canModerate;
+                          
+                          return (
                         <Card key={post.id} className="border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors shadow-sm">
                           <CardContent className="p-4">
                             {/* Post Header */}
@@ -1759,7 +2000,7 @@ export default function CommunityPage() {
                                     </Badge>
                                     )}
                                   </div>
-                                  {post.user.id !== session?.user?.id && (
+                                  {post.user.id !== session?.user?.id && post.user.role !== 'OWNER' && (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -1780,13 +2021,59 @@ export default function CommunityPage() {
                                 </p>
                               </div>
                               
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                className="h-7 px-2"
-                              >
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    size="sm" 
+                                    variant="ghost"
+                                    className="h-7 px-2"
+                                    disabled={processingPost === post.id}
+                                  >
+                                    <MoreHorizontal className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {canPin && (
+                                    <DropdownMenuItem
+                                      onClick={() => handlePinPost(post.id, post.isPinned)}
+                                      disabled={processingPost === post.id}
+                                    >
+                                      <Pin className="w-4 h-4 mr-2" />
+                                      {post.isPinned ? 'Unpin Post' : 'Pin Post'}
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    onClick={() => handleHidePost(post.id)}
+                                  >
+                                    <EyeOff className="w-4 h-4 mr-2" />
+                                    Hide Post
+                                  </DropdownMenuItem>
+                                  {!isPostAuthor && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => handleFlagPost(post.id)}
+                                      >
+                                        <Flag className="w-4 h-4 mr-2" />
+                                        Flag Post
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                  {canDelete && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => handleDeletePost(post.id)}
+                                        disabled={processingPost === post.id}
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+                                      >
+                                        <Trash2 className="w-4 h-4 mr-2" />
+                                        Delete Post
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
 
                             {/* Post Content */}
@@ -1917,10 +2204,11 @@ export default function CommunityPage() {
                             </div>
 
                             {/* Comments Section */}
-                            {post.comments && post.comments.length > 0 && expandedComments.has(post.id) && (
+                            {expandedComments.has(post.id) && (
                               <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                <div className="space-y-3">
-                                  {post.comments.map((comment) => (
+                                {post.comments && post.comments.length > 0 && (
+                                  <div className="space-y-3 mb-4">
+                                    {post.comments.map((comment) => (
                                     <div key={comment.id}>
                                       <div className="flex items-start space-x-3">
                                         <Avatar className="w-8 h-8 flex-shrink-0">
@@ -2174,11 +2462,12 @@ export default function CommunityPage() {
                                       )}
                                     </div>
                                   ))}
-                                </div>
+                                  </div>
+                                )}
                                 
                                 {/* Add Comment Input */}
-                                {expandedComments.has(post.id) && !replyingTo && (
-                                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                {!replyingTo && (
+                                  <div className="mt-4">
                                     <div className="flex items-start space-x-3">
                                       <Avatar className="w-8 h-8 flex-shrink-0">
                                         <AvatarImage src={session?.user?.image || undefined} />
@@ -2272,7 +2561,8 @@ export default function CommunityPage() {
 
                           </CardContent>
                         </Card>
-                      ))}
+                          );
+                        })}
                     </div>
                   )}
                   </div>
@@ -3152,6 +3442,132 @@ export default function CommunityPage() {
               </CardContent>
             </Card>
           )}
+
+          {activeTab === 'flagged' && (community?.userRole === 'OWNER' || community?.userRole === 'ADMIN') && (
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Flag className="w-5 h-5 text-red-600" />
+                  Flagged Posts
+                  {flaggedPosts.length > 0 && (
+                    <Badge className="ml-2 bg-red-500">{flaggedPosts.length}</Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingFlaggedPosts ? (
+                  <div className="flex items-center justify-center py-12">
+                    <LoadingSpinner />
+                  </div>
+                ) : flaggedPosts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+                      <Flag className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Flagged Posts</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      There are no posts currently flagged for review.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {flaggedPosts.map((flaggedPost) => (
+                      <Card key={flaggedPost.post.id} className="border border-red-200 dark:border-red-800">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <Avatar className="w-10 h-10">
+                                <AvatarImage src={flaggedPost.post.user.image || undefined} />
+                                <AvatarFallback className="bg-blue-500 text-white text-sm">
+                                  {flaggedPost.post.user.name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-1">
+                                  <h4 className="font-semibold text-sm text-gray-900 dark:text-white">
+                                    {flaggedPost.post.user.name}
+                                  </h4>
+                                  <Badge variant="outline" className="text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700">
+                                    {flaggedPost.reportCount} {flaggedPost.reportCount === 1 ? 'Report' : 'Reports'}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                  {new Date(flaggedPost.post.createdAt).toLocaleDateString('en-US', { 
+                                    month: 'short', 
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </p>
+                                <p className="text-sm text-gray-700 dark:text-gray-200 mb-3">
+                                  {flaggedPost.post.content}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                            <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Reports:</h5>
+                            <div className="space-y-2">
+                              {flaggedPost.reports.map((report) => (
+                                <div key={report.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-center space-x-2">
+                                      <Avatar className="w-6 h-6">
+                                        <AvatarImage src={report.reporter.image ?? undefined} />
+                                        <AvatarFallback className="text-xs bg-gray-400 text-white">
+                                          {report.reporter.name.charAt(0)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-xs font-medium text-gray-900 dark:text-white">
+                                        {report.reporter.name}
+                                      </span>
+                                      <Badge variant="outline" className="text-xs">
+                                        {report.reason.replace(/_/g, ' ')}
+                                      </Badge>
+                                    </div>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {new Date(report.createdAt).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric'
+                                      })}
+                                    </span>
+                                  </div>
+                                  {report.description && (
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                      {report.description}
+                                    </p>
+                                  )}
+                                  <div className="flex gap-2 mt-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleReviewReport(flaggedPost.post.id, report.id, 'dismiss')}
+                                      className="text-xs"
+                                    >
+                                      Dismiss
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleReviewReport(flaggedPost.post.id, report.id, 'resolve')}
+                                      className="text-xs bg-red-600 hover:bg-red-700 text-white"
+                                    >
+                                      Resolve & Delete Post
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -3368,6 +3784,69 @@ export default function CommunityPage() {
           </div>
         </div>
       )}
+
+      {/* Flag Post Dialog */}
+      <Dialog open={showFlagDialog} onOpenChange={setShowFlagDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Flag Post</DialogTitle>
+            <DialogDescription>
+              Please select a reason for flagging this post. The community admin will review your report.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Reason
+              </label>
+              <Select value={flagReason} onValueChange={setFlagReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SPAM">Spam</SelectItem>
+                  <SelectItem value="HARASSMENT">Harassment</SelectItem>
+                  <SelectItem value="INAPPROPRIATE_CONTENT">Inappropriate Content</SelectItem>
+                  <SelectItem value="MISINFORMATION">Misinformation</SelectItem>
+                  <SelectItem value="COPYRIGHT_VIOLATION">Copyright Violation</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Additional Details (Optional)
+              </label>
+              <Textarea
+                value={flagDescription}
+                onChange={(e) => setFlagDescription(e.target.value)}
+                placeholder="Provide any additional information about why you're flagging this post..."
+                className="min-h-[100px]"
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowFlagDialog(false);
+                  setFlagReason('');
+                  setFlagDescription('');
+                }}
+                disabled={isSubmittingFlag}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitFlag}
+                disabled={!flagReason || isSubmittingFlag}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+              >
+                {isSubmittingFlag ? 'Submitting...' : 'Submit Report'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Message Dialog */}
       <ParticipantMessageDialog
