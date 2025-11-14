@@ -90,6 +90,8 @@ export function LocationAutocomplete({
         document.removeEventListener('mousedown', handleClickOutside);
       };
     }
+    
+    return undefined;
   }, [isOpen]);
 
   const fetchLocations = async (query: string) => {
