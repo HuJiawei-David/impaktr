@@ -41,13 +41,34 @@ const createEventSchema = z.object({
 });
 
 const querySchema = z.object({
-  page: z.string().transform((str) => parseInt(str)).default('1'),
-  limit: z.string().transform((str) => parseInt(str)).default('20'),
+  page: z.string().transform((str) => {
+    const num = parseInt(str, 10);
+    return isNaN(num) ? 1 : num;
+  }).optional().default('1'),
+  limit: z.string().transform((str) => {
+    const num = parseInt(str, 10);
+    return isNaN(num) ? 20 : num;
+  }).optional().default('20'),
   search: z.string().optional(),
-  sdg: z.string().transform((str) => parseInt(str)).optional(),
+  sdg: z.string().transform((str) => {
+    const num = parseInt(str, 10);
+    return isNaN(num) ? undefined : num;
+  }).optional(),
   location: z.string().optional(),
-  startDate: z.string().transform((str) => new Date(str)).optional(),
-  endDate: z.string().transform((str) => new Date(str)).optional(),
+  startDate: z.string().transform((str) => {
+    try {
+      return new Date(str);
+    } catch {
+      return undefined;
+    }
+  }).optional(),
+  endDate: z.string().transform((str) => {
+    try {
+      return new Date(str);
+    } catch {
+      return undefined;
+    }
+  }).optional(),
   status: z.nativeEnum(EventStatus).optional(),
   organizationId: z.string().optional(),
 });
@@ -116,55 +137,70 @@ export async function GET(request: NextRequest) {
     // Apply status filter if provided, otherwise show UPCOMING and ACTIVE events
     if (status) {
       // When status is explicitly provided:
-      // - If user has participations, include their events regardless of status
-      // - OR show events with the specified status
-      if (userParticipations.length > 0) {
-        baseConditions.push({
-          OR: [
-            {
-              id: { in: userParticipations } // User's registered events - no status filter
-            },
-            {
-              status: status // Events with specified status
-            }
-          ]
-        });
+      if (status === 'UPCOMING') {
+        // For UPCOMING status, always filter by date to exclude past events
+        // If user has participations, include their upcoming events OR other upcoming events
+        if (userParticipations.length > 0) {
+          baseConditions.push({
+            OR: [
+              {
+                id: { in: userParticipations },
+                startDate: { gte: new Date() } // User's events that are still upcoming
+              },
+              {
+                status: status,
+                startDate: { gte: new Date() } // Other upcoming events
+              }
+            ]
+          });
+        } else {
+          baseConditions.push({
+            status: status,
+            startDate: { gte: new Date() } // Only events starting from now
+          });
+        }
       } else {
-        baseConditions.push({
-          status: status
-        });
-      }
-      // For UPCOMING status, also filter by date to exclude past events
-      // BUT only for non-participant events (participant events are already included above)
-      if (status === 'UPCOMING' && userParticipations.length === 0) {
-        baseConditions.push({
-          startDate: {
-            gte: new Date() // Only events starting from now
-          }
-        });
+        // For other statuses (ACTIVE, COMPLETED, etc.), include user's events if they have participations
+        if (userParticipations.length > 0) {
+          baseConditions.push({
+            OR: [
+              {
+                id: { in: userParticipations } // User's registered events - no status filter
+              },
+              {
+                status: status // Events with specified status
+              }
+            ]
+          });
+        } else {
+          baseConditions.push({
+            status: status
+          });
+        }
       }
     } else {
       // For default query (no status specified)
-      // If user is a participant, include their events regardless of status/date
-      // AND also show UPCOMING/ACTIVE events for others
+      // Show UPCOMING/ACTIVE events that haven't started yet
+      const now = new Date();
       if (userParticipations.length > 0) {
-        // Use OR to include: user's events OR UPCOMING/ACTIVE events
+        // Use OR to include: user's upcoming events OR other UPCOMING/ACTIVE events
         baseConditions.push({
           OR: [
             {
-              id: { in: userParticipations } // User's registered events - no status/date filter
+              id: { in: userParticipations },
+              startDate: { gte: now } // User's events that are still upcoming
             },
             {
-              status: { in: ['UPCOMING', 'ACTIVE'] }
-              // Don't filter by startDate - allow events past registration deadline
+              status: { in: ['UPCOMING', 'ACTIVE'] },
+              startDate: { gte: now } // Other upcoming/active events
             }
           ]
         });
       } else {
-        // No participations - just show UPCOMING and ACTIVE events
-        // Don't filter by startDate to allow events past registration deadline
+        // No participations - just show UPCOMING and ACTIVE events that haven't started
         baseConditions.push({
-          status: { in: ['UPCOMING', 'ACTIVE'] }
+          status: { in: ['UPCOMING', 'ACTIVE'] },
+          startDate: { gte: now } // Only events starting from now
         });
       }
     }
@@ -285,8 +321,15 @@ export async function GET(request: NextRequest) {
     }
 
     console.error('Error fetching events:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { errorMessage, errorStack });
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }
@@ -371,23 +414,10 @@ export async function POST(request: NextRequest) {
             label: s.label || null
           }))
         },
-        groupChat: {
-          create: {
-            name: `${parsed.title} - Group Chat`,
-            description: `Group chat for ${parsed.title}`,
-            members: {
-              create: {
-                userId: user.id,
-                role: 'ADMIN'
-              }
-            }
-          }
-        }
       },
       include: {
         organization: true,
         sessions: true,
-        groupChat: true,
       },
     });
 

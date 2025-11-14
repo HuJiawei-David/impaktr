@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -29,6 +29,41 @@ import { useEventNotificationStore } from '@/store/eventNotificationStore';
 import { EventCard } from '@/components/events/EventCard';
 
 // Utility functions (moved to shared EventCard component)
+
+// API Event response type (what we get from the API)
+interface ApiEvent {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate?: string;
+  location: string | {
+    address?: string;
+    city: string;
+    country: string;
+    coordinates?: { lat: number; lng: number };
+    isVirtual: boolean;
+  };
+  maxParticipants?: number;
+  currentParticipants?: number;
+  interestedCount?: number;
+  sdg?: string | number | number[];
+  organization?: {
+    id: string;
+    name: string;
+    logo?: string | null;
+  } | null;
+  createdAt?: string;
+  status?: string;
+  isBookmarked?: boolean;
+  isAttending?: boolean;
+  isPending?: boolean;
+  imageUrl?: string;
+  skills?: string[];
+  intensity?: number;
+  verificationType?: string;
+  [key: string]: unknown; // Allow other fields
+}
 
 interface Event {
   id: string;
@@ -145,9 +180,6 @@ function EventsPageContent() {
     category: category || undefined
   });
 
-  useEffect(() => {
-    fetchEvents();
-  }, [filters, activeTab]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -205,7 +237,7 @@ function EventsPageContent() {
     return () => document.removeEventListener('click', handleClickOutside, { capture: false });
   }, [showSDGDropdown, showDistanceDropdown, showSortDropdown, showVirtualDropdown, showCountryDropdown]);
 
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     setIsLoading(true);
     try {
       console.log('Fetching events for tab:', activeTab);
@@ -238,9 +270,17 @@ function EventsPageContent() {
       console.log('Response ok:', response.ok);
       
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error:', errorText);
-        throw new Error('Failed to fetch events');
+        let errorMessage = `Failed to fetch events (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.error('API Error:', errorData);
+        } catch {
+          const errorText = await response.text();
+          console.error('API Error (text):', errorText);
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -248,7 +288,7 @@ function EventsPageContent() {
       
       // Transform API data to match our Event interface
       const sourceEvents = activeTab === 'for-you' ? (data.recommendations || []) : (data.events || []);
-      const transformedEvents: Event[] = sourceEvents.map((event: any) => {
+      const transformedEvents: Event[] = sourceEvents.map((event: ApiEvent) => {
         let locationData;
         if (typeof event.location === 'string') {
           try {
@@ -330,7 +370,9 @@ function EventsPageContent() {
       });
       
       setEvents(transformedEvents);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       filterEventsByTab(transformedEvents, activeTab);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       calculateTabCounts(transformedEvents);
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -340,7 +382,12 @@ function EventsPageContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, orgId]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents, filters]);
 
   const filterEventsByTab = (eventList: Event[], tab: string) => {
     let filtered = [...eventList];
