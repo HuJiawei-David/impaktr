@@ -5,7 +5,12 @@ import { z } from 'zod';
 
 const applySchema = z.object({
   message: z.string().max(500).optional(),
-  resumeUrl: z.string().url().optional(),
+  resumeUrl: z
+    .union([
+      z.string().url(),
+      z.string().regex(/^\/uploads\//, 'Invalid resume URL'),
+    ])
+    .optional(),
 });
 
 export async function POST(
@@ -19,7 +24,14 @@ export async function POST(
     }
 
     const { id } = await params;
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (error) {
+      console.error('Failed to parse application payload:', error);
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
     const validatedData = applySchema.parse(body);
 
     // Check if opportunity exists and is open

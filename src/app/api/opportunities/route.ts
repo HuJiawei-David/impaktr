@@ -18,7 +18,7 @@ function getOrderBy(sort: string) {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const status = url.searchParams.get('status') || 'OPEN';
+    const status = url.searchParams.get('status') || 'BOTH';
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = parseInt(url.searchParams.get('offset') || '0');
     const search = url.searchParams.get('search') || '';
@@ -28,9 +28,14 @@ export async function GET(request: NextRequest) {
     const sort = url.searchParams.get('sort') || 'recent';
     const organizationId = url.searchParams.get('organizationId');
 
-    const where: any = {
-      status: status as any,
-    };
+    const where: any = {};
+    
+    // Handle "BOTH" status to include both OPEN and CLOSED
+    if (status === 'BOTH') {
+      where.status = { in: ['OPEN', 'CLOSED'] };
+    } else {
+      where.status = status as any;
+    }
 
     // Build search conditions
     if (search && search.trim()) {

@@ -791,6 +791,19 @@ export function StepByStepOnboarding({ initialStep = 1, onComplete }: StepByStep
         }
       });
 
+      const websiteValue = submitData.get('website');
+      if (typeof websiteValue === 'string') {
+        const trimmedWebsite = websiteValue.trim();
+        if (!trimmedWebsite) {
+          submitData.delete('website');
+        } else {
+          const normalizedWebsite = /^https?:\/\//i.test(trimmedWebsite)
+            ? trimmedWebsite
+            : `https://${trimmedWebsite}`;
+          submitData.set('website', normalizedWebsite);
+        }
+      }
+
       // Log what we're sending
       const formDataEntries: Record<string, string> = {};
       submitData.forEach((value, key) => {

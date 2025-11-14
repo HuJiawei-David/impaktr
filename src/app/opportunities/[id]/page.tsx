@@ -606,26 +606,6 @@ export default function OpportunityDetailPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Organization Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">About the Organization</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {opportunity.organization.description && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-4 mb-4">
-                    {opportunity.organization.description}
-                  </p>
-                )}
-                <Link href={`/organizations/${opportunity.organization.id}`}>
-                  <Button variant="outline" className="w-full">
-                    <Building className="h-4 w-4 mr-2" />
-                    View Organization Profile
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
             {/* SDG Alignment */}
             {sdgInfo && (
               <Card>
