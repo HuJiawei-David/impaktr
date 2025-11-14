@@ -47,6 +47,7 @@ import { ParticipantsList } from '@/components/events/ParticipantsList';
 import { EventParticipants } from '@/components/events/EventParticipants';
 import { EventGallery } from '@/components/events/EventGallery';
 import { AttendanceDialog } from '@/components/events/AttendanceDialog';
+import { GroupChatDialog } from '@/components/messages/GroupChatDialog';
 import Link from 'next/link';
 import { getSDGById } from '@/constants/sdgs';
 import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
@@ -171,6 +172,7 @@ export default function EventDetailPage() {
   const [commentCount, setCommentCount] = useState(0);
   const [galleryCount, setGalleryCount] = useState(0);
   const [showAttendanceDialog, setShowAttendanceDialog] = useState(false);
+  const [showGroupChatDialog, setShowGroupChatDialog] = useState(false);
   const [userSkills, setUserSkills] = useState<string[]>([]);
   const [missingSkills, setMissingSkills] = useState<string[]>([]);
   
@@ -1702,7 +1704,7 @@ export default function EventDetailPage() {
                     <Button
                       variant="outline"
                       className="w-full bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white border-0"
-                      onClick={() => router.push(`/messages?groupChat=${event.id}`)}
+                      onClick={() => setShowGroupChatDialog(true)}
                     >
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Group Chat
@@ -1749,6 +1751,18 @@ export default function EventDetailPage() {
           hasCoordinates={!!event?.location.coordinates}
           eventCoordinates={event?.location.coordinates}
         />
+
+        {/* Group Chat Dialog */}
+        {event && (
+          <GroupChatDialog
+            eventId={event.id}
+            eventTitle={event.title}
+            eventImage={event.images?.[0] || null}
+            open={showGroupChatDialog}
+            onOpenChange={setShowGroupChatDialog}
+            currentUserId={user?.id}
+          />
+        )}
       </div>
       
       {/* Confirm Dialog */}

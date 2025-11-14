@@ -110,7 +110,7 @@ export function SimpleConfirmDialog({
       
       {/* Dialog */}
       <div 
-        className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 p-6 animate-in fade-in-0 zoom-in-95 duration-200"
+        className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-xl w-full mx-4 p-6 animate-in fade-in-0 zoom-in-95 duration-200"
         onClick={(e) => {
           // Prevent clicks inside dialog from closing it
           e.stopPropagation();

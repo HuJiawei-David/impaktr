@@ -48,6 +48,7 @@ import { getSDGById, getSDGColor } from '@/constants/sdgs';
 import { useConfirmDialog } from '@/components/ui/simple-confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ParticipantMessageDialog } from '@/components/messages/ParticipantMessageDialog';
+import { GroupChatDialog } from '@/components/messages/GroupChatDialog';
 
 interface Event {
   id: string;
@@ -155,6 +156,7 @@ export default function EventDetailPage() {
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const [messageParticipant, setMessageParticipant] = useState<Participation | null>(null);
+  const [showGroupChatDialog, setShowGroupChatDialog] = useState(false);
   
   // Confirm dialog
   const { showConfirm, ConfirmDialog } = useConfirmDialog();
@@ -969,7 +971,7 @@ export default function EventDetailPage() {
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
-                onClick={() => router.push(`/messages?groupChat=${eventId}`)}
+                onClick={() => setShowGroupChatDialog(true)}
                 className="px-4 py-2 bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white border-0"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
@@ -2146,9 +2148,21 @@ export default function EventDetailPage() {
         currentUserId={user?.id}
       />
 
+      {/* Group Chat Dialog */}
+      {event && (
+        <GroupChatDialog
+          eventId={event.id}
+          eventTitle={event.title}
+          eventImage={event.imageUrl}
+          open={showGroupChatDialog}
+          onOpenChange={setShowGroupChatDialog}
+          currentUserId={user?.id}
+        />
+      )}
+
       {/* Manual Approval Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-orange-500" />

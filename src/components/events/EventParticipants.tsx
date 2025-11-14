@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatTimeAgo, getInitials } from '@/lib/utils';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import { ParticipantMessageDialog } from '@/components/messages/ParticipantMessageDialog';
 
 interface Participant {
   id: string;
@@ -60,6 +61,8 @@ export function EventParticipants({ eventId }: EventParticipantsProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [connectionStates, setConnectionStates] = useState<Record<string, 'none' | 'pending' | 'connected'>>({});
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [messageParticipant, setMessageParticipant] = useState<Participant | null>(null);
 
   useEffect(() => {
     fetchParticipants();
@@ -127,9 +130,28 @@ export function EventParticipants({ eventId }: EventParticipantsProps) {
     }
   };
 
-  const handleMessage = (participantId: string) => {
-    // Navigate to messages with this user
-    window.location.href = `/messages?user=${participantId}`;
+  // Helper function to format participant name (copied from admin side)
+  const getParticipantName = (participant: Participant): string => {
+    if (participant.user.profile?.firstName || participant.user.profile?.lastName) {
+      return `${participant.user.profile.firstName || ''} ${participant.user.profile.lastName || ''}`.trim();
+    }
+    return participant.user.name || 'Unknown';
+  };
+
+  const handleMessage = (participant: Participant) => {
+    if (!participant?.user?.id) {
+      toast.error('Unable to open conversation. Participant profile is missing.');
+      return;
+    }
+    setMessageParticipant(participant);
+    setIsMessageDialogOpen(true);
+  };
+
+  const handleMessageDialogChange = (open: boolean) => {
+    setIsMessageDialogOpen(open);
+    if (!open) {
+      setMessageParticipant(null);
+    }
   };
 
   if (isLoading) {
@@ -283,7 +305,7 @@ export function EventParticipants({ eventId }: EventParticipantsProps) {
                       )}
                       <Button
                         size="sm"
-                        onClick={() => handleMessage(participant.user.id)}
+                        onClick={() => handleMessage(participant)}
                         className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 h-10 px-4"
                       >
                         <MessageSquare className="w-4 h-4 mr-2" />
@@ -297,6 +319,25 @@ export function EventParticipants({ eventId }: EventParticipantsProps) {
           </div>
         )}
       </div>
+
+      {/* Message Dialog - copied from admin side */}
+      <ParticipantMessageDialog
+        key={messageParticipant?.user?.id ?? 'no-participant'}
+        participant={
+          messageParticipant?.user?.id
+            ? {
+                id: messageParticipant.user.id,
+                name: getParticipantName(messageParticipant),
+                email: messageParticipant.user.email,
+                image: messageParticipant.user.image,
+              }
+            : null
+        }
+        open={Boolean(isMessageDialogOpen && messageParticipant?.user?.id)}
+        onOpenChange={handleMessageDialogChange}
+        currentUserId={session?.user?.id}
+        isIndividual={true}
+      />
     </div>
   );
 }

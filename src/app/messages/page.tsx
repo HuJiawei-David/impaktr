@@ -33,6 +33,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { getMessagePreview, parseMessageContent } from '@/lib/messages';
 import { toast } from 'react-hot-toast';
 import { EmojiPicker } from '@/components/messages/EmojiPicker';
+import { useSocket } from '@/components/providers/SocketProvider';
 
 interface Message {
   id: string;
@@ -81,6 +82,7 @@ interface GroupChat {
 function MessagesPageContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
+  const { socket } = useSocket();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -147,6 +149,139 @@ function MessagesPageContent() {
   useEffect(() => {
     setIsEmojiPickerOpen(false);
   }, [selectedConversation]);
+
+  // Listen for messages-updated event from ParticipantMessageDialog
+  useEffect(() => {
+    const handleMessagesUpdated = () => {
+      // Refresh conversations when message is sent from dialog
+      fetchConversations({ showSpinner: false }).then(() => {
+        // Ensure active conversation stays at top after refresh
+        if (selectedConversation) {
+          setConversations((prev) => {
+            const conversationIndex = prev.findIndex(
+              (conv) => conv.partner.id === selectedConversation
+            );
+            if (conversationIndex > 0) {
+              const updatedConversations = [...prev];
+              const [movedConversation] = updatedConversations.splice(conversationIndex, 1);
+              return [movedConversation, ...updatedConversations];
+            }
+            return prev;
+          });
+        }
+      });
+      fetchGroupChats({ showSpinner: false }).then(() => {
+        // Ensure active group chat stays at top after refresh
+        if (selectedGroupChat) {
+          setGroupChats((prev) => {
+            const groupChatIndex = prev.findIndex(
+              (gc) => gc.eventId === selectedGroupChat
+            );
+            if (groupChatIndex > 0) {
+              const updatedGroupChats = [...prev];
+              const [movedGroupChat] = updatedGroupChats.splice(groupChatIndex, 1);
+              return [movedGroupChat, ...updatedGroupChats];
+            }
+            return prev;
+          });
+        }
+      });
+    };
+
+    window.addEventListener('messages-updated', handleMessagesUpdated);
+    return () => {
+      window.removeEventListener('messages-updated', handleMessagesUpdated);
+    };
+  }, [selectedConversation, selectedGroupChat]);
+
+  // Listen for real-time message updates via Socket.IO
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (data: {
+      message: Message;
+      conversationId?: string;
+      eventId?: string;
+      senderId: string;
+    }) => {
+      // Only process if message is not from current user
+      if (data.senderId === session?.user?.id) return;
+
+      // Handle individual conversation
+      if (data.conversationId) {
+        const partnerId = data.conversationId;
+        
+        // Update conversation list - move to top
+        setConversations((prev) => {
+          const conversationIndex = prev.findIndex(
+            (conv) => conv.partner.id === partnerId
+          );
+          
+          if (conversationIndex === -1) {
+            // New conversation - add to top
+            // We need to fetch partner info, but for now create a placeholder
+            return [
+              {
+                partner: {
+                  id: partnerId,
+                  name: data.message.sender.name,
+                  image: data.message.sender.image,
+                },
+                lastMessage: data.message,
+                unreadCount: 1,
+              },
+              ...prev,
+            ];
+          }
+          
+          // Move existing conversation to top and update
+          const updatedConversations = [...prev];
+          const [movedConversation] = updatedConversations.splice(conversationIndex, 1);
+          movedConversation.lastMessage = data.message;
+          movedConversation.unreadCount = (movedConversation.unreadCount || 0) + 1;
+          return [movedConversation, ...updatedConversations];
+        });
+
+        // If this conversation is currently open, add message to chat
+        if (selectedConversation === partnerId) {
+          setMessages((prev) => [...prev, data.message]);
+        }
+      }
+
+      // Handle group chat
+      if (data.eventId) {
+        // Update group chat list - move to top
+        setGroupChats((prev) => {
+          const groupChatIndex = prev.findIndex(
+            (gc) => gc.eventId === data.eventId
+          );
+          
+          if (groupChatIndex === -1) {
+            // New group chat - will be added by next fetch
+            return prev;
+          }
+          
+          // Move existing group chat to top and update
+          const updatedGroupChats = [...prev];
+          const [movedGroupChat] = updatedGroupChats.splice(groupChatIndex, 1);
+          movedGroupChat.lastMessage = data.message;
+          movedGroupChat.updatedAt = data.message.createdAt;
+          return [movedGroupChat, ...updatedGroupChats];
+        });
+
+        // If this group chat is currently open, add message to chat
+        if (selectedGroupChat === data.eventId) {
+          setMessages((prev) => [...prev, data.message]);
+        }
+      }
+    };
+
+    socket.on('new-message', handleNewMessage);
+
+    return () => {
+      socket.off('new-message', handleNewMessage);
+    };
+  }, [socket, session?.user?.id, selectedConversation, selectedGroupChat]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -410,40 +545,10 @@ function MessagesPageContent() {
           });
         }
         
-        // Update conversations/group chats list from server in background
-        // This ensures data consistency but doesn't override the immediate reordering
-        fetchConversations({ showSpinner: false }).then(() => {
-          // After server fetch, ensure the active conversation stays at top
-          if (selectedConversation) {
-            setConversations((prev) => {
-              const conversationIndex = prev.findIndex(
-                (conv) => conv.partner.id === selectedConversation
-              );
-              if (conversationIndex > 0) {
-                const updatedConversations = [...prev];
-                const [movedConversation] = updatedConversations.splice(conversationIndex, 1);
-                return [movedConversation, ...updatedConversations];
-              }
-              return prev;
-            });
-          }
-        });
-        fetchGroupChats({ showSpinner: false }).then(() => {
-          // After server fetch, ensure the active group chat stays at top
-          if (selectedGroupChat) {
-            setGroupChats((prev) => {
-              const groupChatIndex = prev.findIndex(
-                (gc) => gc.eventId === selectedGroupChat
-              );
-              if (groupChatIndex > 0) {
-                const updatedGroupChats = [...prev];
-                const [movedGroupChat] = updatedGroupChats.splice(groupChatIndex, 1);
-                return [movedGroupChat, ...updatedGroupChats];
-              }
-              return prev;
-            });
-          }
-        });
+        // Silently refresh conversations/group chats list in background to ensure consistency
+        // This won't override the immediate reordering since we check if item is already at top
+        fetchConversations({ showSpinner: false });
+        fetchGroupChats({ showSpinner: false });
       } else {
         const errorData = await response.json().catch(() => null);
         const errorMessage = errorData?.error || 'Failed to send message.';
@@ -931,7 +1036,13 @@ function MessagesPageContent() {
                               )}
                               <div className="space-y-2">
                                 {hasText && (
-                                  <p className="text-sm whitespace-pre-line leading-relaxed">
+                                  <p 
+                                    className="text-sm whitespace-pre-line leading-relaxed"
+                                    style={{ 
+                                      wordSpacing: 'normal',
+                                      letterSpacing: 'normal'
+                                    }}
+                                  >
                                     {parsedContent.text}
                                   </p>
                                 )}

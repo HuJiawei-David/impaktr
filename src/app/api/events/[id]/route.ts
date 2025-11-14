@@ -113,36 +113,133 @@ export async function GET(
   try {
     const { id } = await params;
     
-    const event = await prisma.event.findUnique({
-      where: { id },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            logo: true,
-            industry: true,
-            type: true
-          }
-        },
-        sessions: true,
-        participations: {
-          include: {
-            user: true,
-            // verifications field doesn't exist in Participation model
+    // Try to fetch event, handling case where certificateConfig column doesn't exist
+    let event;
+    try {
+      event = await prisma.event.findUnique({
+        where: { id },
+        include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              logo: true,
+              industry: true,
+              type: true
+            }
           },
-        },
-        _count: {
-          select: {
-            participations: {
-              where: { 
-                status: { in: ['CONFIRMED', 'VERIFIED'] }
+          sessions: true,
+          participations: {
+            include: {
+              user: true,
+              // verifications field doesn't exist in Participation model
+            },
+          },
+          _count: {
+            select: {
+              participations: {
+                where: { 
+                  status: { in: ['CONFIRMED', 'VERIFIED'] }
+                }
               }
             }
           }
-        }
-      },
-    });
+        },
+      });
+    } catch (error: any) {
+      // If error is about certificateConfig column not existing, retry with explicit select
+      if (error?.code === 'P2022' && error?.message?.includes('certificateConfig')) {
+        // Use select to explicitly exclude certificateConfig
+        event = await prisma.event.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            organizationId: true,
+            startDate: true,
+            endDate: true,
+            totalHours: true,
+            timezone: true,
+            location: true,
+            maxParticipants: true,
+            currentParticipants: true,
+            createdAt: true,
+            imageUrl: true,
+            organizerId: true,
+            createdAsUserId: true,
+            sdg: true,
+            campaignId: true,
+            isPublic: true,
+            locationId: true,
+            type: true,
+            status: true,
+            skills: true,
+            intensity: true,
+            verificationType: true,
+            eventInstructions: true,
+            materialsNeeded: true,
+            emergencyContact: true,
+            requiresApproval: true,
+            autoIssueCertificates: true,
+            registrationDeadline: true,
+            attendanceCode: true,
+            attendanceEnabled: true,
+            attendanceEnabledAt: true,
+            attendanceDisabledAt: true,
+            // Explicitly exclude certificateConfig
+            organization: {
+              select: {
+                id: true,
+                name: true,
+                logo: true,
+                industry: true,
+                type: true
+              }
+            },
+            sessions: true,
+            participations: {
+              select: {
+                id: true,
+                userId: true,
+                eventId: true,
+                status: true,
+                joinedAt: true,
+                verifiedAt: true,
+                hours: true,
+                impactPoints: true,
+                feedback: true,
+                createdAt: true,
+                updatedAt: true,
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    image: true,
+                    impactScore: true,
+                  }
+                }
+              }
+            },
+            _count: {
+              select: {
+                participations: {
+                  where: { 
+                    status: { in: ['CONFIRMED', 'VERIFIED'] }
+                  }
+                }
+              }
+            }
+          },
+        });
+      } else {
+        // Re-throw if it's a different error
+        throw error;
+      }
+    }
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
@@ -265,18 +362,47 @@ export async function PUT(
     }
 
     // Check if user is the event creator or has organization permissions
-    const event = await prisma.event.findUnique({
-      where: { id },
-      include: {
-        organization: {
-          include: {
-            members: {
-              where: { userId: user.id }
+    let event;
+    try {
+      event = await prisma.event.findUnique({
+        where: { id },
+        include: {
+          organization: {
+            include: {
+              members: {
+                where: { userId: user.id }
+              }
             }
           }
         }
+      });
+    } catch (error: any) {
+      // If error is about certificateConfig column not existing, retry with explicit select
+      if (error?.code === 'P2022' && error?.message?.includes('certificateConfig')) {
+        event = await prisma.event.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            organizerId: true,
+            organization: {
+              select: {
+                id: true,
+                members: {
+                  where: { userId: user.id },
+                  select: {
+                    id: true,
+                    userId: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        });
+      } else {
+        throw error;
       }
-    });
+    }
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
@@ -295,7 +421,33 @@ export async function PUT(
     }
 
     // Load current event and sessions
-    const current = await prisma.event.findUnique({ where: { id }, include: { sessions: true } });
+    let current;
+    try {
+      current = await prisma.event.findUnique({ where: { id }, include: { sessions: true } });
+    } catch (error: any) {
+      // If error is about certificateConfig column not existing, retry with explicit select
+      if (error?.code === 'P2022' && error?.message?.includes('certificateConfig')) {
+        current = await prisma.event.findUnique({ 
+          where: { id }, 
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            startDate: true,
+            endDate: true,
+            totalHours: true,
+            timezone: true,
+            location: true,
+            maxParticipants: true,
+            status: true,
+            sdg: true,
+            sessions: true,
+          }
+        });
+      } else {
+        throw error;
+      }
+    }
     if (!current) return NextResponse.json({ error: 'Event not found' }, { status: 404 });
 
     // Determine target sessions
@@ -387,18 +539,47 @@ export async function DELETE(
     }
 
     // Check if user is the event creator or has organization permissions
-    const event = await prisma.event.findUnique({
-      where: { id },
-      include: {
-        organization: {
-          include: {
-            members: {
-              where: { userId: user.id }
+    let event;
+    try {
+      event = await prisma.event.findUnique({
+        where: { id },
+        include: {
+          organization: {
+            include: {
+              members: {
+                where: { userId: user.id }
+              }
             }
           }
         }
+      });
+    } catch (error: any) {
+      // If error is about certificateConfig column not existing, retry with explicit select
+      if (error?.code === 'P2022' && error?.message?.includes('certificateConfig')) {
+        event = await prisma.event.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            organizerId: true,
+            organization: {
+              select: {
+                id: true,
+                members: {
+                  where: { userId: user.id },
+                  select: {
+                    id: true,
+                    userId: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        });
+      } else {
+        throw error;
       }
-    });
+    }
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });

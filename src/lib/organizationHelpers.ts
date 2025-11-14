@@ -8,18 +8,40 @@ export async function calculateOrganizationKPIs(orgId: string) {
     console.log('[calculateOrganizationKPIs] Starting for orgId:', orgId);
     const organization = await prisma.organization.findUnique({
       where: { id: orgId },
-      include: {
+      select: {
+        id: true,
+        name: true,
         members: {
-          include: {
-            user: true,
+          select: {
+            id: true,
+            status: true,
+            user: {
+              select: {
+                id: true,
+                impactScore: true,
+              },
+            },
           },
         },
-        activities: true,
+        activities: {
+          select: {
+            id: true,
+          },
+        },
         events: {
-          include: {
+          select: {
+            id: true,
             participations: {
               where: { status: 'VERIFIED' },
-              include: { user: true }
+              select: {
+                id: true,
+                hours: true,
+                user: {
+                  select: {
+                    id: true,
+                  },
+                },
+              },
             }
           }
         },

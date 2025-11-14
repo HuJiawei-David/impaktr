@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { uploadToS3 } from '@/lib/aws';
+import { emitToUser } from '@/lib/socket';
 
 type MessageType = 'TEXT' | 'IMAGE' | 'FILE';
 
@@ -186,6 +187,21 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      // Emit real-time event to receiver to move conversation to top
+      emitToUser(receiverId, 'new-message', {
+        message: {
+          id: message.id,
+          content: message.content,
+          type: message.type,
+          isRead: message.isRead,
+          createdAt: message.createdAt.toISOString(),
+          sender: message.sender,
+          receiver: message.receiver,
+        },
+        conversationId: session.user.id, // The partner's ID (sender)
+        senderId: session.user.id,
+      });
+
       return NextResponse.json({ message }, { status: 201 });
     }
 
@@ -238,6 +254,21 @@ export async function POST(request: NextRequest) {
         },
         isRead: false,
       }
+    });
+
+    // Emit real-time event to receiver to move conversation to top
+    emitToUser(validatedData.receiverId, 'new-message', {
+      message: {
+        id: message.id,
+        content: message.content,
+        type: message.type,
+        isRead: message.isRead,
+        createdAt: message.createdAt.toISOString(),
+        sender: message.sender,
+        receiver: message.receiver,
+      },
+      conversationId: session.user.id, // The partner's ID (sender)
+      senderId: session.user.id,
     });
 
     return NextResponse.json({ message }, { status: 201 });
@@ -301,8 +332,9 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ messages: messages.reverse() });
     } else {
-      // Get all conversations
-      const conversations = await prisma.message.findMany({
+      // Get all conversations - fetch all messages to group by partner
+      // First, get all messages involving the current user, ordered by creation time (newest first)
+      const allMessages = await prisma.message.findMany({
         where: {
           OR: [
             { senderId: session.user.id },
@@ -329,12 +361,19 @@ export async function GET(request: NextRequest) {
       });
 
       // Group by conversation partner
-      const conversationMap = new Map();
+      // Since messages are sorted by createdAt desc, the first message we encounter for each partner is the latest
+      const conversationMap = new Map<string, {
+        partner: { id: string; name: string | null; image: string | null };
+        lastMessage: typeof allMessages[0];
+        unreadCount: number;
+      }>();
       
-      conversations.forEach(message => {
+      allMessages.forEach(message => {
         const partnerId = message.senderId === session.user.id ? message.receiverId : message.senderId;
         const partner = message.senderId === session.user.id ? message.receiver : message.sender;
         
+        // Only set lastMessage if we haven't seen this partner before
+        // Since messages are sorted desc, the first one is the most recent
         if (!conversationMap.has(partnerId)) {
           conversationMap.set(partnerId, {
             partner,
@@ -343,13 +382,23 @@ export async function GET(request: NextRequest) {
           });
         }
         
+        // Count unread messages (only for messages received by current user)
         if (message.receiverId === session.user.id && !message.isRead) {
-          conversationMap.get(partnerId).unreadCount++;
+          const conv = conversationMap.get(partnerId);
+          if (conv) {
+            conv.unreadCount++;
+          }
         }
       });
 
+      // Sort conversations by last message time (most recent first)
+      // This ensures conversations with the most recent messages appear at the top
       const conversationsList = Array.from(conversationMap.values())
-        .sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime());
+        .sort((a, b) => {
+          const timeA = new Date(a.lastMessage.createdAt).getTime();
+          const timeB = new Date(b.lastMessage.createdAt).getTime();
+          return timeB - timeA; // Descending order (newest first)
+        });
 
       return NextResponse.json({ conversations: conversationsList });
     }
