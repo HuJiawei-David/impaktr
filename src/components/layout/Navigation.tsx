@@ -138,22 +138,53 @@ export function Navigation() {
     if (!isOrganization && user) {
       const fetchCertificateNotifications = async () => {
         try {
-          const response = await fetch('/api/notifications?unread=true');
-          if (response.ok) {
-            const data = await response.json();
-            // Count notifications that require certificate confirmation
-            const pendingConfirmations = (data.notifications || []).filter((n: any) => {
-              const isCertificateType = n.type === 'certificate_issued' || n.type === 'CERTIFICATE_ISSUED';
-              const notificationData = n.data && typeof n.data === 'object' ? n.data : null;
-              const requiresConfirmation = notificationData?.requiresConfirmation === true || 
-                                          notificationData?.requiresConfirmation === 'true' ||
-                                          notificationData?.requiresConfirmation === 1;
-              return isCertificateType && requiresConfirmation && !n.read;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+          
+          try {
+            const response = await fetch('/api/notifications?unread=true', {
+              signal: controller.signal,
+              headers: {
+                'Content-Type': 'application/json',
+              },
             });
-            setCertificateNotificationCount(pendingConfirmations.length);
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+              const data = await response.json();
+              // Count notifications that require certificate confirmation
+              const pendingConfirmations = (data.notifications || []).filter((n: any) => {
+                const isCertificateType = n.type === 'certificate_issued' || n.type === 'CERTIFICATE_ISSUED';
+                const notificationData = n.data && typeof n.data === 'object' ? n.data : null;
+                const requiresConfirmation = notificationData?.requiresConfirmation === true || 
+                                            notificationData?.requiresConfirmation === 'true' ||
+                                            notificationData?.requiresConfirmation === 1;
+                return isCertificateType && requiresConfirmation && !n.read;
+              });
+              setCertificateNotificationCount(pendingConfirmations.length);
+            } else {
+              // Non-ok response, just set count to 0 silently
+              setCertificateNotificationCount(0);
+            }
+          } catch (fetchError: any) {
+            clearTimeout(timeoutId);
+            // Handle network errors silently (server may not be running)
+            if (fetchError.name === 'AbortError') {
+              // Timeout - don't log as it's expected behavior
+            } else if (fetchError.name === 'TypeError' && fetchError.message === 'Failed to fetch') {
+              // Network error - server may not be available, this is okay
+            } else {
+              // Other errors - only log in development
+              if (process.env.NODE_ENV === 'development') {
+                console.error('Error fetching certificate notifications:', fetchError);
+              }
+            }
+            setCertificateNotificationCount(0);
           }
         } catch (error) {
-          console.error('Error fetching certificate notifications:', error);
+          // Outer catch for any unexpected errors
+          setCertificateNotificationCount(0);
         }
       };
 
@@ -183,33 +214,62 @@ export function Navigation() {
     }
 
     try {
-      const response = await fetch('/api/messages');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
+      try {
+        const response = await fetch('/api/messages', {
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        if (response.status === 401) {
+        if (!response.ok) {
+          if (response.status === 401) {
+            setUnreadMessagesCount(0);
+            return;
+          }
+
+          // Only log warnings in development
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(
+              `fetchUnreadMessages: unexpected response status ${response.status}`
+            );
+          }
           setUnreadMessagesCount(0);
           return;
         }
 
-        console.warn(
-          `fetchUnreadMessages: unexpected response status ${response.status}`
-        );
+        const data = await response.json();
+        const totalUnread = Array.isArray(data.conversations)
+          ? data.conversations.reduce(
+              (count: number, conversation: { unreadCount?: number }) =>
+                count + (conversation.unreadCount || 0),
+              0
+            )
+          : 0;
+
+        setUnreadMessagesCount(totalUnread);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        // Handle network errors silently (server may not be running)
+        if (fetchError.name === 'AbortError') {
+          // Timeout - don't log as it's expected behavior
+        } else if (fetchError.name === 'TypeError' && fetchError.message === 'Failed to fetch') {
+          // Network error - server may not be available, this is okay
+        } else {
+          // Other errors - only log in development
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Error fetching unread messages:', fetchError);
+          }
+        }
         setUnreadMessagesCount(0);
-        return;
       }
-
-      const data = await response.json();
-      const totalUnread = Array.isArray(data.conversations)
-        ? data.conversations.reduce(
-            (count: number, conversation: { unreadCount?: number }) =>
-              count + (conversation.unreadCount || 0),
-            0
-          )
-        : 0;
-
-      setUnreadMessagesCount(totalUnread);
     } catch (error) {
-      console.error('Error fetching unread messages:', error);
+      // Outer catch for any unexpected errors
       setUnreadMessagesCount(0);
     }
   }, [user]);
