@@ -76,12 +76,14 @@ model User {
   likes                        Like[]
   receivedMessages             Message[]                  @relation("ReceivedMessages")
   sentMessages                 Message[]                  @relation("SentMessages")
-  notificationTemplates        NotificationTemplate[]
+  groupChatMemberships         GroupChatMember[]         @relation("GroupChatMemberships")
+  groupChatMessages            GroupChatMessage[]        @relation("GroupChatMessages")
+  notificationTemplates         NotificationTemplate[]
   notifications                Notification[]
   opportunityBookmarks         OpportunityBookmark[]
   sentInvitations              OrganizationInvitation[]
-  sentCommunityInvitations     CommunityInvitation[]      @relation("SentCommunityInvitations")
-  organizationMemberships      OrganizationMember[]
+  sentCommunityInvitations     CommunityInvitation[]     @relation("SentCommunityInvitations")
+  organizationMemberships       OrganizationMember[]
   participations               Participation[]
   departmentAccountsOwned      DepartmentAccess[]         @relation("DepartmentAccount")
   departmentAccessGrants       DepartmentAccess[]         @relation("Grantor")
@@ -113,7 +115,7 @@ model User {
   userRecommendations          Recommendation[]           @relation("UserRecommendations")
   authorRecommendations        Recommendation[]           @relation("AuthorRecommendations")
   certificates                 Certificate[]
-  receivedCommunityInvitations CommunityInvitation[]      @relation("ReceivedCommunityInvitations")
+  receivedCommunityInvitations CommunityInvitation[]       @relation("ReceivedCommunityInvitations")
 
   @@map("users")
 }
@@ -445,6 +447,7 @@ model Event {
   participations        Participation[]
   organizationPosts     OrganizationPost[]
   sessions              EventSession[]
+  groupChat             GroupChat?
 
   @@index([startDate])
   @@index([type])
@@ -747,6 +750,52 @@ model Message {
   @@index([senderId])
   @@index([receiverId])
   @@map("messages")
+}
+
+model GroupChat {
+  id          String            @id @default(cuid())
+  eventId     String            @unique
+  name        String
+  description String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  event       Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  members     GroupChatMember[]
+  messages    GroupChatMessage[]
+
+  @@index([eventId])
+  @@map("group_chats")
+}
+
+model GroupChatMember {
+  id          String    @id @default(cuid())
+  groupChatId String
+  userId      String
+  role        String    @default("MEMBER") // MEMBER, ADMIN
+  joinedAt    DateTime  @default(now())
+  groupChat   GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  user        User      @relation("GroupChatMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupChatId, userId])
+  @@index([userId])
+  @@index([groupChatId])
+  @@map("group_chat_members")
+}
+
+model GroupChatMessage {
+  id         String      @id @default(cuid())
+  groupChatId String
+  senderId   String
+  content    String
+  type       MessageType @default(TEXT)
+  createdAt  DateTime    @default(now())
+  groupChat  GroupChat   @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  sender     User        @relation("GroupChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([groupChatId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("group_chat_messages")
 }
 
 model Notification {

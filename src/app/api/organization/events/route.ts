@@ -179,12 +179,22 @@ export async function GET(request: NextRequest) {
       
       try {
         if (event.location && typeof event.location === 'string') {
-          const parsed = JSON.parse(event.location);
-          location = {
-            address: parsed.address || '',
-            city: parsed.city || '',
-            isVirtual: parsed.isVirtual ?? false
-          };
+          // Try to parse as JSON first
+          try {
+            const parsed = JSON.parse(event.location);
+            location = {
+              address: parsed.address || '',
+              city: parsed.city || '',
+              isVirtual: parsed.isVirtual ?? false
+            };
+          } catch (parseError) {
+            // If parsing fails, treat it as a plain string (likely a city name or address)
+            location = {
+              address: '',
+              city: event.location,
+              isVirtual: false
+            };
+          }
         } else if (event.location && typeof event.location === 'object') {
           const loc = event.location as { city?: string; isVirtual?: boolean; address?: string };
           location = {
@@ -194,8 +204,15 @@ export async function GET(request: NextRequest) {
           };
         }
       } catch (error) {
-        console.error('Error parsing location JSON:', error);
-        // Keep default location values
+        console.error('Error parsing location:', error);
+        // If location is a string, use it as city
+        if (event.location && typeof event.location === 'string') {
+          location = {
+            address: '',
+            city: event.location,
+            isVirtual: false
+          };
+        }
       }
       
       // Ensure location fields are properly set
@@ -539,9 +556,22 @@ export async function POST(request: NextRequest) {
         autoIssueCertificates: validatedData.autoIssueCertificates,
         requiresApproval: validatedData.requiresApproval,
         imageUrl: imageUrls.length > 0 ? imageUrls[0] : null, // Set first image as cover
+        groupChat: {
+          create: {
+            name: `${validatedData.title} - Group Chat`,
+            description: `Group chat for ${validatedData.title}`,
+            members: {
+              create: {
+                userId: user.id,
+                role: 'ADMIN'
+              }
+            }
+          }
+        }
       },
       include: {
         organization: true,
+        groupChat: true,
       },
     });
 
