@@ -34,6 +34,8 @@ interface Community {
   recentActivity: string;
   isPublic: boolean;
   isJoined?: boolean;
+  isCreatedByMe?: boolean;
+  userRole?: string | null;
   bannerImage?: string;
   avatar?: string;
   tags?: string[];
@@ -57,6 +59,7 @@ interface CommunityDiscoveryProps {
   onView?: (communityId: string) => void;
   onShare?: (communityId: string) => void;
   onCreateCommunity?: () => void;
+  requestedCommunities?: Set<string>;
 }
 
 export function CommunityDiscovery({ 
@@ -64,15 +67,13 @@ export function CommunityDiscovery({
   onJoin,
   onView,
   onShare,
-  onCreateCommunity
+  onCreateCommunity,
+  requestedCommunities = new Set()
 }: CommunityDiscoveryProps) {
-  // Debug: Log communities received as prop
-  console.log('CommunityDiscovery received communities:', communities);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedSdg, setSelectedSdg] = useState<string>('all');
-  const [selectedTab, setSelectedTab] = useState<'my' | 'discover' | 'recommended'>('discover');
+  const [selectedTab, setSelectedTab] = useState<'created' | 'joined' | 'discover' | 'recommended'>('discover');
   
   // New Meetup-style state
   const [userLocation, setUserLocation] = useState<{city: string, country: string} | null>(null);
@@ -111,211 +112,8 @@ export function CommunityDiscovery({
   }, []);
 
 
-  // Mock data - in real app, this would come from props or API
-  const mockCommunities: Community[] = [
-    {
-      id: '1',
-      name: 'Climate Action Warriors',
-      description: 'Join us in fighting climate change through sustainable practices and environmental advocacy.',
-      category: 'Environment',
-      memberCount: 2847,
-      postCount: 156,
-      recentActivity: '2 hours ago',
-      isPublic: true,
-      isJoined: false,
-      tags: ['Climate', 'Sustainability', 'Environment'],
-      sdgFocus: [13, 15, 12],
-      primarySDG: 13,
-      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
-      distance: 5.2,
-      rating: 4.8,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '2',
-      name: 'Education for All',
-      description: 'Promoting quality education and equal learning opportunities for children worldwide.',
-      category: 'Education',
-      memberCount: 1923,
-      postCount: 89,
-      recentActivity: '5 hours ago',
-      isPublic: true,
-      isJoined: true,
-      tags: ['Education', 'Children', 'Learning'],
-      sdgFocus: [4, 10, 1],
-      primarySDG: 4,
-      location: { city: 'Petaling Jaya', country: 'Malaysia' },
-      distance: 12.5,
-      rating: 4.9,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '3',
-      name: 'Health & Wellness Champions',
-      description: 'Building healthier communities through healthcare initiatives and wellness programs.',
-      category: 'Healthcare',
-      memberCount: 1456,
-      postCount: 67,
-      recentActivity: '1 day ago',
-      isPublic: true,
-      isJoined: false,
-      tags: ['Health', 'Wellness', 'Healthcare'],
-      sdgFocus: [3, 6, 11],
-      primarySDG: 3,
-      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
-      distance: 8.7,
-      rating: 4.6,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '4',
-      name: 'Tech for Good',
-      description: 'Leveraging technology to solve social problems and create positive impact.',
-      category: 'Technology',
-      memberCount: 3210,
-      postCount: 234,
-      recentActivity: '3 hours ago',
-      isPublic: true,
-      isJoined: true,
-      tags: ['Technology', 'Innovation', 'Social Impact'],
-      sdgFocus: [9, 8, 4],
-      primarySDG: 9,
-      location: { city: 'Cyberjaya', country: 'Malaysia' },
-      distance: 25.3,
-      rating: 4.7,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '5',
-      name: 'Women Empowerment Circle',
-      description: 'Supporting women\'s rights, leadership, and economic empowerment globally.',
-      category: 'Social',
-      memberCount: 1876,
-      postCount: 98,
-      recentActivity: '6 hours ago',
-      isPublic: true,
-      isJoined: false,
-      tags: ['Women', 'Empowerment', 'Gender Equality'],
-      sdgFocus: [5, 8, 10],
-      primarySDG: 5,
-      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
-      distance: 3.1,
-      rating: 4.9,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '6',
-      name: 'Youth Leadership Network',
-      description: 'Empowering young leaders to drive positive change in their communities.',
-      category: 'Social',
-      memberCount: 2567,
-      postCount: 145,
-      recentActivity: '4 hours ago',
-      isPublic: true,
-      isJoined: false,
-      tags: ['Youth', 'Leadership', 'Community'],
-      sdgFocus: [4, 16, 17],
-      primarySDG: 4,
-      location: { city: 'Shah Alam', country: 'Malaysia' },
-      distance: 18.9,
-      rating: 4.5,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '7',
-      name: 'Singapore Green Warriors',
-      description: 'Leading environmental initiatives and sustainable living practices in Singapore.',
-      category: 'Environment',
-      memberCount: 3421,
-      postCount: 189,
-      recentActivity: '1 hour ago',
-      isPublic: true,
-      isJoined: false,
-      tags: ['Environment', 'Singapore', 'Sustainability'],
-      sdgFocus: [13, 11, 12],
-      primarySDG: 13,
-      location: { city: 'Singapore', country: 'Singapore' },
-      distance: undefined, // No distance for international communities
-      rating: 4.7,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '8',
-      name: 'Tokyo Tech for Good',
-      description: 'Japanese tech professionals using innovation to solve social challenges.',
-      category: 'Technology',
-      memberCount: 1892,
-      postCount: 67,
-      recentActivity: '3 hours ago',
-      isPublic: true,
-      isJoined: false,
-      tags: ['Technology', 'Japan', 'Innovation'],
-      sdgFocus: [9, 8, 4],
-      primarySDG: 9,
-      location: { city: 'Tokyo', country: 'Japan' },
-      distance: undefined,
-      rating: 4.8,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    },
-    {
-      id: '9',
-      name: 'Elite Impact Leaders',
-      description: 'An exclusive network for verified C-suite executives and social impact leaders.',
-      category: 'Business',
-      memberCount: 243,
-      postCount: 89,
-      recentActivity: '30 minutes ago',
-      isPublic: false,
-      isJoined: false,
-      tags: ['Leadership', 'Executive', 'Private'],
-      sdgFocus: [8, 9, 17],
-      primarySDG: 17,
-      location: { city: 'Kuala Lumpur', country: 'Malaysia' },
-      distance: 2.1,
-      rating: 4.9,
-      memberAvatars: [
-        'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=32&h=32&fit=crop&crop=face',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face'
-      ]
-    }
-  ];
-
-  // Use communities prop if available, otherwise use mock data
-  const displayCommunities = communities.length > 0 ? communities : mockCommunities;
-  console.log('displayCommunities:', displayCommunities.length, displayCommunities);
+  // Use communities from props (API data)
+  const displayCommunities = communities;
 
   const categories = ['all', 'Environment', 'Education', 'Healthcare', 'Social', 'Technology', 'Business'];
   const sdgOptions = [
@@ -343,12 +141,14 @@ export function CommunityDiscovery({
     let filtered = displayCommunities;
 
     // Filter by tab
-    if (selectedTab === 'my') {
-      filtered = filtered.filter(community => community.isJoined);
+    if (selectedTab === 'created') {
+      filtered = filtered.filter(community => community.isCreatedByMe === true);
+    } else if (selectedTab === 'joined') {
+      filtered = filtered.filter(community => community.isJoined && !community.isCreatedByMe);
     } else if (selectedTab === 'recommended') {
       // Mock recommendation logic - prioritize communities with high member count and recent activity
       filtered = filtered
-        .filter(community => !community.isJoined)
+        .filter(community => !community.isJoined && !community.isCreatedByMe)
         .sort((a, b) => b.memberCount - a.memberCount)
         .slice(0, 6);
     }
@@ -393,11 +193,12 @@ export function CommunityDiscovery({
   }, [displayCommunities, selectedTab, selectedSDGCategory, distanceFilter, searchQuery, locationSearch]);
 
   const getTabStats = () => {
-    const myCommunities = displayCommunities.filter(c => c.isJoined).length;
+    const createdCommunities = displayCommunities.filter(c => c.isCreatedByMe === true).length;
+    const joinedCommunities = displayCommunities.filter(c => c.isJoined && !c.isCreatedByMe).length;
     const totalCommunities = displayCommunities.length;
-    const recommendedCount = Math.min(6, displayCommunities.filter(c => !c.isJoined).length);
+    const recommendedCount = Math.min(6, displayCommunities.filter(c => !c.isJoined && !c.isCreatedByMe).length);
 
-    return { myCommunities, totalCommunities, recommendedCount };
+    return { createdCommunities, joinedCommunities, totalCommunities, recommendedCount };
   };
 
   const stats = getTabStats();
@@ -538,7 +339,7 @@ export function CommunityDiscovery({
               }`}
             >
               <img src={sdg.image} alt={sdg.title} className="w-4 h-4" />
-              {sdg.title}
+              SDG {sdgId}: {sdg.title}
             </Button>
           );
         })}
@@ -563,16 +364,28 @@ export function CommunityDiscovery({
       {/* Tab Pills */}
       <div className="flex flex-wrap gap-2">
         <Button
-          variant={selectedTab === 'my' ? 'default' : 'outline'}
-          onClick={() => setSelectedTab('my')}
+          variant={selectedTab === 'created' ? 'default' : 'outline'}
+          onClick={() => setSelectedTab('created')}
           className={`rounded-full px-6 py-2 ${
-            selectedTab === 'my' 
+            selectedTab === 'created' 
+              ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+        >
+          <Star className="w-4 h-4 mr-2" />
+          Created ({stats.createdCommunities})
+        </Button>
+        <Button
+          variant={selectedTab === 'joined' ? 'default' : 'outline'}
+          onClick={() => setSelectedTab('joined')}
+          className={`rounded-full px-6 py-2 ${
+            selectedTab === 'joined' 
               ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
               : 'hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
           <Users className="w-4 h-4 mr-2" />
-          My Communities ({stats.myCommunities})
+          Joined ({stats.joinedCommunities})
         </Button>
         <Button
           variant={selectedTab === 'discover' ? 'default' : 'outline'}
@@ -595,7 +408,7 @@ export function CommunityDiscovery({
               : 'hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
-          <Star className="w-4 h-4 mr-2" />
+          <TrendingUp className="w-4 h-4 mr-2" />
           Recommended ({stats.recommendedCount})
         </Button>
       </div>
@@ -610,6 +423,7 @@ export function CommunityDiscovery({
               onJoin={onJoin}
               onView={onView}
               onShare={onShare}
+              isRequested={requestedCommunities.has(community.id)}
             />
           ))}
         </div>
@@ -620,20 +434,32 @@ export function CommunityDiscovery({
               <Users className="w-8 h-8 text-gray-400" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {selectedTab === 'my' 
+              {selectedTab === 'created'
+                ? "You haven't created any communities yet"
+                : selectedTab === 'joined'
                 ? "You haven't joined any communities yet"
                 : 'No communities found'
               }
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {selectedTab === 'my'
+              {selectedTab === 'created'
+                ? 'Create your first community to bring people together around your cause'
+                : selectedTab === 'joined'
                 ? 'Explore communities in the Discover tab and join ones that match your interests'
                 : searchQuery.trim() 
                   ? 'Try adjusting your search terms or filters'
                   : 'No communities match your current filters'
               }
             </p>
-            {selectedTab === 'my' ? (
+            {selectedTab === 'created' ? (
+              <Button 
+                onClick={onCreateCommunity}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Community
+              </Button>
+            ) : selectedTab === 'joined' ? (
               <Button 
                 onClick={() => setSelectedTab('discover')}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0"

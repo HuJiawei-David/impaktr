@@ -969,6 +969,14 @@ export default function EventDetailPage() {
             <div className="flex items-center space-x-2">
               <Button
                 variant="outline"
+                onClick={() => router.push(`/messages?groupChat=${eventId}`)}
+                className="px-4 py-2 bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white border-0"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Group Chat
+              </Button>
+              <Button
+                variant="outline"
                 onClick={handleDuplicateEvent}
                 className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
               >

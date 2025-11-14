@@ -1,19 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
-import { 
-  Send, 
-  Search, 
+import { redirect, useSearchParams } from 'next/navigation';
+import {
+  Send,
+  Search,
   MoreVertical,
   Phone,
   Video,
   Paperclip,
-  Smile,
   Check,
   CheckCheck,
-  Clock
+  Loader2,
+  X,
+  FileText,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { getMessagePreview, parseMessageContent } from '@/lib/messages';
+import { toast } from 'react-hot-toast';
+import { EmojiPicker } from '@/components/messages/EmojiPicker';
 
 interface Message {
   id: string;
@@ -58,16 +62,47 @@ interface Conversation {
   unreadCount: number;
 }
 
-export default function MessagesPage() {
+interface GroupChat {
+  id: string;
+  name: string;
+  description?: string;
+  eventId: string;
+  event?: {
+    id: string;
+    title: string;
+    imageUrl?: string;
+  };
+  lastMessage: Message | null;
+  memberCount: number;
+  messageCount: number;
+  updatedAt: string;
+}
+
+function MessagesPageContent() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [selectedGroupChat, setSelectedGroupChat] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+
+  const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_MIME_TYPES = new Set([
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ]);
+  const ALLOWED_EXTENSIONS = new Set(['.pdf', '.doc', '.docx']);
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -77,12 +112,40 @@ export default function MessagesPage() {
     }
 
     fetchConversations({ showSpinner: true });
-  }, [session, status]);
+    fetchGroupChats({ showSpinner: false });
+
+    // Check for groupChat query parameter
+    const groupChatParam = searchParams?.get('groupChat');
+    if (groupChatParam) {
+      setSelectedGroupChat(groupChatParam);
+      setSelectedConversation(null);
+    }
+
+    // Poll for new messages every 10 seconds to update conversation order
+    const pollInterval = setInterval(() => {
+      fetchConversations({ showSpinner: false });
+      fetchGroupChats({ showSpinner: false });
+    }, 10000);
+
+    return () => clearInterval(pollInterval);
+  }, [session, status, searchParams]);
 
   useEffect(() => {
     if (selectedConversation) {
+      setSelectedGroupChat(null);
       fetchMessages(selectedConversation);
     }
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    if (selectedGroupChat) {
+      setSelectedConversation(null);
+      fetchGroupChatMessages(selectedGroupChat);
+    }
+  }, [selectedGroupChat]);
+
+  useEffect(() => {
+    setIsEmojiPickerOpen(false);
   }, [selectedConversation]);
 
   useEffect(() => {
@@ -120,6 +183,67 @@ export default function MessagesPage() {
     }
   };
 
+  const fetchGroupChats = async ({ showSpinner = false }: { showSpinner?: boolean } = {}) => {
+    try {
+      if (showSpinner) {
+        setIsLoading(true);
+      }
+      const response = await fetch('/api/group-chats');
+      if (response.ok) {
+        const data = await response.json();
+        setGroupChats(data.groupChats);
+      }
+    } catch (error) {
+      console.error('Error fetching group chats:', error);
+    } finally {
+      if (showSpinner) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const fetchGroupChatMessages = async (eventId: string) => {
+    try {
+      const response = await fetch(`/api/group-chats/${eventId}/messages`);
+      if (response.ok) {
+        const data = await response.json();
+        const sortedMessages = [...data.messages].sort(
+          (a: Message, b: Message) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        setMessages(sortedMessages);
+        requestAnimationFrame(() => scrollToBottom('auto'));
+
+        // Update group chat and move to top if it's not already there
+        if (sortedMessages.length > 0) {
+          const latestMessage = sortedMessages[sortedMessages.length - 1];
+          setGroupChats((prev) => {
+            const updated = prev.map((gc) =>
+              gc.eventId === eventId
+                ? { 
+                    ...gc, 
+                    lastMessage: latestMessage,
+                    updatedAt: latestMessage.createdAt
+                  }
+                : gc
+            );
+            // Move the updated group chat to top
+            const groupChatIndex = updated.findIndex(
+              (gc) => gc.eventId === eventId
+            );
+            if (groupChatIndex > 0) {
+              const [movedGroupChat] = updated.splice(groupChatIndex, 1);
+              return [movedGroupChat, ...updated];
+            }
+            return updated;
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching group chat messages:', error);
+    }
+  };
+
   const fetchMessages = async (conversationId: string) => {
     try {
       const response = await fetch(`/api/messages?conversationId=${conversationId}`);
@@ -134,13 +258,23 @@ export default function MessagesPage() {
 
         if (sortedMessages.length > 0) {
           const latestMessage = sortedMessages[sortedMessages.length - 1];
-          setConversations((prev) =>
-            prev.map((conversation) =>
+          // Update conversation and move to top if it's not already there
+          setConversations((prev) => {
+            const updated = prev.map((conversation) =>
               conversation.partner.id === conversationId
                 ? { ...conversation, lastMessage: latestMessage }
                 : conversation
-            )
-          );
+            );
+            // Move the updated conversation to top
+            const conversationIndex = updated.findIndex(
+              (conv) => conv.partner.id === conversationId
+            );
+            if (conversationIndex > 0) {
+              const [movedConversation] = updated.splice(conversationIndex, 1);
+              return [movedConversation, ...updated];
+            }
+            return updated;
+          });
         }
       }
     } catch (error) {
@@ -148,32 +282,176 @@ export default function MessagesPage() {
     }
   };
 
+  const canSendMessage = newMessage.trim().length > 0 || Boolean(selectedFile);
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || isSending) return;
+    if (isSending || !canSendMessage) return;
+    if (!selectedConversation && !selectedGroupChat) return;
 
     try {
       setIsSending(true);
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          receiverId: selectedConversation,
-          content: newMessage.trim(),
-        }),
-      });
+      const trimmedMessage = newMessage.trim();
+      let response: Response;
+
+      if (selectedGroupChat) {
+        // Send to group chat
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append('eventId', selectedGroupChat);
+          if (trimmedMessage) {
+            formData.append('content', trimmedMessage);
+          }
+          formData.append('file', selectedFile);
+
+          response = await fetch(`/api/group-chats/${selectedGroupChat}/messages`, {
+            method: 'POST',
+            body: formData,
+          });
+        } else {
+          response = await fetch(`/api/group-chats/${selectedGroupChat}/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: trimmedMessage,
+            }),
+          });
+        }
+      } else {
+        // Send to individual conversation
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append('receiverId', selectedConversation!);
+          if (trimmedMessage) {
+            formData.append('content', trimmedMessage);
+          }
+          formData.append('file', selectedFile);
+
+          response = await fetch('/api/messages', {
+            method: 'POST',
+            body: formData,
+          });
+        } else {
+          response = await fetch('/api/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              receiverId: selectedConversation!,
+              content: trimmedMessage,
+            }),
+          });
+        }
+      }
 
       if (response.ok) {
         const data = await response.json();
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
+        setSelectedFile(null);
+        setIsEmojiPickerOpen(false);
         
-        // Update conversations list
-        await fetchConversations();
+        // Immediately move the conversation/group chat to the top (like WhatsApp)
+        if (selectedConversation) {
+          setConversations((prev) => {
+            const conversationIndex = prev.findIndex(
+              (conv) => conv.partner.id === selectedConversation
+            );
+            
+            if (conversationIndex === -1) {
+              // If conversation doesn't exist, create it using receiver from the message
+              return [
+                {
+                  partner: data.message.receiver,
+                  lastMessage: data.message,
+                  unreadCount: 0,
+                },
+                ...prev,
+              ];
+            }
+            
+            // Move conversation to top and update lastMessage
+            const updatedConversations = [...prev];
+            const [movedConversation] = updatedConversations.splice(conversationIndex, 1);
+            movedConversation.lastMessage = data.message;
+            return [movedConversation, ...updatedConversations];
+          });
+        } else if (selectedGroupChat) {
+          // Move group chat to top
+          setGroupChats((prev) => {
+            const groupChatIndex = prev.findIndex(
+              (gc) => gc.eventId === selectedGroupChat
+            );
+            
+            if (groupChatIndex === -1) {
+              // If group chat doesn't exist in list, it will be added by server fetch
+              return prev;
+            }
+            
+            // Move group chat to top and update lastMessage
+            const updatedGroupChats = [...prev];
+            const [movedGroupChat] = updatedGroupChats.splice(groupChatIndex, 1);
+            // Create a message-like object for the group chat
+            // Group chat messages only have sender, so we use sender as receiver for compatibility
+            const lastMessage: Message = {
+              id: data.message.id,
+              content: data.message.content,
+              type: data.message.type,
+              isRead: true,
+              createdAt: data.message.createdAt,
+              sender: data.message.sender,
+              receiver: data.message.receiver || data.message.sender, // Group chats don't have receiver, use sender
+            };
+            movedGroupChat.lastMessage = lastMessage;
+            movedGroupChat.updatedAt = data.message.createdAt;
+            return [movedGroupChat, ...updatedGroupChats];
+          });
+        }
+        
+        // Update conversations/group chats list from server in background
+        // This ensures data consistency but doesn't override the immediate reordering
+        fetchConversations({ showSpinner: false }).then(() => {
+          // After server fetch, ensure the active conversation stays at top
+          if (selectedConversation) {
+            setConversations((prev) => {
+              const conversationIndex = prev.findIndex(
+                (conv) => conv.partner.id === selectedConversation
+              );
+              if (conversationIndex > 0) {
+                const updatedConversations = [...prev];
+                const [movedConversation] = updatedConversations.splice(conversationIndex, 1);
+                return [movedConversation, ...updatedConversations];
+              }
+              return prev;
+            });
+          }
+        });
+        fetchGroupChats({ showSpinner: false }).then(() => {
+          // After server fetch, ensure the active group chat stays at top
+          if (selectedGroupChat) {
+            setGroupChats((prev) => {
+              const groupChatIndex = prev.findIndex(
+                (gc) => gc.eventId === selectedGroupChat
+              );
+              if (groupChatIndex > 0) {
+                const updatedGroupChats = [...prev];
+                const [movedGroupChat] = updatedGroupChats.splice(groupChatIndex, 1);
+                return [movedGroupChat, ...updatedGroupChats];
+              }
+              return prev;
+            });
+          }
+        });
+      } else {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error || 'Failed to send message.';
+        toast.error(errorMessage);
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Failed to send message. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -182,8 +460,94 @@ export default function MessagesPage() {
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      if (canSendMessage) {
+        sendMessage();
+      }
     }
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    if (!textareaRef.current) {
+      setNewMessage((prev) => `${prev}${emoji}`);
+      return;
+    }
+
+    const textarea = textareaRef.current;
+    const { selectionStart, selectionEnd } = textarea;
+
+    setNewMessage((prev) => {
+      const before = prev.slice(0, selectionStart);
+      const after = prev.slice(selectionEnd);
+      return `${before}${emoji}${after}`;
+    });
+
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) {
+        return;
+      }
+      const cursorPosition = selectionStart + emoji.length;
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(cursorPosition, cursorPosition);
+    });
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes >= 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    if (bytes >= 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${bytes} B`;
+  };
+
+  const isAllowedFile = (file: File) => {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      toast.error('File is too large. Maximum size is 10MB.');
+      return false;
+    }
+
+    if (file.type && file.type.startsWith('image/')) {
+      return true;
+    }
+
+    if (file.type && ALLOWED_MIME_TYPES.has(file.type)) {
+      return true;
+    }
+
+    const extensionIndex = file.name.lastIndexOf('.');
+    if (extensionIndex !== -1) {
+      const extension = file.name.slice(extensionIndex).toLowerCase();
+      if (ALLOWED_EXTENSIONS.has(extension)) {
+        return true;
+      }
+    }
+
+    toast.error('Unsupported file type. Please upload a PDF, Word document, or image.');
+    return false;
+  };
+
+  const handleFileButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!isAllowedFile(file)) {
+      event.target.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+    event.target.value = '';
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
   };
 
   const formatTime = (dateString: string) => {
@@ -207,9 +571,73 @@ export default function MessagesPage() {
     return null;
   };
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.partner.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // Create a unified list of all conversations (individual + group chats) sorted by last message time
+  type UnifiedConversation = {
+    type: 'individual' | 'group';
+    id: string;
+    name: string;
+    image?: string;
+    lastMessage: Message | null;
+    unreadCount?: number;
+    memberCount?: number;
+    updatedAt?: string;
+    eventId?: string;
+    event?: {
+      id: string;
+      title: string;
+      imageUrl?: string;
+    };
+  };
+
+  const createUnifiedList = (): UnifiedConversation[] => {
+    const individualList: UnifiedConversation[] = conversations.map(conv => ({
+      type: 'individual' as const,
+      id: conv.partner.id,
+      name: conv.partner.name,
+      image: conv.partner.image,
+      lastMessage: conv.lastMessage,
+      unreadCount: conv.unreadCount,
+    }));
+
+    const groupList: UnifiedConversation[] = groupChats.map(gc => ({
+      type: 'group' as const,
+      id: gc.id,
+      name: gc.name,
+      image: gc.event?.imageUrl,
+      lastMessage: gc.lastMessage,
+      memberCount: gc.memberCount,
+      updatedAt: gc.updatedAt,
+      eventId: gc.eventId,
+      event: gc.event,
+    }));
+
+    // Merge and sort by last message time (most recent first)
+    const merged = [...individualList, ...groupList].sort((a, b) => {
+      const timeA = a.lastMessage 
+        ? new Date(a.lastMessage.createdAt).getTime() 
+        : (a.updatedAt ? new Date(a.updatedAt).getTime() : 0);
+      const timeB = b.lastMessage 
+        ? new Date(b.lastMessage.createdAt).getTime() 
+        : (b.updatedAt ? new Date(b.updatedAt).getTime() : 0);
+      return timeB - timeA; // Descending order (newest first)
+    });
+
+    return merged;
+  };
+
+  const allConversations = createUnifiedList();
+
+  // Filter the unified list based on search query
+  const filteredConversations = allConversations.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.event?.title && item.event.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  const currentChat = selectedGroupChat 
+    ? groupChats.find(gc => gc.eventId === selectedGroupChat)
+    : selectedConversation
+    ? conversations.find(c => c.partner.id === selectedConversation)
+    : null;
 
   if (status === 'loading' || isLoading) {
     return (
@@ -245,10 +673,10 @@ export default function MessagesPage() {
 
         {/* Main Content */}
         <div className="pt-3 pb-8">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 h-[70vh] md:h-[75vh] lg:h-[80vh] overflow-y-auto lg:overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-6 h-[70vh] md:h-[75vh] lg:h-[80vh] overflow-y-auto lg:overflow-y-hidden">
             {/* Conversations List */}
-            <Card className="flex h-full max-h-full flex-col overflow-hidden lg:col-span-1">
-              <CardHeader>
+            <Card className="flex h-full max-h-full flex-col overflow-hidden lg:w-[380px] lg:flex-shrink-0">
+              <CardHeader className="flex-shrink-0">
                 <CardTitle>Conversations</CardTitle>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -260,49 +688,126 @@ export default function MessagesPage() {
                   />
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 min-h-0 space-y-1 overflow-y-auto p-0">
-                  {filteredConversations.map((conversation) => (
-                    <div
-                      key={conversation.partner.id}
-                      className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                        selectedConversation === conversation.partner.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500' : ''
-                      }`}
-                      onClick={() => setSelectedConversation(conversation.partner.id)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10">
-                          {conversation.partner.image && (
-                            <AvatarImage src={conversation.partner.image} alt={conversation.partner.name} />
-                          )}
-                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm">
-                            {conversation.partner.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                              {conversation.partner.name}
-                            </h3>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {formatTime(conversation.lastMessage.createdAt)}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                              {getMessagePreview(conversation.lastMessage)}
-                            </p>
-                            {conversation.unreadCount > 0 && (
-                              <Badge variant="default" className="ml-2 text-xs">
-                                {conversation.unreadCount}
-                              </Badge>
-                            )}
+              <CardContent className="flex-1 min-h-0 space-y-1 overflow-y-auto overflow-x-hidden p-0">
+                  {/* Unified Conversations List (Individual + Group Chats sorted by last message time) */}
+                  {filteredConversations.map((item) => {
+                    if (item.type === 'group') {
+                      return (
+                        <div
+                          key={`group-${item.id}`}
+                          className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                            selectedGroupChat === item.eventId ? 'bg-green-50 dark:bg-green-900/20 border-r-2 border-green-500' : ''
+                          }`}
+                          onClick={() => {
+                            if (item.eventId) {
+                              setSelectedGroupChat(item.eventId);
+                              setSelectedConversation(null);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-10 w-10">
+                              {item.image && (
+                                <AvatarImage src={item.image} alt={item.name} />
+                              )}
+                              <AvatarFallback className="bg-gradient-to-r from-green-600 to-teal-600 text-white font-semibold text-sm">
+                                {item.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                                    {item.name}
+                                  </h3>
+                                  <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 flex-shrink-0">
+                                    Group
+                                  </Badge>
+                                </div>
+                                {item.lastMessage && (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 whitespace-nowrap">
+                                    {formatTime(item.lastMessage.createdAt)}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center justify-between gap-2 mt-1">
+                                {item.lastMessage ? (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate flex-1 min-w-0">
+                                    {getMessagePreview(item.lastMessage)}
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                    No messages yet
+                                  </p>
+                                )}
+                                {item.memberCount !== undefined && (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 ml-2 whitespace-nowrap">
+                                    {item.memberCount} members
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    } else {
+                      return (
+                        <div
+                          key={`individual-${item.id}`}
+                          className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                            selectedConversation === item.id ? 'bg-blue-50 dark:bg-blue-900/20 border-r-2 border-blue-500' : ''
+                          }`}
+                          onClick={() => {
+                            setSelectedConversation(item.id);
+                            setSelectedGroupChat(null);
+                          }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-10 w-10">
+                              {item.image && (
+                                <AvatarImage src={item.image} alt={item.name} />
+                              )}
+                              <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm">
+                                {item.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <h3 className="font-semibold text-gray-900 dark:text-white truncate flex-1 min-w-0">
+                                  {item.name}
+                                </h3>
+                                {item.lastMessage && (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0 whitespace-nowrap">
+                                    {formatTime(item.lastMessage.createdAt)}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center justify-between gap-2 mt-1">
+                                {item.lastMessage ? (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate flex-1 min-w-0">
+                                    {getMessagePreview(item.lastMessage)}
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                    No messages yet
+                                  </p>
+                                )}
+                                {item.unreadCount !== undefined && item.unreadCount > 0 && (
+                                  <Badge variant="default" className="flex-shrink-0 text-xs ml-2">
+                                    {item.unreadCount}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                  })}
                   
                   {filteredConversations.length === 0 && (
                     <div className="p-8 text-center text-gray-500 dark:text-gray-400">
@@ -313,29 +818,51 @@ export default function MessagesPage() {
             </Card>
 
             {/* Messages */}
-            <Card className="flex h-full max-h-full flex-col overflow-hidden lg:col-span-2">
-              {selectedConversation ? (
+            <Card className="flex h-full max-h-full flex-col overflow-hidden lg:flex-1 lg:min-w-0">
+              {(selectedConversation || selectedGroupChat) ? (
                 <>
                   {/* Chat Header */}
                   <CardHeader className="border-b">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10">
-                          {conversations.find(c => c.partner.id === selectedConversation)?.partner.image && (
-                            <AvatarImage 
-                              src={conversations.find(c => c.partner.id === selectedConversation)?.partner.image} 
-                              alt={conversations.find(c => c.partner.id === selectedConversation)?.partner.name} 
-                            />
+                          {selectedGroupChat ? (
+                            <>
+                              {currentChat && 'event' in currentChat && currentChat.event?.imageUrl && (
+                                <AvatarImage 
+                                  src={currentChat.event.imageUrl} 
+                                  alt={currentChat.name} 
+                                />
+                              )}
+                              <AvatarFallback className="bg-gradient-to-r from-green-600 to-teal-600 text-white font-semibold text-sm">
+                                {currentChat && 'name' in currentChat ? currentChat.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'GC'}
+                              </AvatarFallback>
+                            </>
+                          ) : (
+                            <>
+                              {conversations.find(c => c.partner.id === selectedConversation)?.partner.image && (
+                                <AvatarImage 
+                                  src={conversations.find(c => c.partner.id === selectedConversation)?.partner.image} 
+                                  alt={conversations.find(c => c.partner.id === selectedConversation)?.partner.name} 
+                                />
+                              )}
+                              <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm">
+                                {conversations.find(c => c.partner.id === selectedConversation)?.partner.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                              </AvatarFallback>
+                            </>
                           )}
-                          <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm">
-                            {conversations.find(c => c.partner.id === selectedConversation)?.partner.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                          </AvatarFallback>
                         </Avatar>
                         <div>
                           <h3 className="font-semibold text-gray-900 dark:text-white">
-                            {conversations.find(c => c.partner.id === selectedConversation)?.partner.name}
+                            {selectedGroupChat 
+                              ? (currentChat && 'name' in currentChat ? currentChat.name : 'Group Chat')
+                              : conversations.find(c => c.partner.id === selectedConversation)?.partner.name}
                           </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">Online</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {selectedGroupChat 
+                              ? `${currentChat && 'memberCount' in currentChat ? currentChat.memberCount : 0} members`
+                              : 'Online'}
+                          </p>
                         </div>
                       </div>
                       
@@ -373,12 +900,23 @@ export default function MessagesPage() {
                         const parsedContent = parseMessageContent(message.content);
                         const hasText = Boolean(parsedContent.text);
                         const hasAttachment = Boolean(parsedContent.url);
+                        const isGroupChat = !!selectedGroupChat;
 
                         return (
                           <div
                             key={message.id}
-                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+                            className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${isGroupChat ? 'items-start' : ''}`}
                           >
+                            {isGroupChat && !isCurrentUser && (
+                              <Avatar className="h-6 w-6 mr-2 mt-1">
+                                {message.sender.image && (
+                                  <AvatarImage src={message.sender.image} alt={message.sender.name} />
+                                )}
+                                <AvatarFallback className="bg-gradient-to-r from-green-600 to-teal-600 text-white text-xs">
+                                  {message.sender.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
                             <div
                               className={`max-w-xs lg:max-w-md rounded-lg px-4 py-3 ${
                                 isCurrentUser
@@ -386,6 +924,11 @@ export default function MessagesPage() {
                                   : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
                               }`}
                             >
+                              {isGroupChat && !isCurrentUser && (
+                                <div className="text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
+                                  {message.sender.name}
+                                </div>
+                              )}
                               <div className="space-y-2">
                                 {hasText && (
                                   <p className="text-sm whitespace-pre-line leading-relaxed">
@@ -443,28 +986,70 @@ export default function MessagesPage() {
                   {/* Message Input */}
                   <div className="border-t p-4">
                     <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={handleFileButtonClick} aria-label="Attach a file">
                         <Paperclip className="h-4 w-4" />
                       </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.doc,.docx,image/*"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
                       <div className="flex-1">
+                        {selectedFile && (
+                          <div className="mb-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-200">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {selectedFile.type.startsWith('image/') ? (
+                                <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                              ) : (
+                                <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatFileSize(selectedFile.size)}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                              onClick={removeSelectedFile}
+                              aria-label="Remove attachment"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                         <Textarea
+                          ref={textareaRef}
                           placeholder="Type a message..."
                           value={newMessage}
                           onChange={(e) => setNewMessage(e.target.value)}
-                          onKeyPress={handleKeyPress}
+                          onKeyDown={handleKeyPress}
                           className="min-h-[40px] max-h-[120px] resize-none"
+                          onFocus={() => setIsEmojiPickerOpen(false)}
                           rows={1}
                         />
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <Smile className="h-4 w-4" />
-                      </Button>
+                      <EmojiPicker
+                        open={isEmojiPickerOpen}
+                        onOpenChange={setIsEmojiPickerOpen}
+                        onEmojiSelect={handleEmojiSelect}
+                      />
                       <Button 
                         onClick={sendMessage}
-                        disabled={!newMessage.trim() || isSending}
+                        disabled={!canSendMessage || isSending}
                         className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                       >
-                        <Send className="h-4 w-4" />
+                        {isSending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -487,6 +1072,18 @@ export default function MessagesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    }>
+      <MessagesPageContent />
+    </Suspense>
   );
 }
 

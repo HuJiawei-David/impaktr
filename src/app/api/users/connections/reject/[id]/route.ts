@@ -39,6 +39,45 @@ export async function POST(
       where: { id: connectionId }
     });
 
+    // Mark all connection request notifications for this connection as read
+    await prisma.notification.updateMany({
+      where: {
+        userId: session.user.id,
+        type: 'CUSTOM',
+        data: {
+          path: ['connectionId'],
+          equals: connectionId
+        },
+        AND: {
+          data: {
+            path: ['type'],
+            equals: 'CONNECTION_REQUEST'
+          }
+        }
+      },
+      data: {
+        isRead: true
+      }
+    });
+
+    // Delete all connection request notifications for this connection
+    await prisma.notification.deleteMany({
+      where: {
+        userId: session.user.id,
+        type: 'CUSTOM',
+        data: {
+          path: ['connectionId'],
+          equals: connectionId
+        },
+        AND: {
+          data: {
+            path: ['type'],
+            equals: 'CONNECTION_REQUEST'
+          }
+        }
+      }
+    });
+
     return NextResponse.json({ 
       success: true,
       message: 'Connection rejected'

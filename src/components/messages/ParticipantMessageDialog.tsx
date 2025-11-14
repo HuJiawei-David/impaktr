@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Send, Paperclip, Smile, Loader2, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { Send, Paperclip, Smile, Loader2, X, FileText, Image as ImageIcon, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,6 +63,7 @@ export function ParticipantMessageDialog({
   const [isSending, setIsSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const participantInitials = useMemo(() => {
@@ -80,14 +81,31 @@ export function ParticipantMessageDialog({
     } else if (!open) {
       setMessages([]);
       setNewMessage('');
+      setShowEmojiPicker(false);
     }
   }, [open, participant?.id]);
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showEmojiPicker && !target.closest('.emoji-picker-container')) {
+        setShowEmojiPicker(false);
+      }
+    };
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return undefined;
+  }, [showEmojiPicker]);
 
   useEffect(() => {
     if (messages.length > 0) {
       scrollToBottom();
     }
   }, [messages]);
+
 
   useEffect(() => {
     if (!open) return;
@@ -132,6 +150,7 @@ export function ParticipantMessageDialog({
   const resetComposer = () => {
     setNewMessage('');
     setSelectedFile(null);
+    setShowEmojiPicker(false);
   };
 
   const fetchMessages = async (conversationId: string) => {
@@ -301,7 +320,7 @@ export function ParticipantMessageDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center px-4"
+      className="fixed inset-0 z-[120] flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="participant-message-dialog-title"
@@ -312,47 +331,49 @@ export function ParticipantMessageDialog({
       />
       <div
         ref={dialogRef}
-        className="relative z-10 flex w-full justify-center"
+        className="relative z-10 flex justify-center w-full"
         tabIndex={-1}
       >
         <div
-          className="relative flex aspect-[2/1] w-full max-w-[1200px] max-h-[80vh] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+          className="relative flex h-[800px] max-h-[90vh] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+          style={{ width: '400px', minWidth: '400px', maxWidth: '95vw' }}
         >
-          <button
-            type="button"
-            onClick={handleClose}
-            className="absolute right-6 top-4 rounded-md p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/60 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900"
-            aria-label="Close conversation dialog"
-          >
-            <X className="h-4 w-4" />
-          </button>
-
-          <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-            <Avatar className="h-12 w-12">
-              {participant?.image ? (
-                <AvatarImage src={participant.image} alt={participant.name} />
-              ) : (
-                <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-base">
-                  {participantInitials}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <div className="flex flex-col">
-              <span
-                id="participant-message-dialog-title"
-                className="text-lg font-semibold text-gray-900 dark:text-white"
-              >
-                {participant?.name || 'Participant'}
-              </span>
-              {participant?.email && (
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {participant.email}
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar className="h-10 w-10 flex-shrink-0">
+                {participant?.image ? (
+                  <AvatarImage src={participant.image} alt={participant.name} />
+                ) : (
+                  <AvatarFallback className="bg-blue-600 text-white font-semibold text-sm">
+                    {participantInitials}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span
+                  id="participant-message-dialog-title"
+                  className="text-sm font-semibold text-gray-900 dark:text-white truncate"
+                >
+                  {participant?.name || 'Participant'}
                 </span>
-              )}
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Active now
+                </span>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Close conversation dialog"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900/40 p-6 space-y-4">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900 px-4 py-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <LoadingSpinner text="Loading conversation..." size="sm" />
@@ -369,96 +390,210 @@ export function ParticipantMessageDialog({
                 </div>
               </div>
             ) : (
-              <>
-                {messages.map((message) => {
+              <div className="space-y-6">
+                {/* Date separator - you can add logic to group messages by date */}
+                {messages.length > 0 && (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1 w-20"></div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                        {new Date(messages[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                      <div className="h-px bg-gray-200 dark:bg-gray-700 flex-1 w-20"></div>
+                    </div>
+                  </div>
+                )}
+                
+                {messages.map((message, index) => {
                   const isCurrentUser = message.sender.id === currentUserId;
                   const parsedContent = parseMessageContent(message.content);
                   const hasText = Boolean(parsedContent.text);
                   const hasAttachment = Boolean(parsedContent.url);
+                  
+                  // Show avatar only for first message or when sender changes
+                  const showAvatar = index === 0 || messages[index - 1].sender.id !== message.sender.id;
 
                   return (
-                    <div
-                      key={message.id}
-                      className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs md:max-w-md rounded-2xl px-4 py-3 shadow-sm ${
-                          isCurrentUser
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                        }`}
-                      >
-                        <div className="space-y-2">
-                          {hasText && (
-                            <p className="text-sm leading-relaxed whitespace-pre-line">
-                              {parsedContent.text}
-                            </p>
+                    <div key={message.id} className={`flex gap-3 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                      {showAvatar ? (
+                        <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
+                          {message.sender.image ? (
+                            <AvatarImage src={message.sender.image} alt={message.sender.name} />
+                          ) : (
+                            <AvatarFallback className="bg-blue-600 text-white text-xs">
+                              {message.sender.name?.charAt(0).toUpperCase() || 'U'}
+                            </AvatarFallback>
                           )}
+                        </Avatar>
+                      ) : (
+                        <div className="w-8"></div>
+                      )}
+                      
+                      <div className={`flex-1 ${isCurrentUser ? 'flex flex-col items-end' : ''}`}>
+                        {showAvatar && (
+                          <div className={`flex items-center gap-2 mb-1 ${isCurrentUser ? 'flex-row-reverse' : ''}`}>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {message.sender.name}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatTime(message.createdAt)}
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div className={`inline-block max-w-[85%] ${!showAvatar ? 'ml-10' : ''} ${isCurrentUser ? 'mr-0' : ''}`}>
+                          <div className={`rounded-lg px-3 py-2 ${
+                            isCurrentUser
+                              ? 'bg-blue-50 dark:bg-blue-900/30 text-gray-900 dark:text-gray-100'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                          }`}>
+                            {hasText && (
+                              <p className="text-sm leading-relaxed whitespace-pre-line">
+                                {parsedContent.text}
+                              </p>
+                            )}
 
-                          {hasAttachment && parsedContent.url && (
-                            <>
-                              {message.type === 'IMAGE' ? (
-                                <a
-                                  href={parsedContent.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block overflow-hidden rounded-lg"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={parsedContent.url}
-                                    alt={parsedContent.name || 'Image attachment'}
-                                    className="max-h-64 w-full rounded-lg object-cover"
-                                    loading="lazy"
-                                  />
-                                </a>
-                              ) : (
-                                <a
-                                  href={parsedContent.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                                    isCurrentUser
-                                      ? 'border-white/30 bg-white/10 hover:bg-white/20'
-                                      : 'border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700/60 dark:hover:bg-gray-700'
-                                  }`}
-                                >
-                                  <Paperclip className="h-4 w-4" />
-                                  <span className="truncate">
-                                    {parsedContent.name || 'Attachment'}
-                                  </span>
-                                </a>
-                              )}
-                            </>
+                            {hasAttachment && parsedContent.url && (
+                              <>
+                                {message.type === 'IMAGE' ? (
+                                  <a
+                                    href={parsedContent.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block overflow-hidden rounded-lg mt-2"
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={parsedContent.url}
+                                      alt={parsedContent.name || 'Image attachment'}
+                                      className="max-h-48 w-full rounded-lg object-cover"
+                                      loading="lazy"
+                                    />
+                                  </a>
+                                ) : (
+                                  <a
+                                    href={parsedContent.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm mt-2 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                  >
+                                    <Paperclip className="h-4 w-4" />
+                                    <span className="truncate">
+                                      {parsedContent.name || 'Attachment'}
+                                    </span>
+                                  </a>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          {!showAvatar && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 block ml-3">
+                              {formatTime(message.createdAt)}
+                            </span>
                           )}
                         </div>
-                        <span
-                          className={`mt-2 block text-right text-xs ${
-                            isCurrentUser ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'
-                          }`}
-                        >
-                          {formatTime(message.createdAt)}
-                        </span>
                       </div>
                     </div>
                   );
                 })}
                 <div ref={messagesEndRef} />
-              </>
+              </div>
             )}
           </div>
 
-          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4">
-            <div className="flex items-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-500 dark:text-gray-400"
-                onClick={handleFileButtonClick}
-                aria-label="Attach a file"
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
+          {/* Input Area */}
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3">
+            {selectedFile && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-200">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {selectedFile.type.startsWith('image/') ? (
+                    <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                  ) : (
+                    <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatFileSize(selectedFile.size)}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex-shrink-0"
+                  onClick={removeSelectedFile}
+                  aria-label="Remove attachment"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+            
+            {/* Text input on its own line */}
+            <div className="mb-2">
+              <Textarea
+                ref={textareaRef}
+                placeholder="Write a message..."
+                value={newMessage}
+                onChange={(event) => setNewMessage(event.target.value)}
+                onKeyDown={handleKeyPress}
+                className="w-full min-h-[40px] max-h-[120px] resize-none border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-blue-500"
+                rows={1}
+              />
+            </div>
+            
+            {/* Controls below the text input */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleFileButtonClick}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label="Attach image"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFileButtonClick}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                  aria-label="Attach file"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </button>
+                <div className="relative emoji-picker-container">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                    aria-label="Add emoji"
+                  >
+                    <Smile className="h-4 w-4" />
+                  </button>
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 w-64 h-48 overflow-y-auto z-50 emoji-picker-container">
+                      <div className="grid grid-cols-8 gap-1">
+                        {['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '😶‍🌫️', '😵', '😵‍💫', '🤯', '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'].map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => {
+                              setNewMessage(prev => prev + emoji);
+                              setShowEmojiPicker(false);
+                            }}
+                            className="text-lg hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
               <input
                 ref={fileInputRef}
                 type="file"
@@ -466,57 +601,23 @@ export function ParticipantMessageDialog({
                 className="hidden"
                 onChange={handleFileChange}
               />
-              <div className="flex-1">
-                {selectedFile && (
-                  <div className="mb-2 flex items-center gap-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2 text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-200">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {selectedFile.type.startsWith('image/') ? (
-                        <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                      ) : (
-                        <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatFileSize(selectedFile.size)}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      onClick={removeSelectedFile}
-                      aria-label="Remove attachment"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-                <Textarea
-                  ref={textareaRef}
-                  placeholder="Type your message..."
-                  value={newMessage}
-                  onChange={(event) => setNewMessage(event.target.value)}
-                  onKeyDown={handleKeyPress}
-                  className="min-h-[48px] max-h-[120px] resize-none"
-                />
-              </div>
-              <Button variant="ghost" size="sm" className="text-gray-500 dark:text-gray-400" disabled>
-                <Smile className="h-4 w-4" />
-              </Button>
-              <Button
+              
+              <button
+                type="button"
                 onClick={handleSendMessage}
                 disabled={!canSendMessage || isSending}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  canSendMessage && !isSending
+                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                }`}
               >
                 {isSending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Send className="h-4 w-4" />
+                  'Send'
                 )}
-              </Button>
+              </button>
             </div>
           </div>
         </div>

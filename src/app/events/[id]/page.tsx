@@ -1696,6 +1696,18 @@ export default function EventDetailPage() {
                       </Button>
                     </Link>
                   )}
+
+                  {/* Group Chat Button - visible to participants and admins */}
+                  {(event.userParticipation || event.isCreator || event.canEdit) && (
+                    <Button
+                      variant="outline"
+                      className="w-full bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white border-0"
+                      onClick={() => router.push(`/messages?groupChat=${event.id}`)}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Group Chat
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

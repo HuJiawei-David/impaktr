@@ -9,7 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 // Configure connection pool for serverless environments (Neon)
 // https://neon.tech/docs/serverless/serverless-driver#connection-pooling
 // https://www.prisma.io/docs/guides/performance-and-optimization/connection-management
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+export const prisma: PrismaClient = globalForPrisma.prisma ?? new PrismaClient({
   log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
 });
 

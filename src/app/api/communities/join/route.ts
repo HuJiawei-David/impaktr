@@ -54,10 +54,44 @@ export async function POST(request: NextRequest) {
 
     // Check privacy settings
     if (community.privacy === 'INVITE_ONLY') {
+      // Check if user has a pending invitation
+      const pendingInvitation = await prisma.communityInvitation.findFirst({
+        where: {
+          communityId,
+          userId: session.user.id,
+          status: 'PENDING',
+          expiresAt: { gt: new Date() }
+        }
+      });
+
+      if (!pendingInvitation) {
+        return NextResponse.json(
+          { error: 'This community is invite-only. You need an invitation to join.' },
+          { status: 403 }
+        );
+      }
+      // If invitation exists, allow join (invitation will be marked as accepted in the join process)
+    }
+
+    if (community.privacy === 'PRIVATE') {
       return NextResponse.json(
-        { error: 'This community is invite-only' },
+        { error: 'This community is private. Please request to join instead.' },
         { status: 403 }
       );
+    }
+
+    // If INVITE_ONLY, mark invitation as accepted
+    if (community.privacy === 'INVITE_ONLY') {
+      await prisma.communityInvitation.updateMany({
+        where: {
+          communityId,
+          userId: session.user.id,
+          status: 'PENDING'
+        },
+        data: {
+          status: 'ACCEPTED'
+        }
+      });
     }
 
     // Create membership
@@ -85,13 +119,22 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Update community member count
+    // Get user's avatar
+    const userAvatar = membership.user.image;
+    
+    // Update community member count and memberAvatars
+    const currentAvatars = (community.memberAvatars as string[]) || [];
+    const updatedAvatars = userAvatar && !currentAvatars.includes(userAvatar)
+      ? [...currentAvatars.slice(0, 2), userAvatar].slice(0, 3) // Keep max 3 avatars
+      : currentAvatars;
+
     await prisma.community.update({
       where: { id: communityId },
       data: {
         memberCount: {
           increment: 1
-        }
+        },
+        memberAvatars: updatedAvatars
       }
     });
 

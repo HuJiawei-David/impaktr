@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +15,8 @@ import {
   UserPlus,
   CheckCircle,
   Globe,
-  Lock
+  Lock,
+  Star
 } from 'lucide-react';
 
 interface Community {
@@ -29,6 +31,7 @@ interface Community {
   recentActivity?: string;
   isPublic: boolean;
   isJoined?: boolean;
+  isCreatedByMe?: boolean;
   userRole?: string | null;
   bannerImage?: string;
   avatar?: string;
@@ -85,16 +88,27 @@ export function CommunityCard({
         {/* Banner */}
         <div className="relative h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-t-lg">
           {community.bannerImage ? (
-            <img 
+            <Image 
               src={community.bannerImage} 
               alt={community.name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover rounded-t-lg"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
               <span className="text-white text-2xl font-bold">
                 {community.name.charAt(0)}
               </span>
+            </div>
+          )}
+          
+          {/* Owner Badge */}
+          {community.isCreatedByMe && (
+            <div className="absolute top-2 left-2">
+              <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold px-3 py-1 border-0 shadow-md">
+                <Star className="w-3 h-3 mr-1 fill-current" />
+                Owner
+              </Badge>
             </div>
           )}
           
@@ -122,9 +136,11 @@ export function CommunityCard({
           <div className="absolute top-1/2 left-4 transform -translate-y-1/2">
             <Avatar className="w-14 h-14 border-4 border-white dark:border-gray-800">
               {community.avatar ? (
-                <img 
+                <Image 
                   src={community.avatar} 
                   alt={community.name}
+                  width={56}
+                  height={56}
                   className="w-full h-full object-cover"
                 />
               ) : (

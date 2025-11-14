@@ -10,17 +10,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all accepted connections
+    // Get all connections (accepted and pending)
     const connections = await prisma.connection.findMany({
       where: {
-        AND: [
-          {
-            OR: [
-              { requesterId: session.user.id },
-              { addresseeId: session.user.id }
-            ]
-          },
-          { status: ConnectionStatus.ACCEPTED }
+        OR: [
+          { requesterId: session.user.id },
+          { addresseeId: session.user.id }
         ]
       },
       include: {
@@ -54,11 +49,14 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Transform to return the other user's info
+    // Transform to return the other user's info with status
     const transformedConnections = connections.map(conn => {
       const otherUser = conn.requesterId === session.user.id ? conn.addressee : conn.requester;
       return {
         id: conn.id,
+        requesterId: conn.requesterId,
+        addresseeId: conn.addresseeId,
+        status: conn.status,
         connectedAt: conn.updatedAt,
         user: otherUser
       };

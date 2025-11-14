@@ -205,6 +205,53 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const url = new URL(request.url);
+    const notificationId = url.searchParams.get('id');
+
+    if (!notificationId) {
+      return NextResponse.json({ error: 'Notification ID is required' }, { status: 400 });
+    }
+
+    // Get notification details
+    const notification = await prisma.notification.findUnique({
+      where: { id: notificationId }
+    });
+
+    if (!notification) {
+      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    }
+
+    // Check if user owns the notification
+    if (notification.userId !== session.user.id) {
+      return NextResponse.json({ error: 'Unauthorized to delete notification' }, { status: 403 });
+    }
+
+    // Delete the notification
+    await prisma.notification.delete({
+      where: { id: notificationId }
+    });
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Notification deleted'
+    });
+
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 // Helper functions (these would be moved to a separate service file)
 
 async function generateNotificationsForUser(userId: string, unreadOnly: boolean, limit: number, offset: number) {
@@ -233,18 +280,54 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
       requesterId?: string;
       requesterName?: string;
       requesterImage?: string | null;
-      [key: string]: any;
+      senderId?: string;
+      messageId?: string;
+      [key: string]: unknown;
     } | null;
     // Convert enum type (e.g., CERTIFICATE_ISSUED) to lowercase with underscores (certificate_issued)
     const typeLower = notif.type.toLowerCase();
+    
+    // Check if this is a community join request notification
+    const isCommunityJoinRequest = notif.type === 'CUSTOM' && 
+                                   notificationData?.notificationType === 'COMMUNITY_JOIN_REQUEST';
+    
+    // Check if this is a connection request notification
+    const isConnectionRequest = notif.type === 'CUSTOM' && 
+                               notificationData?.notificationType === 'CONNECTION_REQUEST';
+    
+    // Check if this is a connection accepted notification
+    const isConnectionAccepted = notif.type === 'CUSTOM' && 
+                                notificationData?.notificationType === 'CONNECTION_ACCEPTED';
+    
+    // Check if this is a message notification
+    const isMessageNotification = notif.type === 'MESSAGE';
+    
+    // Map notification type
+    let mappedType = typeLower as string;
+    if (isCommunityJoinRequest) {
+      mappedType = 'community_join_request';
+    } else if (isConnectionRequest) {
+      mappedType = 'connection_request';
+    } else if (isConnectionAccepted) {
+      mappedType = 'connection_request'; // Use same type for UI consistency
+    } else if (isMessageNotification) {
+      mappedType = 'message';
+    }
+    
     const notification = {
       id: notif.id,
-      type: typeLower as string,
+      type: mappedType,
       title: notif.title,
       message: notif.message,
       read: notif.isRead,
       createdAt: notif.createdAt.toISOString(),
-      actionUrl: notificationData?.actionUrl,
+      actionUrl: notificationData?.actionUrl || 
+        (isMessageNotification && notificationData?.senderId 
+          ? `/messages?userId=${notificationData.senderId}` 
+          : undefined) ||
+        (isCommunityJoinRequest && notificationData?.communityId 
+          ? `/community/${notificationData.communityId}?tab=requests` 
+          : undefined),
       data: notif.data // Pass the complete data object
     };
     
@@ -367,7 +450,15 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
       take: 10
     });
 
-    pendingConnections.forEach((connection: { id: string; createdAt: Date; requester: { id: string; name: string | null; image: string | null } }) => {
+    pendingConnections.forEach((connection: { 
+      id: string; 
+      createdAt: Date; 
+      requester: { 
+        id: string; 
+        name: string | null; 
+        image: string | null;
+      };
+    }) => {
       if (notifications.length < limit) {
         notifications.push({
           id: `connection_request_${connection.id}`,
@@ -444,8 +535,8 @@ async function generateNotificationsForUser(userId: string, unreadOnly: boolean,
       type: n.type,
       read: n.read,
       hasData: !!n.data,
-      requiresConfirmation: (n.data as any)?.requiresConfirmation,
-      certificateId: (n.data as any)?.certificateId
+      requiresConfirmation: (n.data as { requiresConfirmation?: boolean })?.requiresConfirmation,
+      certificateId: (n.data as { certificateId?: string })?.certificateId
     })));
   }
   
