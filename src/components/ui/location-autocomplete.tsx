@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MapPin } from 'lucide-react';
 import { Input } from './input';
 
@@ -31,13 +31,13 @@ export function LocationAutocomplete({
   
   // Use controlled open state if provided, otherwise use internal state
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
-  const setIsOpen = (newOpen: boolean) => {
+  const setIsOpen = useCallback((newOpen: boolean) => {
     if (onOpenChange) {
       onOpenChange(newOpen);
     } else {
       setInternalOpen(newOpen);
     }
-  };
+  }, [onOpenChange]);
 
   // Sync internal state when controlled state changes externally
   useEffect(() => {
@@ -92,7 +92,7 @@ export function LocationAutocomplete({
     }
     
     return undefined;
-  }, [isOpen]);
+  }, [isOpen, setIsOpen]);
 
   const fetchLocations = async (query: string) => {
     try {
@@ -123,13 +123,17 @@ export function LocationAutocomplete({
         
         const data = await response.json();
         return data.locations || [];
-      } catch (fetchError: any) {
+      } catch (fetchError: unknown) {
         clearTimeout(timeoutId);
         // Check if it's an abort (timeout) or network error
-        if (fetchError.name === 'AbortError') {
-          console.error('Location API request timeout');
-        } else if (fetchError.name === 'TypeError' && fetchError.message === 'Failed to fetch') {
-          console.error('Network error - location API unavailable');
+        if (fetchError instanceof Error) {
+          if (fetchError.name === 'AbortError') {
+            console.error('Location API request timeout');
+          } else if (fetchError.name === 'TypeError' && fetchError.message === 'Failed to fetch') {
+            console.error('Network error - location API unavailable');
+          } else {
+            console.error('Error fetching locations:', fetchError);
+          }
         } else {
           console.error('Error fetching locations:', fetchError);
         }

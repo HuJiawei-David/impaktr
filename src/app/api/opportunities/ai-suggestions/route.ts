@@ -74,7 +74,14 @@ export async function POST(request: NextRequest) {
     const session = await getSession();
     const body = (await request.json()) as SuggestionRequestBody;
     const prompt = body.prompt ?? '';
+    
+    // Normalize filters - ensure sdg is string array
     const filters: AssistantFilters = body.filters ? { ...body.filters } : {};
+    if (filters.sdg && Array.isArray(filters.sdg)) {
+      filters.sdg = filters.sdg.map((sdg) => String(sdg));
+    } else if (filters.sdg) {
+      filters.sdg = [String(filters.sdg)];
+    }
 
     let appliedIds: string[] = [];
     if (session?.user?.id) {
@@ -148,6 +155,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[AI Suggestions API] error:', error);
-    return NextResponse.json({ suggestions: [], reason: 'error' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('[AI Suggestions API] error details:', { errorMessage, errorStack });
+    
+    // Return a more helpful error response
+    return NextResponse.json(
+      { 
+        suggestions: [], 
+        reason: 'error',
+        error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      }, 
+      { status: 500 }
+    );
   }
 }

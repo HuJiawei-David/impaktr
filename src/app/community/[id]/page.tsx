@@ -543,7 +543,7 @@ export default function CommunityPage() {
       try {
         const likesResponse = await fetch(`/api/communities/posts/${postId}/likes`);
         if (likesResponse.ok) {
-          const likesData = await likesResponse.json();
+          const likesData = await likesResponse.json() as { likes?: Array<{ userId: string; userName: string; userImage: string | null }> };
           if (community && likesData.likes) {
             setCommunity(prev => {
               if (!prev) return prev;
@@ -553,7 +553,7 @@ export default function CommunityPage() {
                   if (post.id === postId) {
                     return {
                       ...post,
-                      likedBy: likesData.likes.map((like: any) => ({
+                      likedBy: likesData.likes!.map((like) => ({
                         id: like.userId,
                         name: like.userName,
                         image: like.userImage,

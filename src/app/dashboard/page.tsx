@@ -290,7 +290,9 @@ export default function DashboardPage() {
         body: JSON.stringify({
           prompt: assistantPrompt,
           filters: {
-            sdg: profileData?.user?.profile?.sdgFocus || [],
+            sdg: profileData?.user?.profile?.sdgFocus 
+              ? profileData.user.profile.sdgFocus.map(String)
+              : [],
             location:
               profileData?.user?.profile?.city ||
               profileData?.user?.profile?.country ||
@@ -300,7 +302,15 @@ export default function DashboardPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`Unexpected status ${response.status}`);
+        let errorMessage = `Server error (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use the status message
+        }
+        console.error('AI Suggestions API error:', errorMessage);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -310,7 +320,8 @@ export default function DashboardPage() {
       }
 
       if (data.reason === 'error') {
-        setAssistantError('We had trouble generating suggestions. Please try again.');
+        const errorMessage = data.error || 'We had trouble generating suggestions. Please try again.';
+        setAssistantError(errorMessage);
         setAssistantSuggestions([]);
         return;
       }

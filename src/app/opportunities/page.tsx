@@ -488,9 +488,9 @@ function OpportunitiesPage() {
           });
           toast.success('Shared successfully!');
           return;
-        } catch (err: any) {
+        } catch (err: unknown) {
           // User cancelled or error occurred, fall back to clipboard
-          if (err.name !== 'AbortError') {
+          if (err instanceof Error && err.name !== 'AbortError') {
             console.error('Error sharing:', err);
           }
         }
@@ -563,13 +563,22 @@ function OpportunitiesPage() {
           filters: {
             sdg: sdgFilter,
             location: locationFilter,
-            status: statusFilter,
+            // Only send status if it's not "BOTH" (BOTH means show all statuses)
+            ...(statusFilter !== 'BOTH' ? { status: statusFilter } : {}),
           },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Unexpected status ${response.status}`);
+        let errorMessage = `Server error (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use the status message
+        }
+        console.error('AI Suggestions API error:', errorMessage);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -585,10 +594,11 @@ function OpportunitiesPage() {
       let infoMessage: string | null = null;
 
       if (data.reason === 'error') {
+        const errorMessage = data.error || 'We had trouble generating suggestions. Please try again.';
+        setAiError(errorMessage);
         setAiSuggestions([]);
         setSelectedSuggestionIds([]);
         setAppliedSuggestionIds(appliedOpportunities);
-        setAiError('We had trouble generating suggestions. Please try again.');
         setAiInfoVariant('default');
         return;
       }

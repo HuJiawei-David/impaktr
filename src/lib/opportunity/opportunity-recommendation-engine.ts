@@ -204,13 +204,22 @@ export async function recommendOpportunities({
     return [];
   }
 
-  const statusFilterValue = (filters?.status ?? 'OPEN') as OpportunityStatus;
+  // Handle status filter - "BOTH" means no filter (show all statuses)
+  const statusFilter = filters?.status;
+  const statusFilterValue = 
+    statusFilter && statusFilter !== 'BOTH' 
+      ? (statusFilter as OpportunityStatus)
+      : undefined;
 
   const opportunities = await prisma.opportunity.findMany({
     where: {
-      status: {
-        equals: statusFilterValue,
-      },
+      ...(statusFilterValue
+        ? {
+            status: {
+              equals: statusFilterValue,
+            },
+          }
+        : {}),
       ...(filters?.sdg && filters.sdg.length > 0
         ? {
             sdg: {
