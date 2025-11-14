@@ -49,13 +49,15 @@ interface EnhancedCommunityCardProps {
   onJoin?: (communityId: string) => void;
   onView?: (communityId: string) => void;
   onShare?: (communityId: string) => void;
+  isRequested?: boolean;
 }
 
 export function EnhancedCommunityCard({ 
   community, 
   onJoin, 
   onView, 
-  onShare 
+  onShare,
+  isRequested = false
 }: EnhancedCommunityCardProps) {
   const sdgTags = community.sdgFocus?.map(id => getSDGById(id)).filter(Boolean) || [];
 
@@ -235,17 +237,26 @@ export function EnhancedCommunityCard({
                   onJoin?.(community.id);
                 }}
                 variant="outline"
-                className="flex-1"
+                className={`flex-1 ${
+                  isRequested 
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600' 
+                    : ''
+                }`}
               >
                 {community.isPublic ? (
                   <>
                     <Users className="w-4 h-4 mr-1" />
                     Join
                   </>
+                ) : community.privacy === 'INVITE_ONLY' ? (
+                  <>
+                    <Lock className="w-4 h-4 mr-1" />
+                    Invite Only
+                  </>
                 ) : (
                   <>
                     <Lock className="w-4 h-4 mr-1" />
-                    Request
+                    {isRequested ? 'Requested' : 'Request'}
                   </>
                 )}
               </Button>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +30,9 @@ import {
   Building2,
   Heart,
   Trash2,
-  X
+  X,
+  UserCheck,
+  UserX
 } from 'lucide-react';
 import { getSDGById } from '@/constants/sdgs';
 import { toast } from 'react-hot-toast';
@@ -41,6 +43,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { ParticipantMessageDialog } from '@/components/messages/ParticipantMessageDialog';
 
 interface Community {
   id: string;
@@ -167,15 +170,17 @@ export default function CommunityPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const communityId = params.id as string;
 
   const [community, setCommunity] = useState<Community | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'about'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'members' | 'about' | 'requests'>('feed');
   const [membersTab, setMembersTab] = useState<'all' | 'admins' | 'members'>('all');
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
@@ -194,6 +199,32 @@ export default function CommunityPage() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [likesList, setLikesList] = useState<Array<{ id: string; userId: string; userName: string; userImage: string | null; createdAt: string }>>([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
+  const [joinRequests, setJoinRequests] = useState<Array<{
+    id: string;
+    requesterId: string;
+    requesterName: string;
+    requesterImage: string | null;
+    createdAt: string;
+    user: {
+      id: string;
+      name: string;
+      image: string | null;
+      email: string;
+      bio: string | null;
+      impactScore: number;
+      tier: string;
+    } | null;
+  }>>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
+  const [connectionStates, setConnectionStates] = useState<Map<string, 'none' | 'pending' | 'connected'>>(new Map());
+  const [connectionLoading, setConnectionLoading] = useState<Map<string, boolean>>(new Map());
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedMessageParticipant, setSelectedMessageParticipant] = useState<{
+    id: string;
+    name: string | null;
+    image: string | null;
+  } | null>(null);
 
   const fetchCommunity = useCallback(async () => {
     try {
@@ -286,6 +317,10 @@ export default function CommunityPage() {
       };
         
         setCommunity(communityWithPosts);
+        // Reset requestSent if user is now a member
+        if (communityWithPosts.isJoined) {
+          setRequestSent(false);
+        }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -575,14 +610,39 @@ export default function CommunityPage() {
     fetchCommunity();
   }, [session, status, communityId, fetchCommunity, router]);
 
+
   const handleJoin = async () => {
     if (!community) return;
+    
+    // If request is already sent, cancel it
+    if (requestSent) {
+      try {
+        setJoining(true);
+        const response = await fetch(`/api/communities/request-join?communityId=${community.id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to cancel join request');
+        }
+
+        setRequestSent(false);
+        toast.success('Join request cancelled');
+      } catch (err) {
+        console.error('Error cancelling join request:', err);
+        toast.error(err instanceof Error ? err.message : 'Failed to cancel join request');
+      } finally {
+        setJoining(false);
+      }
+      return;
+    }
     
     try {
       setJoining(true);
       
       // Check if community is private
-      if (!community.isPublic || community.privacy === 'PRIVATE' || community.privacy === 'INVITE_ONLY') {
+      if (!community.isPublic || community.privacy === 'PRIVATE') {
         // Send join request for private communities
         const response = await fetch('/api/communities/request-join', {
           method: 'POST',
@@ -591,10 +651,16 @@ export default function CommunityPage() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to send join request');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to send join request');
         }
 
-        alert('Join request sent! The community admin will review your request.');
+        setRequestSent(true);
+        toast.success('Join request sent! The community admin will review your request.');
+      } else if (community.privacy === 'INVITE_ONLY') {
+        // INVITE_ONLY communities require an invitation
+        toast.error('This community is invite-only. You need an invitation to join.');
+        return;
       } else {
         // Join public community directly
         const response = await fetch('/api/communities/join', {
@@ -604,17 +670,18 @@ export default function CommunityPage() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to join community');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to join community');
         }
 
-        alert('Successfully joined the community!');
+        toast.success('Successfully joined the community!');
       }
 
       // Refresh community data
       await fetchCommunity();
     } catch (err) {
       console.error('Error joining community:', err);
-      alert(err instanceof Error ? err.message : 'Failed to join community');
+      toast.error(err instanceof Error ? err.message : 'Failed to join community');
     } finally {
       setJoining(false);
     }
@@ -644,9 +711,192 @@ export default function CommunityPage() {
       setShowLeaveConfirm(false);
     } catch (err) {
       console.error('Error leaving community:', err);
-      alert(err instanceof Error ? err.message : 'Failed to leave community');
+      toast.error(err instanceof Error ? err.message : 'Failed to leave community');
     } finally {
       setLeaving(false);
+    }
+  };
+
+  const fetchJoinRequests = useCallback(async () => {
+    if (!community || (community.userRole !== 'OWNER' && community.userRole !== 'ADMIN')) {
+      return;
+    }
+
+    try {
+      setLoadingRequests(true);
+      const response = await fetch(`/api/communities/${communityId}/requests`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch join requests');
+      }
+
+      const data = await response.json();
+      setJoinRequests(data.requests || []);
+    } catch (err) {
+      console.error('Error fetching join requests:', err);
+      toast.error('Failed to load join requests');
+    } finally {
+      setLoadingRequests(false);
+    }
+  }, [community, communityId]);
+
+  // Handle tab parameter from URL
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'requests' && community && (community.userRole === 'OWNER' || community.userRole === 'ADMIN')) {
+      setActiveTab('requests');
+      fetchJoinRequests();
+    }
+  }, [searchParams, community, fetchJoinRequests]);
+
+  const handleApproveRequest = async (requestId: string) => {
+    if (!community) return;
+
+    try {
+      setProcessingRequest(requestId);
+      const response = await fetch(`/api/communities/${communityId}/requests/${requestId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to approve request');
+      }
+
+      toast.success('Join request approved');
+      await fetchJoinRequests();
+      await fetchCommunity(); // Refresh to update member count
+    } catch (err) {
+      console.error('Error approving request:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to approve request');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    if (!community) return;
+
+    try {
+      setProcessingRequest(requestId);
+      const response = await fetch(`/api/communities/${communityId}/requests/${requestId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject' })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to reject request');
+      }
+
+      toast.success('Join request rejected');
+      await fetchJoinRequests();
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to reject request');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
+  // Fetch connection status for members
+  const fetchConnectionStatuses = useCallback(async () => {
+    if (!session?.user?.id || !community?.members) return;
+
+    try {
+      const memberIds = community.members
+        .filter(m => m.user.id !== session.user.id)
+        .map(m => m.user.id);
+
+      if (memberIds.length === 0) return;
+
+      // Fetch all connections for the current user
+      const response = await fetch('/api/users/connections');
+      if (response.ok) {
+        const data = await response.json();
+        const connections = data.connections || [];
+        
+        // Create a map of connection statuses
+        const statusMap = new Map<string, 'none' | 'pending' | 'connected'>();
+        
+        memberIds.forEach(memberId => {
+          const connection = connections.find((conn: { requesterId: string; addresseeId: string; status: string }) => 
+            (conn.requesterId === session.user.id && conn.addresseeId === memberId) ||
+            (conn.requesterId === memberId && conn.addresseeId === session.user.id)
+          );
+          
+          if (connection) {
+            if (connection.status === 'ACCEPTED') {
+              statusMap.set(memberId, 'connected');
+            } else if (connection.status === 'PENDING') {
+              // Check if current user is the requester
+              statusMap.set(memberId, connection.requesterId === session.user.id ? 'pending' : 'none');
+            } else {
+              statusMap.set(memberId, 'none');
+            }
+          } else {
+            statusMap.set(memberId, 'none');
+          }
+        });
+        
+        setConnectionStates(statusMap);
+      }
+    } catch (err) {
+      console.error('Error fetching connection statuses:', err);
+    }
+  }, [session, community]);
+
+  // Fetch connection statuses when community or members change
+  useEffect(() => {
+    if (community?.members && activeTab === 'members') {
+      fetchConnectionStatuses();
+    }
+  }, [community?.members, activeTab, fetchConnectionStatuses]);
+
+  const handleConnect = async (memberId: string) => {
+    if (!session?.user?.id) return;
+
+    try {
+      setConnectionLoading(prev => new Map(prev).set(memberId, true));
+      
+      const response = await fetch(`/api/users/${memberId}/connect`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to manage connection');
+      }
+
+      const data = await response.json();
+      
+      // Update connection state
+      if (data.connectionStatus === 'PENDING') {
+        setConnectionStates(prev => new Map(prev).set(memberId, 'pending'));
+        toast.success('Connection request sent!');
+      } else if (data.connectionStatus === 'ACCEPTED') {
+        setConnectionStates(prev => new Map(prev).set(memberId, 'connected'));
+        toast.success('Connection request accepted!');
+      } else if (data.connectionStatus === null) {
+        setConnectionStates(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(memberId);
+          return newMap;
+        });
+        toast.success('Connection request cancelled');
+      }
+    } catch (err) {
+      console.error('Error managing connection:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to manage connection');
+    } finally {
+      setConnectionLoading(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(memberId);
+        return newMap;
+      });
     }
   };
 
@@ -1015,11 +1265,24 @@ export default function CommunityPage() {
                           </Button>
                         )}
                       </>
+                    ) : community.privacy === 'INVITE_ONLY' ? (
+                      <Button 
+                        disabled
+                        variant="outline"
+                        className="flex-1 sm:flex-none whitespace-nowrap"
+                      >
+                        <Lock className="w-4 h-4 mr-2" />
+                        Invite Only
+                      </Button>
                     ) : (
                       <Button 
                         onClick={handleJoin}
                         disabled={joining}
-                        className="flex-1 sm:flex-none whitespace-nowrap bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all"
+                        className={`flex-1 sm:flex-none whitespace-nowrap border-0 shadow-lg hover:shadow-xl transition-all ${
+                          requestSent 
+                            ? 'bg-gray-500 hover:bg-gray-600 text-white' 
+                            : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
+                        }`}
                       >
                         {community.isPublic ? (
                           <>
@@ -1029,7 +1292,7 @@ export default function CommunityPage() {
                         ) : (
                           <>
                             <Lock className="w-4 h-4 mr-2" />
-                            {joining ? 'Requesting...' : 'Request to Join'}
+                            {joining ? (requestSent ? 'Cancelling...' : 'Requesting...') : requestSent ? 'Requested' : 'Request to Join'}
                           </>
                         )}
                       </Button>
@@ -1089,6 +1352,28 @@ export default function CommunityPage() {
             <Globe className="w-4 h-4 mr-2" />
             About
           </Button>
+          {(community?.userRole === 'OWNER' || community?.userRole === 'ADMIN') && (
+            <Button
+              variant={activeTab === 'requests' ? 'default' : 'outline'}
+              onClick={() => {
+                setActiveTab('requests');
+                fetchJoinRequests();
+              }}
+              className={`rounded-full px-6 py-2 relative ${
+                activeTab === 'requests' 
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
+                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              <UserCheck className="w-4 h-4 mr-2" />
+              Requests
+              {joinRequests.length > 0 && (
+                <Badge className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {joinRequests.length}
+                </Badge>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -2381,16 +2666,46 @@ export default function CommunityPage() {
                                 {/* Actions */}
                                 {member.user.id !== session?.user?.id && (
                                 <div className="flex items-center space-x-2">
+                                  {connectionStates.get(member.user.id) === 'connected' ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex items-center h-10 px-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700"
+                                      disabled
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      Connected
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleConnect(member.user.id)}
+                                      disabled={connectionLoading.get(member.user.id)}
+                                      className={`flex items-center h-10 px-4 ${
+                                        connectionStates.get(member.user.id) === 'pending'
+                                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                          : ''
+                                      }`}
+                                    >
+                                      <UserPlus className="w-4 h-4 mr-2" />
+                                      {connectionLoading.get(member.user.id) 
+                                        ? 'Processing...' 
+                                        : connectionStates.get(member.user.id) === 'pending'
+                                        ? 'Requested'
+                                        : 'Connect'}
+                                    </Button>
+                                  )}
                                   <Button
-                                    variant="outline"
                                     size="sm"
-                                    className="flex items-center h-10 px-4"
-                                  >
-                                    <UserPlus className="w-4 h-4 mr-2" />
-                                    Connect
-                                  </Button>
-                                  <Button
-                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedMessageParticipant({
+                                        id: member.user.id,
+                                        name: member.user.name,
+                                        image: member.user.image || null
+                                      });
+                                      setMessageDialogOpen(true);
+                                    }}
                                     className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 h-10 px-4"
                                   >
                                     <MessageCircle className="w-4 h-4 mr-2" />
@@ -2730,6 +3045,113 @@ export default function CommunityPage() {
               </div>
             </div>
           )}
+
+          {activeTab === 'requests' && (community?.userRole === 'OWNER' || community?.userRole === 'ADMIN') && (
+            <Card className="border-0 shadow-sm bg-white dark:bg-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-blue-600" />
+                  Join Requests
+                  {joinRequests.length > 0 && (
+                    <Badge className="ml-2">{joinRequests.length}</Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingRequests ? (
+                  <div className="flex items-center justify-center py-12">
+                    <LoadingSpinner />
+                  </div>
+                ) : joinRequests.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 mb-4">
+                      <UserCheck className="w-8 h-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Pending Requests</h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      There are no pending join requests at this time.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {joinRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <div className="flex items-center gap-4 flex-1">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage src={request.user?.image || request.requesterImage || undefined} />
+                            <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                              {request.user?.name?.charAt(0) || request.requesterName?.charAt(0) || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-gray-900 dark:text-white">
+                              {request.user?.name || request.requesterName}
+                            </h4>
+                            {request.user?.email && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                {request.user.email}
+                              </p>
+                            )}
+                            {request.user?.bio && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                {request.user.bio}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-4 mt-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(request.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              {request.user?.impactScore !== undefined && (
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  Impact Score: {request.user.impactScore}
+                                </span>
+                              )}
+                              {request.user?.tier && (
+                                <Badge variant="outline" className="text-xs">
+                                  {request.user.tier}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveRequest(request.id)}
+                            disabled={processingRequest === request.id}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <UserCheck className="w-4 h-4 mr-2" />
+                            {processingRequest === request.id ? 'Processing...' : 'Approve'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRejectRequest(request.id)}
+                            disabled={processingRequest === request.id}
+                            className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/30"
+                          >
+                            <UserX className="w-4 h-4 mr-2" />
+                            {processingRequest === request.id ? 'Processing...' : 'Reject'}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -2946,6 +3368,18 @@ export default function CommunityPage() {
           </div>
         </div>
       )}
+
+      {/* Message Dialog */}
+      <ParticipantMessageDialog
+        participant={selectedMessageParticipant ? {
+          id: selectedMessageParticipant.id,
+          name: selectedMessageParticipant.name || 'Unknown User',
+          image: selectedMessageParticipant.image || undefined
+        } : null}
+        open={messageDialogOpen}
+        onOpenChange={setMessageDialogOpen}
+        currentUserId={session?.user?.id}
+      />
     </div>
   );
 }

@@ -34,11 +34,94 @@ export async function POST(
       return NextResponse.json({ error: 'Connection request is not pending' }, { status: 400 });
     }
 
+    // Get requester info
+    const requester = await prisma.user.findUnique({
+      where: { id: connection.requesterId },
+      select: { id: true, name: true, image: true }
+    });
+
+    // Get accepter info
+    const accepter = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, image: true }
+    });
+
     // Accept the connection
     await prisma.connection.update({
       where: { id: connectionId },
       data: { status: ConnectionStatus.ACCEPTED }
     });
+
+    // Mark all connection request notifications for this connection as read
+    await prisma.notification.updateMany({
+      where: {
+        userId: session.user.id,
+        type: 'CUSTOM',
+        data: {
+          path: ['connectionId'],
+          equals: connectionId
+        },
+        AND: {
+          data: {
+            path: ['type'],
+            equals: 'CONNECTION_REQUEST'
+          }
+        }
+      },
+      data: {
+        isRead: true
+      }
+    });
+
+    // Delete duplicate connection request notifications for this connection
+    const connectionRequestNotifications = await prisma.notification.findMany({
+      where: {
+        userId: session.user.id,
+        type: 'CUSTOM',
+        data: {
+          path: ['connectionId'],
+          equals: connectionId
+        },
+        AND: {
+          data: {
+            path: ['type'],
+            equals: 'CONNECTION_REQUEST'
+          }
+        }
+      }
+    });
+
+    // Keep only the first one, delete the rest
+    if (connectionRequestNotifications.length > 1) {
+      const idsToDelete = connectionRequestNotifications.slice(1).map(n => n.id);
+      await prisma.notification.deleteMany({
+        where: {
+          id: {
+            in: idsToDelete
+          }
+        }
+      });
+    }
+
+    // Create notification for the requester that their request was accepted
+    if (requester && accepter) {
+      await prisma.notification.create({
+        data: {
+          userId: connection.requesterId,
+          title: 'Connection Request Accepted',
+          message: `${accepter.name} accepted your connection request`,
+          type: 'CUSTOM',
+          data: {
+            connectionId: connectionId,
+            requesterId: session.user.id,
+            requesterName: accepter.name,
+            requesterImage: accepter.image,
+            type: 'CONNECTION_ACCEPTED'
+          },
+          isRead: false,
+        }
+      });
+    }
 
     return NextResponse.json({ 
       success: true,

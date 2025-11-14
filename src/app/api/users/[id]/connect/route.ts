@@ -44,6 +44,12 @@ export async function POST(
       }
     });
 
+    // Get requester user info for notifications
+    const requester = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, image: true }
+    });
+
     if (existingConnection) {
       if (existingConnection.status === ConnectionStatus.PENDING) {
         // If the other person sent a request, auto-accept it
@@ -52,6 +58,27 @@ export async function POST(
             where: { id: existingConnection.id },
             data: { status: ConnectionStatus.ACCEPTED }
           });
+
+          // Create notification for the requester that their request was accepted
+          if (requester) {
+            await prisma.notification.create({
+              data: {
+                userId: targetUserId, // The person who originally sent the request
+                title: 'Connection Request Accepted',
+                message: `${requester.name} accepted your connection request`,
+                type: 'CUSTOM',
+                data: {
+                  connectionId: existingConnection.id,
+                  requesterId: session.user.id,
+                  requesterName: requester.name,
+                  requesterImage: requester.image,
+                  type: 'CONNECTION_ACCEPTED'
+                },
+                isRead: false,
+              }
+            });
+          }
+
           return NextResponse.json({ 
             connectionStatus: 'ACCEPTED',
             message: 'Connection request accepted'
@@ -84,6 +111,27 @@ export async function POST(
             status: ConnectionStatus.PENDING
           }
         });
+
+        // Create notification for the target user
+        if (requester) {
+          await prisma.notification.create({
+            data: {
+              userId: targetUserId,
+              title: 'New Connection Request',
+              message: `${requester.name} wants to connect with you`,
+              type: 'CUSTOM',
+              data: {
+                connectionId: existingConnection.id,
+                requesterId: session.user.id,
+                requesterName: requester.name,
+                requesterImage: requester.image,
+                type: 'CONNECTION_REQUEST'
+              },
+              isRead: false,
+            }
+          });
+        }
+
         return NextResponse.json({ 
           connectionStatus: 'PENDING',
           message: 'Connection request sent'
@@ -92,13 +140,51 @@ export async function POST(
     }
 
     // Create new connection request
-    await prisma.connection.create({
+    const connection = await prisma.connection.create({
       data: {
         requesterId: session.user.id,
         addresseeId: targetUserId,
         status: ConnectionStatus.PENDING
       }
     });
+
+    // Check if a notification already exists for this connection request
+    const existingNotification = await prisma.notification.findFirst({
+      where: {
+        userId: targetUserId,
+        type: 'CUSTOM',
+        data: {
+          path: ['connectionId'],
+          equals: connection.id
+        },
+        AND: {
+          data: {
+            path: ['type'],
+            equals: 'CONNECTION_REQUEST'
+          }
+        }
+      }
+    });
+
+    // Only create notification if one doesn't already exist
+    if (!existingNotification && requester) {
+      await prisma.notification.create({
+        data: {
+          userId: targetUserId,
+          title: 'New Connection Request',
+          message: `${requester.name} wants to connect with you`,
+          type: 'CUSTOM',
+          data: {
+            connectionId: connection.id,
+            requesterId: session.user.id,
+            requesterName: requester.name,
+            requesterImage: requester.image,
+            type: 'CONNECTION_REQUEST'
+          },
+          isRead: false,
+        }
+      });
+    }
 
     return NextResponse.json({ 
       connectionStatus: 'PENDING',

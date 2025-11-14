@@ -59,6 +59,7 @@ interface CommunityDiscoveryProps {
   onView?: (communityId: string) => void;
   onShare?: (communityId: string) => void;
   onCreateCommunity?: () => void;
+  requestedCommunities?: Set<string>;
 }
 
 export function CommunityDiscovery({ 
@@ -66,7 +67,8 @@ export function CommunityDiscovery({
   onJoin,
   onView,
   onShare,
-  onCreateCommunity
+  onCreateCommunity,
+  requestedCommunities = new Set()
 }: CommunityDiscoveryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -421,6 +423,7 @@ export function CommunityDiscovery({
               onJoin={onJoin}
               onView={onView}
               onShare={onShare}
+              isRequested={requestedCommunities.has(community.id)}
             />
           ))}
         </div>

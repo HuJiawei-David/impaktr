@@ -8,110 +8,112 @@ datasource db {
 }
 
 model User {
-  id                       String                   @id @default(cuid())
-  email                    String                   @unique
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
-  emailVerified            DateTime?
-  image                    String?
-  name                     String?
-  password                 String?
-  bio                      String?
-  country                  String?
-  impactScore              Float                    @default(0) @map("impact_score")
-  lastActivityDate         DateTime?
-  level                    Int                      @default(1)
-  location                 String?
-  longestStreak            Int                      @default(0)
-  streak                   Int                      @default(0)
-  totalPoints              Int                      @default(0)
-  xp                       Int                      @default(0)
-  city                     String?
-  dateOfBirth              DateTime?
-  displayName              String?
-  firstName                String?
-  gender                   String?
-  isPublic                 Boolean                  @default(true)
-  languages                Json?
-  lastName                 String?
-  nationality              String?
-  occupation               String?
-  organization             String?
-  referralCode             String?                  @unique
-  role                     String?                  @default("USER")
-  sdgFocus                 Json?
-  showEmail                Boolean                  @default(false)
-  phone                    String?
-  showProgress             Boolean                  @default(true)
-  allowMessages            Boolean                  @default(true)
-  state                    String?
-  userType                 UserType?                @default(INDIVIDUAL)
-  website                  String?
-  tier                     IndividualRank           @default(HELPER)
-  achievements             Achievement[]
-  activities               Activity[]
-  applications             Application[]
-  backups                  Backup[]
-  restoredBackups          Backup[]                 @relation("RestoredBackups")
-  broadcasts               Broadcast[]
-  certificateTemplates     CertificateTemplate[]
-  challenges               ChallengeParticipant[]
-  comments                 Comment[]
-  createdCommunities       Community[]              @relation("CreatedCommunities")
-  communityMemberships     CommunityMember[]        @relation("CommunityMemberships")
-  communityModerators      CommunityModerator[]     @relation("CommunityModerators")
-  communityPosts           CommunityPost[]          @relation("CommunityPosts")
-  communityPostComments    CommunityPostComment[]   @relation("CommunityPostComments")
-  communityPostLikes       CommunityPostLike[]      @relation("CommunityPostLikes")
-  communityPostCommentLikes CommunityPostCommentLike[] @relation("CommunityPostCommentLikes")
-  communityResources       CommunityResource[]      @relation("CommunityResources")
-  donations                Donation[]
-  emailTemplates           EmailTemplate[]
-  eventBookmarks           EventBookmark[]
-  eventCommentLikes        EventCommentLike[]
-  eventComments            EventComment[]
-  eventImages              EventImage[]
-  following                Follow[]                 @relation("Followers")
-  followers                Follow[]                 @relation("Following")
-  likes                    Like[]
-  receivedMessages         Message[]                @relation("ReceivedMessages")
-  sentMessages             Message[]                @relation("SentMessages")
-  notificationTemplates    NotificationTemplate[]
-  notifications            Notification[]
-  opportunityBookmarks     OpportunityBookmark[]
-  sentInvitations          OrganizationInvitation[]
-  organizationMemberships  OrganizationMember[]
-  participations           Participation[]
-  departmentAccountsOwned  DepartmentAccess[]       @relation("DepartmentAccount")
-  departmentAccessGrants   DepartmentAccess[]       @relation("Grantor")
-  departmentAccesses       DepartmentAccess[]       @relation("IndividualUser")
-  posts                    Post[]
-  rateLimitViolations      RateLimitViolation[]
-  rateLimits               RateLimit[]
-  referralRewards          ReferralReward[]
-  referredBy               Referral[]               @relation("ReferredBy")
-  referrals                Referral[]
-  reports                  Report[]
-  saves                    Save[]
-  scoreHistory             ScoreHistory[]
-  shares                   Share[]
-  supportResponses         SupportResponse[]
-  assignedTickets          SupportTicket[]          @relation("AssignedTickets")
-  supportTickets           SupportTicket[]
-  badges                   UserBadge[]
-  requestedVettingRequests VettingRequest[]         @relation("RequestedVettingRequests")
-  vettingRequests          VettingRequest[]
-  vettingResponses         VettingResponse[]
-  volunteerProfile         VolunteerProfile?
-  organizationPosts        OrganizationPost[]
-  postComments             PostComment[]
-  postReactions            PostReaction[]
-  commentReactions         CommentReaction[]
-  connectionsRequested     Connection[]             @relation("ConnectionsRequested")
-  connectionsReceived      Connection[]             @relation("ConnectionsReceived")
-  userRecommendations      Recommendation[]         @relation("UserRecommendations")
-  authorRecommendations    Recommendation[]         @relation("AuthorRecommendations")
-  certificates             Certificate[]
+  id                           String                     @id @default(cuid())
+  email                        String                     @unique
+  createdAt                    DateTime                   @default(now())
+  updatedAt                    DateTime                   @updatedAt
+  emailVerified                DateTime?
+  image                        String?
+  name                         String?
+  password                     String?
+  bio                          String?
+  country                      String?
+  impactScore                  Float                      @default(0) @map("impact_score")
+  lastActivityDate             DateTime?
+  level                        Int                        @default(1)
+  location                     String?
+  longestStreak                Int                        @default(0)
+  streak                       Int                        @default(0)
+  totalPoints                  Int                        @default(0)
+  xp                           Int                        @default(0)
+  city                         String?
+  dateOfBirth                  DateTime?
+  displayName                  String?
+  firstName                    String?
+  gender                       String?
+  isPublic                     Boolean                    @default(true)
+  languages                    Json?
+  lastName                     String?
+  nationality                  String?
+  occupation                   String?
+  organization                 String?
+  referralCode                 String?                    @unique
+  role                         String?                    @default("USER")
+  sdgFocus                     Json?
+  showEmail                    Boolean                    @default(false)
+  phone                        String?
+  showProgress                 Boolean                    @default(true)
+  allowMessages                Boolean                    @default(true)
+  state                        String?
+  userType                     UserType?                  @default(INDIVIDUAL)
+  website                      String?
+  tier                         IndividualRank             @default(HELPER)
+  achievements                 Achievement[]
+  activities                   Activity[]
+  applications                 Application[]
+  backups                      Backup[]
+  restoredBackups              Backup[]                   @relation("RestoredBackups")
+  broadcasts                   Broadcast[]
+  certificateTemplates         CertificateTemplate[]
+  challenges                   ChallengeParticipant[]
+  comments                     Comment[]
+  createdCommunities           Community[]                @relation("CreatedCommunities")
+  communityMemberships         CommunityMember[]          @relation("CommunityMemberships")
+  communityModerators          CommunityModerator[]       @relation("CommunityModerators")
+  communityPosts               CommunityPost[]            @relation("CommunityPosts")
+  communityPostComments        CommunityPostComment[]     @relation("CommunityPostComments")
+  communityPostLikes           CommunityPostLike[]        @relation("CommunityPostLikes")
+  communityPostCommentLikes    CommunityPostCommentLike[] @relation("CommunityPostCommentLikes")
+  communityResources           CommunityResource[]        @relation("CommunityResources")
+  donations                    Donation[]
+  emailTemplates               EmailTemplate[]
+  eventBookmarks               EventBookmark[]
+  eventCommentLikes            EventCommentLike[]
+  eventComments                EventComment[]
+  eventImages                  EventImage[]
+  following                    Follow[]                   @relation("Followers")
+  followers                    Follow[]                   @relation("Following")
+  likes                        Like[]
+  receivedMessages             Message[]                  @relation("ReceivedMessages")
+  sentMessages                 Message[]                  @relation("SentMessages")
+  notificationTemplates        NotificationTemplate[]
+  notifications                Notification[]
+  opportunityBookmarks         OpportunityBookmark[]
+  sentInvitations              OrganizationInvitation[]
+  sentCommunityInvitations     CommunityInvitation[]      @relation("SentCommunityInvitations")
+  organizationMemberships      OrganizationMember[]
+  participations               Participation[]
+  departmentAccountsOwned      DepartmentAccess[]         @relation("DepartmentAccount")
+  departmentAccessGrants       DepartmentAccess[]         @relation("Grantor")
+  departmentAccesses           DepartmentAccess[]         @relation("IndividualUser")
+  posts                        Post[]
+  rateLimitViolations          RateLimitViolation[]
+  rateLimits                   RateLimit[]
+  referralRewards              ReferralReward[]
+  referredBy                   Referral[]                 @relation("ReferredBy")
+  referrals                    Referral[]
+  reports                      Report[]
+  saves                        Save[]
+  scoreHistory                 ScoreHistory[]
+  shares                       Share[]
+  supportResponses             SupportResponse[]
+  assignedTickets              SupportTicket[]            @relation("AssignedTickets")
+  supportTickets               SupportTicket[]
+  badges                       UserBadge[]
+  requestedVettingRequests     VettingRequest[]           @relation("RequestedVettingRequests")
+  vettingRequests              VettingRequest[]
+  vettingResponses             VettingResponse[]
+  volunteerProfile             VolunteerProfile?
+  organizationPosts            OrganizationPost[]
+  postComments                 PostComment[]
+  postReactions                PostReaction[]
+  commentReactions             CommentReaction[]
+  connectionsRequested         Connection[]               @relation("ConnectionsRequested")
+  connectionsReceived          Connection[]               @relation("ConnectionsReceived")
+  userRecommendations          Recommendation[]           @relation("UserRecommendations")
+  authorRecommendations        Recommendation[]           @relation("AuthorRecommendations")
+  certificates                 Certificate[]
+  receivedCommunityInvitations CommunityInvitation[]      @relation("ReceivedCommunityInvitations")
 
   @@map("users")
 }
@@ -1409,6 +1411,7 @@ model Community {
   moderators    CommunityModerator[]
   posts         CommunityPost[]
   resources     CommunityResource[]
+  invitations   CommunityInvitation[]
 
   @@index([category])
   @@index([privacy])
@@ -1471,19 +1474,19 @@ model CommunityPostLike {
 }
 
 model CommunityPostComment {
-  id        String                    @id @default(cuid())
+  id        String   @id @default(cuid())
   postId    String
   userId    String
-  content   String                    @db.Text
+  content   String   @db.Text
   parentId  String? // For nested replies
-  likes     Int                       @default(0)
-  createdAt DateTime                  @default(now())
-  updatedAt DateTime                  @updatedAt
+  likes     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  post    CommunityPost              @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user    User                       @relation("CommunityPostComments", fields: [userId], references: [id], onDelete: Cascade)
-  parent  CommunityPostComment?       @relation("CommunityPostCommentReplies", fields: [parentId], references: [id])
-  replies CommunityPostComment[]      @relation("CommunityPostCommentReplies")
+  post         CommunityPost              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user         User                       @relation("CommunityPostComments", fields: [userId], references: [id], onDelete: Cascade)
+  parent       CommunityPostComment?      @relation("CommunityPostCommentReplies", fields: [parentId], references: [id])
+  replies      CommunityPostComment[]     @relation("CommunityPostCommentReplies")
   commentLikes CommunityPostCommentLike[]
 
   @@index([postId])
@@ -1533,6 +1536,31 @@ model CommunityResource {
 
   @@index([communityId])
   @@map("community_resources")
+}
+
+model CommunityInvitation {
+  id          String    @id @default(cuid())
+  communityId String
+  userId      String? // If null, invitation is by email
+  email       String? // If null, invitation is by user ID
+  invitedBy   String
+  status      String    @default("PENDING") // PENDING, ACCEPTED, REJECTED, EXPIRED
+  token       String    @unique
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  inviter     User      @relation("SentCommunityInvitations", fields: [invitedBy], references: [id], onDelete: Cascade)
+  invitedUser User?     @relation("ReceivedCommunityInvitations", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@unique([communityId, email])
+  @@index([token])
+  @@index([status])
+  @@index([communityId])
+  @@index([userId])
+  @@index([email])
+  @@map("community_invitations")
 }
 
 enum UserType {

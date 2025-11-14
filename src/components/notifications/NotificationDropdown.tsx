@@ -20,7 +20,7 @@ import { useSocket } from '@/components/providers/SocketProvider';
 
 interface Notification {
   id: string;
-  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined' | 'connection_request' | 'certificate_issued';
+  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined' | 'connection_request' | 'certificate_issued' | 'community_join_request' | 'message';
   title: string;
   message: string;
   read: boolean;
@@ -37,6 +37,11 @@ interface Notification {
     eventTitle?: string;
     impactScore?: number;
     scoreIncrease?: number;
+    communityId?: string;
+    communityName?: string;
+    notificationType?: string;
+    senderId?: string;
+    messageId?: string;
   };
 }
 
@@ -200,6 +205,34 @@ export function NotificationDropdown() {
     }
   };
 
+  const handleDismissNotification = async (notificationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      // Delete the notification from database
+      const response = await fetch(`/api/notifications?id=${notificationId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove from UI
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } else {
+        // If delete fails, just mark as read
+        await markAsRead(notificationId);
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
+      // Fallback: mark as read
+      await markAsRead(notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+  };
+
   const handleAcceptConnection = async (connectionId: string, notificationId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setProcessingConnection(connectionId);
@@ -296,6 +329,10 @@ export function NotificationDropdown() {
         return <AlertCircle className="w-4 h-4 text-orange-500" />;
       case 'certificate_issued':
         return <Award className="w-4 h-4 text-yellow-500" />;
+      case 'community_join_request':
+        return <UserCheck className="w-4 h-4 text-blue-500" />;
+      case 'message':
+        return <Bell className="w-4 h-4 text-blue-500" />;
       default:
         return <Bell className="w-4 h-4 text-gray-500" />;
     }
@@ -358,6 +395,17 @@ export function NotificationDropdown() {
               const requesterImage = notification.data?.requesterImage;
               const requesterName = notification.data?.requesterName;
               
+              // Check if this is a community join request
+              const isCommunityJoinRequest = notification.type === 'community_join_request' ||
+                                            notification.data?.notificationType === 'COMMUNITY_JOIN_REQUEST' ||
+                                            notification.title?.toLowerCase().includes('join request');
+              const communityId = notification.data?.communityId;
+              const communityName = notification.data?.communityName;
+              
+              // Check if this is a connection accepted notification
+              const isConnectionAccepted = notification.data?.notificationType === 'CONNECTION_ACCEPTED' ||
+                                          notification.title?.toLowerCase().includes('connection request accepted');
+              
               // Check if this is a certificate confirmation notification
               // Make sure data exists and is an object
               const notificationData = notification.data && typeof notification.data === 'object' ? notification.data : null;
@@ -398,20 +446,44 @@ export function NotificationDropdown() {
                 });
               }
               
+              const isMessageNotification = notification.type === 'message';
+              const hasActionUrl = notification.actionUrl || (isMessageNotification && notification.data?.senderId);
+              
               return (
                 <div
                   key={notification.id}
+                  onClick={() => {
+                    if (isCommunityJoinRequest && communityId) {
+                      router.push(`/community/${communityId}?tab=requests`);
+                      setIsOpen(false);
+                    } else if (isMessageNotification && notification.data?.senderId) {
+                      router.push(`/messages?userId=${notification.data.senderId}`);
+                      setIsOpen(false);
+                      if (!notification.read) {
+                        markAsRead(notification.id);
+                      }
+                    } else if (notification.actionUrl) {
+                      router.push(notification.actionUrl);
+                      setIsOpen(false);
+                      if (!notification.read) {
+                        markAsRead(notification.id);
+                      }
+                    }
+                  }}
                   className={`p-3 border-b border-border/50 last:border-0 ${
                     !notification.read ? 'bg-blue-50/50 dark:bg-blue-950/20' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
-                  }`}
+                  } ${hasActionUrl ? 'cursor-pointer' : ''}`}
                 >
                   <div className="flex items-start gap-3">
-                    {/* Avatar for connection requests, icon for others */}
-                    {isConnectionRequest && requesterImage !== undefined ? (
+                    {/* Avatar for connection requests and community join requests, icon for others */}
+                    {(isConnectionRequest || isCommunityJoinRequest) && requesterImage !== undefined ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (requesterId) {
+                          if (isCommunityJoinRequest && communityId) {
+                            router.push(`/community/${communityId}?tab=requests`);
+                            setIsOpen(false);
+                          } else if (requesterId) {
                             router.push(`/profile/${requesterId}`);
                             setIsOpen(false);
                           }
@@ -434,9 +506,18 @@ export function NotificationDropdown() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {notification.title}
-                          </p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {notification.title}
+                            </p>
+                            <button
+                              onClick={(e) => handleDismissNotification(notification.id, e)}
+                              className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              aria-label="Dismiss notification"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                             {isConnectionRequest && requesterName ? (
                               <>
@@ -454,6 +535,34 @@ export function NotificationDropdown() {
                                 </button>
                                 {' wants to connect with you'}
                               </>
+                            ) : isCommunityJoinRequest && requesterName && communityName ? (
+                              <>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (communityId) {
+                                      router.push(`/community/${communityId}?tab=requests`);
+                                      setIsOpen(false);
+                                    }
+                                  }}
+                                  className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                                >
+                                  {requesterName}
+                                </button>
+                                {' wants to join '}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (communityId) {
+                                      router.push(`/community/${communityId}?tab=requests`);
+                                      setIsOpen(false);
+                                    }
+                                  }}
+                                  className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                                >
+                                  {communityName}
+                                </button>
+                              </>
                             ) : (
                               notification.message
                             )}
@@ -462,7 +571,7 @@ export function NotificationDropdown() {
                             {formatTimeAgo(notification.createdAt)}
                           </p>
                         </div>
-                        {!notification.read && !isConnectionRequest && (
+                        {!notification.read && !isConnectionRequest && !isCommunityJoinRequest && (
                           <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 mt-1" />
                         )}
                       </div>

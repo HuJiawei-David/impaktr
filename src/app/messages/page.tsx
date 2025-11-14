@@ -426,7 +426,7 @@ export default function MessagesPage() {
                               {getMessagePreview(conversation.lastMessage)}
                             </p>
                             {conversation.unreadCount > 0 && (
-                              <Badge variant="default" className="ml-2 text-xs">
+                              <Badge variant="default" className="ml-2 text-xs bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
                                 {conversation.unreadCount}
                               </Badge>
                             )}

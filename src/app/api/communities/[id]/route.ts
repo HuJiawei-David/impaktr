@@ -138,6 +138,9 @@ export async function GET(
       }
     });
 
+    // Map privacy enum to isPublic boolean
+    const isPublic = community.privacy === 'PUBLIC';
+
     return NextResponse.json({
       community: {
         ...community,
@@ -148,6 +151,7 @@ export async function GET(
         userRole: userMembership?.role || null,
         isModerator: !!userModeration,
         moderatorRole: userModeration?.role || null,
+        isPublic,
         _count: undefined,
       }
     });

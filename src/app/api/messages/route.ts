@@ -180,7 +180,9 @@ export async function POST(request: NextRequest) {
           data: {
             messageId: message.id,
             senderId: session.user.id,
-          }
+            actionUrl: `/messages?userId=${session.user.id}`
+          },
+          isRead: false,
         }
       });
 
@@ -232,7 +234,9 @@ export async function POST(request: NextRequest) {
         data: {
           messageId: message.id,
           senderId: session.user.id,
-        }
+          actionUrl: `/messages?userId=${session.user.id}`
+        },
+        isRead: false,
       }
     });
 

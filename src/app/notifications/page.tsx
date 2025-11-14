@@ -13,7 +13,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface Notification {
   id: string;
-  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined' | 'connection_request' | 'certificate_issued';
+  type: 'badge_earned' | 'event_reminder' | 'verification_needed' | 'rank_up' | 'event_joined' | 'connection_request' | 'certificate_issued' | 'message';
   title: string;
   message: string;
   read: boolean;
@@ -30,6 +30,8 @@ interface Notification {
     eventTitle?: string;
     impactScore?: number;
     scoreIncrease?: number;
+    senderId?: string;
+    messageId?: string;
   };
 }
 
@@ -114,6 +116,37 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleDismissNotification = async (notificationId: string) => {
+    try {
+      // Delete the notification from database
+      const response = await fetch(`/api/notifications?id=${notificationId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        // Remove from UI
+        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        fetchNotifications();
+      } else {
+        // If delete fails, try to mark as read
+        const markResponse = await fetch('/api/notifications', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'mark_read',
+            notificationIds: [notificationId]
+          })
+        });
+        if (markResponse.ok) {
+          setNotifications(prev => prev.filter(n => n.id !== notificationId));
+          fetchNotifications();
+        }
+      }
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
+    }
+  };
+
   const handleConfirmCertificate = async (certificateId: string, notificationId: string) => {
     setProcessingCertificate(certificateId);
     
@@ -141,6 +174,8 @@ export default function NotificationsPage() {
     switch (type) {
       case 'badge_earned':
         return <Award className="w-5 h-5 text-green-500" />;
+      case 'message':
+        return <Bell className="w-5 h-5 text-blue-500" />;
       case 'rank_up':
         return <Award className="w-5 h-5 text-purple-500" />;
       case 'event_reminder':
@@ -202,8 +237,34 @@ export default function NotificationsPage() {
               const eventTitle = notification.data?.eventTitle;
               const scoreIncrease = notification.data?.scoreIncrease;
               
+              const isMessageNotification = notification.type === 'message';
+              const hasActionUrl = notification.actionUrl || isMessageNotification;
+              
               return (
-                <Card key={notification.id} className={`${!notification.read ? 'border-l-4 border-l-blue-600' : ''}`}>
+                <Card 
+                  key={notification.id} 
+                  className={`${!notification.read ? 'border-l-4 border-l-blue-600' : ''} ${hasActionUrl ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors' : ''}`}
+                  onClick={() => {
+                    if (hasActionUrl) {
+                      if (isMessageNotification && notification.data?.senderId) {
+                        router.push(`/messages?userId=${notification.data.senderId}`);
+                      } else if (notification.actionUrl) {
+                        router.push(notification.actionUrl);
+                      }
+                      // Mark as read when clicked
+                      if (!notification.read) {
+                        fetch('/api/notifications', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: 'mark_read',
+                            notificationIds: [notification.id]
+                          })
+                        }).then(() => fetchNotifications());
+                      }
+                    }
+                  }}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
                       {/* Avatar for connection requests, icon for others */}
@@ -232,9 +293,18 @@ export default function NotificationsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {notification.title}
-                            </h3>
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {notification.title}
+                              </h3>
+                              <button
+                                onClick={() => handleDismissNotification(notification.id)}
+                                className="flex-shrink-0 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                aria-label="Dismiss notification"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                               {isConnectionRequest && requesterName ? (
                                 <>

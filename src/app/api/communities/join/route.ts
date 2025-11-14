@@ -54,10 +54,44 @@ export async function POST(request: NextRequest) {
 
     // Check privacy settings
     if (community.privacy === 'INVITE_ONLY') {
+      // Check if user has a pending invitation
+      const pendingInvitation = await prisma.communityInvitation.findFirst({
+        where: {
+          communityId,
+          userId: session.user.id,
+          status: 'PENDING',
+          expiresAt: { gt: new Date() }
+        }
+      });
+
+      if (!pendingInvitation) {
+        return NextResponse.json(
+          { error: 'This community is invite-only. You need an invitation to join.' },
+          { status: 403 }
+        );
+      }
+      // If invitation exists, allow join (invitation will be marked as accepted in the join process)
+    }
+
+    if (community.privacy === 'PRIVATE') {
       return NextResponse.json(
-        { error: 'This community is invite-only' },
+        { error: 'This community is private. Please request to join instead.' },
         { status: 403 }
       );
+    }
+
+    // If INVITE_ONLY, mark invitation as accepted
+    if (community.privacy === 'INVITE_ONLY') {
+      await prisma.communityInvitation.updateMany({
+        where: {
+          communityId,
+          userId: session.user.id,
+          status: 'PENDING'
+        },
+        data: {
+          status: 'ACCEPTED'
+        }
+      });
     }
 
     // Create membership

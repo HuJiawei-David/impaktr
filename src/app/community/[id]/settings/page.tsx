@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
@@ -18,7 +18,8 @@ import {
   Star,
   MessageCircle,
   UserPlus,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ParticipantMessageDialog } from '@/components/messages/ParticipantMessageDialog';
 
 interface CommunityData {
   id: string;
@@ -91,6 +93,14 @@ export default function CommunitySettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('profile');
+  const [connectionStates, setConnectionStates] = useState<Map<string, 'none' | 'pending' | 'connected'>>(new Map());
+  const [connectionLoading, setConnectionLoading] = useState<Map<string, boolean>>(new Map());
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedMessageParticipant, setSelectedMessageParticipant] = useState<{
+    id: string;
+    name: string | null;
+    image: string | null;
+  } | null>(null);
 
   // Check for tab query parameter
   useEffect(() => {
@@ -122,6 +132,104 @@ export default function CommunitySettingsPage() {
       fetchMembers();
     }
   }, [activeTab, communityData]);
+
+  // Fetch connection statuses for members
+  const fetchConnectionStatuses = useCallback(async () => {
+    if (!session?.user?.id || !members || members.length === 0) return;
+
+    try {
+      const memberIds = members
+        .filter(m => m.user.id !== session.user.id)
+        .map(m => m.user.id);
+
+      if (memberIds.length === 0) return;
+
+      // Fetch all connections for the current user
+      const response = await fetch('/api/users/connections');
+      if (response.ok) {
+        const data = await response.json();
+        const connections = data.connections || [];
+        
+        // Create a map of connection statuses
+        const statusMap = new Map<string, 'none' | 'pending' | 'connected'>();
+        
+        memberIds.forEach(memberId => {
+          const connection = connections.find((conn: { requesterId: string; addresseeId: string; status: string }) => 
+            (conn.requesterId === session.user.id && conn.addresseeId === memberId) ||
+            (conn.requesterId === memberId && conn.addresseeId === session.user.id)
+          );
+          
+          if (connection) {
+            if (connection.status === 'ACCEPTED') {
+              statusMap.set(memberId, 'connected');
+            } else if (connection.status === 'PENDING') {
+              // Check if current user is the requester
+              statusMap.set(memberId, connection.requesterId === session.user.id ? 'pending' : 'none');
+            } else {
+              statusMap.set(memberId, 'none');
+            }
+          } else {
+            statusMap.set(memberId, 'none');
+          }
+        });
+        
+        setConnectionStates(statusMap);
+      }
+    } catch (err) {
+      console.error('Error fetching connection statuses:', err);
+    }
+  }, [session, members]);
+
+  // Fetch connection statuses when members change
+  useEffect(() => {
+    if (activeTab === 'members' && members.length > 0) {
+      fetchConnectionStatuses();
+    }
+  }, [activeTab, members, fetchConnectionStatuses]);
+
+  const handleConnect = async (memberId: string) => {
+    if (!session?.user?.id) return;
+
+    try {
+      setConnectionLoading(prev => new Map(prev).set(memberId, true));
+      
+      const response = await fetch(`/api/users/${memberId}/connect`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to manage connection');
+      }
+
+      const data = await response.json();
+      
+      // Update connection state
+      if (data.connectionStatus === 'PENDING') {
+        setConnectionStates(prev => new Map(prev).set(memberId, 'pending'));
+        toast.success('Connection request sent!');
+      } else if (data.connectionStatus === 'ACCEPTED') {
+        setConnectionStates(prev => new Map(prev).set(memberId, 'connected'));
+        toast.success('Connection request accepted!');
+      } else if (data.connectionStatus === null) {
+        setConnectionStates(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(memberId);
+          return newMap;
+        });
+        toast.success('Connection request cancelled');
+      }
+    } catch (err) {
+      console.error('Error managing connection:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to manage connection');
+    } finally {
+      setConnectionLoading(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(memberId);
+        return newMap;
+      });
+    }
+  };
 
   const fetchCommunityData = async () => {
     try {
@@ -669,7 +777,7 @@ export default function CommunitySettingsPage() {
                   <div className="flex gap-4">
                     <div className="flex-1">
                       <Input
-                        placeholder={`Search ${membersTab === 'members' ? 'members' : 'admins'} by name or email...`}
+                        placeholder={`Search ${membersTab === 'members' ? 'members' : 'admins'} by name...`}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full"
@@ -698,8 +806,7 @@ export default function CommunitySettingsPage() {
                         if (searchQuery) {
                           const query = searchQuery.toLowerCase();
                           filteredMembers = filteredMembers.filter(m =>
-                            m.user.name?.toLowerCase().includes(query) ||
-                            m.user.email?.toLowerCase().includes(query)
+                            m.user.name?.toLowerCase().includes(query)
                           );
                         }
 
@@ -730,64 +837,101 @@ export default function CommunitySettingsPage() {
 
                         return filteredMembers.map((member) => (
                           <Card key={member.id} className="hover:shadow-md transition-shadow">
-                            <CardContent className="p-4">
+                            <CardContent className="p-6">
                               <div className="flex items-center justify-between">
+                                {/* Member Info */}
                                 <div className="flex items-center space-x-4">
-                                  <Avatar className="w-12 h-12">
-                                    <AvatarImage src={member.user.image || undefined} />
-                                    <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                                      {member.user.name?.charAt(0) || 'U'}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-semibold">{member.user.name}</h4>
+                                  <div className="cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all rounded-full">
+                                    <Avatar className="w-14 h-14">
+                                      <AvatarImage 
+                                        src={member.user.image || undefined} 
+                                        alt={member.user.name || 'User'} 
+                                      />
+                                      <AvatarFallback className="text-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                                        {member.user.name?.charAt(0) || 'U'}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                      <h3 className="font-semibold hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer">
+                                        {member.user.name}
+                                      </h3>
+                                      <Badge className="text-xs px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                                        {member.user.tier}
+                                      </Badge>
                                       {member.role === 'OWNER' && (
-                                        <Badge className="text-xs px-3 py-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0 font-semibold">
+                                        <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-0 text-xs px-3 py-1 font-semibold">
                                           <Star className="w-3 h-3 mr-1 fill-current" />
                                           Owner
                                         </Badge>
                                       )}
                                       {member.role === 'ADMIN' && (
-                                        <Badge className="text-xs px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 font-semibold">
+                                        <Badge className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 text-xs px-3 py-1 font-semibold">
                                           Admin
                                         </Badge>
                                       )}
-                                      {member.role === 'MODERATOR' && (
-                                        <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs px-2 py-0.5">
-                                          Moderator
-                                        </Badge>
-                                      )}
-                                      {member.role === 'MEMBER' && (
-                                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs px-2 py-0.5">
-                                          Member
-                                        </Badge>
-                                      )}
-                                      <Badge variant="outline" className="text-xs">
-                                        {member.user.tier}
-                                      </Badge>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">{member.user.email}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      Joined {new Date(member.joinedAt).toLocaleDateString()}
-                                    </p>
+                                    
+                                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                                      <div className="flex items-center">
+                                        <Star className="w-4 h-4 mr-1" />
+                                        <span>Score: {member.user.impactScore.toLocaleString()}</span>
+                                      </div>
+                                      <div className="text-muted-foreground">
+                                        Joined {new Date(member.joinedAt).toLocaleDateString('en-US', { 
+                                          month: 'long', 
+                                          day: 'numeric',
+                                          year: 'numeric' 
+                                        })}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
 
                                 {/* Actions */}
                                 <div className="flex items-center gap-2">
+                                  {connectionStates.get(member.user.id) === 'connected' ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex items-center h-10 px-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700"
+                                      disabled
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-2" />
+                                      Connected
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleConnect(member.user.id)}
+                                      disabled={connectionLoading.get(member.user.id)}
+                                      className={`flex items-center h-10 px-4 ${
+                                        connectionStates.get(member.user.id) === 'pending'
+                                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                          : ''
+                                      }`}
+                                    >
+                                      <UserPlus className="w-4 h-4 mr-2" />
+                                      {connectionLoading.get(member.user.id) 
+                                        ? 'Processing...' 
+                                        : connectionStates.get(member.user.id) === 'pending'
+                                        ? 'Requested'
+                                        : 'Connect'}
+                                    </Button>
+                                  )}
                                   <Button
-                                    variant="outline"
                                     size="sm"
-                                    onClick={() => router.push(`/profile/${member.user.id}`)}
-                                    className="flex items-center h-10 px-4"
-                                  >
-                                    <UserPlus className="w-4 h-4 mr-2" />
-                                    Connect
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => router.push(`/messages?userId=${member.user.id}`)}
+                                    onClick={() => {
+                                      setSelectedMessageParticipant({
+                                        id: member.user.id,
+                                        name: member.user.name,
+                                        image: member.user.image || null
+                                      });
+                                      setMessageDialogOpen(true);
+                                    }}
                                     className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 h-10 px-4"
                                   >
                                     <MessageCircle className="w-4 h-4 mr-2" />
@@ -920,6 +1064,21 @@ export default function CommunitySettingsPage() {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* Invitations Section - Only for INVITE_ONLY communities */}
+              {communityData?.privacy === 'INVITE_ONLY' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <UserPlus className="w-6 h-6 mr-2" />
+                      Send Invitations
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <InvitationsSection communityId={communityId} />
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
@@ -997,6 +1156,229 @@ export default function CommunitySettingsPage() {
         variant="destructive"
         icon="trash"
       />
+
+      {/* Message Dialog */}
+      <ParticipantMessageDialog
+        participant={selectedMessageParticipant ? {
+          id: selectedMessageParticipant.id,
+          name: selectedMessageParticipant.name || 'Unknown User',
+          image: selectedMessageParticipant.image || undefined
+        } : null}
+        open={messageDialogOpen}
+        onOpenChange={setMessageDialogOpen}
+        currentUserId={session?.user?.id}
+      />
+    </div>
+  );
+}
+
+// Invitations Section Component
+function InvitationsSection({ communityId }: { communityId: string }) {
+  const [inviteType, setInviteType] = useState<'user' | 'email'>('user');
+  const [userId, setUserId] = useState('');
+  const [email, setEmail] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; email: string; image: string | null }>>([]);
+  const [sending, setSending] = useState(false);
+  const [invitations, setInvitations] = useState<Array<{
+    id: string;
+    userId: string | null;
+    email: string | null;
+    status: string;
+    expiresAt: string;
+    invitedUser: { id: string; name: string; email: string; image: string | null } | null;
+  }>>([]);
+  const [loadingInvitations, setLoadingInvitations] = useState(false);
+
+  useEffect(() => {
+    fetchInvitations();
+  }, [communityId]);
+
+  const fetchInvitations = async () => {
+    setLoadingInvitations(true);
+    try {
+      // We'll create a GET endpoint for this later, for now just show empty
+      setInvitations([]);
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+    } finally {
+      setLoadingInvitations(false);
+    }
+  };
+
+  const searchUsers = async (query: string) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
+    }
+  };
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (inviteType === 'user' && searchQuery) {
+        searchUsers(searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(debounce);
+  }, [searchQuery, inviteType]);
+
+  const handleSendInvitation = async () => {
+    if (inviteType === 'user' && !userId) {
+      toast.error('Please select a user');
+      return;
+    }
+    if (inviteType === 'email' && !email) {
+      toast.error('Please enter an email address');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const response = await fetch(`/api/communities/${communityId}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: inviteType === 'user' ? userId : undefined,
+          email: inviteType === 'email' ? email : undefined
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to send invitation');
+      }
+
+      toast.success('Invitation sent successfully!');
+      setUserId('');
+      setEmail('');
+      setSearchQuery('');
+      setSearchResults([]);
+      fetchInvitations();
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to send invitation');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-4">
+        <div>
+          <Label>Invite Type</Label>
+          <Select value={inviteType} onValueChange={(value: 'user' | 'email') => setInviteType(value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="user">Invite by User</SelectItem>
+              <SelectItem value="email">Invite by Email</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {inviteType === 'user' ? (
+          <div className="space-y-2">
+            <Label>Search User</Label>
+            <Input
+              placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchResults.length > 0 && (
+              <div className="border rounded-lg max-h-60 overflow-y-auto">
+                {searchResults.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => {
+                      setUserId(user.id);
+                      setSearchQuery(user.name || user.email);
+                      setSearchResults([]);
+                    }}
+                    className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex items-center gap-3"
+                  >
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={user.image || undefined} />
+                      <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-sm text-gray-500">{user.email}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label>Email Address</Label>
+            <Input
+              type="email"
+              placeholder="user@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+        )}
+
+        <Button
+          onClick={handleSendInvitation}
+          disabled={sending || (inviteType === 'user' && !userId) || (inviteType === 'email' && !email)}
+          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+        >
+          <UserPlus className="w-4 h-4 mr-2" />
+          {sending ? 'Sending...' : 'Send Invitation'}
+        </Button>
+      </div>
+
+      {loadingInvitations ? (
+        <div className="text-center py-4">
+          <LoadingSpinner />
+        </div>
+      ) : invitations.length > 0 ? (
+        <div className="mt-6 space-y-2">
+          <h4 className="font-semibold">Pending Invitations</h4>
+          <div className="space-y-2">
+            {invitations.map((invitation) => (
+              <div key={invitation.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  {invitation.invitedUser ? (
+                    <>
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={invitation.invitedUser.image || undefined} />
+                        <AvatarFallback>{invitation.invitedUser.name?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{invitation.invitedUser.name}</p>
+                        <p className="text-sm text-gray-500">{invitation.invitedUser.email}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="font-medium">{invitation.email}</p>
+                      <p className="text-sm text-gray-500">Pending signup</p>
+                    </div>
+                  )}
+                </div>
+                <Badge variant={invitation.status === 'PENDING' ? 'default' : 'secondary'}>
+                  {invitation.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
